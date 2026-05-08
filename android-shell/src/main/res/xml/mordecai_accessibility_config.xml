@@ -5,7 +5,7 @@
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
-    android:flags="flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
     android:interactiveUiTimeout="5000"
     android:nonInteractiveUiTimeout="5000"
     android:notificationTimeout="100"

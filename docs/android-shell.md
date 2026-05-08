@@ -55,3 +55,4 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - the shell supervises the existing backend contract rather than replacing it with an embedded Python runtime
 - Android automation remains bound by the backend policy layer and only becomes available when advanced mode is explicitly enabled
 - local APK validation still depends on a configured Android SDK; without `ANDROID_HOME` or `local.properties`, `assembleDebug` cannot run on this machine
+- accessibility service metadata now uses `android:accessibilityFlags` in `mordecai_accessibility_config.xml`, matching Android resource-link requirements in CI
