@@ -81,6 +81,8 @@ Candidate proposal, sandbox execution, promotion, rollback, observability, and t
 - `android-shell/` contains the native Android shell that supervises the localhost backend, foreground lifecycle, wake phrase listening, and root-gated advanced mode toggles.
 - `.github/workflows/` provides CI, documentation sync enforcement, and debug-bundle automation.
 
+Workflow actions should stay on supported major versions so runner-runtime changes do not create avoidable CI churn.
+
 ## Architectural boundaries that must hold
 
 - `src/mordecai/policy.py`, `src/mordecai/proxy.py`, `src/mordecai/self_improvement.py`, `src/mordecai/config.py`, and `prompts/system_prompt.txt` remain protected from self-modification.

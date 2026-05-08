@@ -197,6 +197,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 - Android SDK provisioning in CI now uses `android-actions/setup-android@v4` package installation directly, which avoids the fragile manual `sdkmanager --licenses` pipe.
 - Linux CI jobs now also force `chmod +x ./gradlew`, and the repository tracks `gradlew` as executable so wrapper-based Android builds survive Windows-authored commits.
 - The Android shell module now declares the AndroidX lifecycle service dependency required by the foreground supervision service.
+- Workflow dependencies now track current major versions for artifact uploads and CodeQL so Node 24 migration warnings do not accumulate in CI.
 - GitHub Actions now runs a documentation sync gate before test execution.
 - Every CI run uploads debug artifacts including pytest output, JUnit XML, Python version, and `pip freeze`.
 - Manual deep triage is available through `.github/workflows/debug-smoke.yml`, which now also captures Android build output and uploads the debug APK when available.

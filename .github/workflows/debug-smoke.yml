@@ -61,14 +61,14 @@ jobs:
           find . -maxdepth 3 -type f | sort >> debug-bundle/tree.txt
 
       - name: Upload debug bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mordecai-debug-bundle
           path: debug-bundle/
           if-no-files-found: error
 
       - name: Upload Android shell APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mordecai-android-shell-debug-apk
           path: android-shell/build/outputs/apk/debug/*.apk
