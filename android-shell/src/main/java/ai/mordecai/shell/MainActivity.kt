@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -16,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import ai.mordecai.shell.accessibility.MordecaiAccessibilityService
 import ai.mordecai.shell.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
 
@@ -81,6 +83,12 @@ class MainActivity : AppCompatActivity() {
         binding.buttonOpenTermux.setOnClickListener {
             openTermux()
         }
+        binding.buttonAccessibilitySettings.setOnClickListener {
+            openAccessibilitySettings()
+        }
+        binding.buttonNotificationSettings.setOnClickListener {
+            openNotificationSettings()
+        }
 
         binding.switchService.setOnCheckedChangeListener { _, checked ->
             if (checked) {
@@ -113,6 +121,19 @@ class MainActivity : AppCompatActivity() {
         binding.switchAutoStart.setOnCheckedChangeListener { _, checked ->
             prefs.edit().putBoolean(MordecaiShellService.PREF_AUTO_START, checked).apply()
         }
+
+        binding.switchOverlay.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(MordecaiShellService.PREF_LOCKSCREEN_OVERLAY, checked).apply()
+            val connected = MordecaiAccessibilityService.refreshOverlay(this)
+            if (checked && !MordecaiAccessibilityService.isEnabled(this)) {
+                toast(getString(R.string.accessibility_required_message))
+                openAccessibilitySettings()
+                return@setOnCheckedChangeListener
+            }
+            if (connected) {
+                toast(getString(R.string.overlay_sync_complete))
+            }
+        }
     }
 
     private fun refreshStatus() {
@@ -120,10 +141,16 @@ class MainActivity : AppCompatActivity() {
         val rooted = rootDetector.isRootAvailable()
         binding.textTermuxStatus.text = if (termuxInstalled) getString(R.string.termux_detected) else getString(R.string.termux_missing)
         binding.textRootStatus.text = if (rooted) getString(R.string.root_available) else getString(R.string.root_unavailable)
+        binding.textAccessibilityStatus.text = if (MordecaiAccessibilityService.isEnabled(this)) {
+            getString(R.string.accessibility_enabled)
+        } else {
+            getString(R.string.accessibility_disabled)
+        }
         binding.switchAdvanced.isEnabled = rooted
         binding.switchService.isChecked = prefs.getBoolean(MordecaiShellService.PREF_SERVICE_ENABLED, false)
         binding.switchWake.isChecked = prefs.getBoolean(MordecaiShellService.PREF_WAKE_ENABLED, false)
         binding.switchAutoStart.isChecked = prefs.getBoolean(MordecaiShellService.PREF_AUTO_START, true)
+        binding.switchOverlay.isChecked = prefs.getBoolean(MordecaiShellService.PREF_LOCKSCREEN_OVERLAY, true)
         binding.switchAdvanced.isChecked = prefs.getBoolean(MordecaiShellService.PREF_ADVANCED_ENABLED, false) && rooted
 
         lifecycleScope.launch {
@@ -190,6 +217,23 @@ class MainActivity : AppCompatActivity() {
         } catch (_: ActivityNotFoundException) {
             toast(getString(R.string.termux_missing))
         }
+    }
+
+    private fun openAccessibilitySettings() {
+        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+    }
+
+    private fun openNotificationSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            }
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+        }
+        startActivity(intent)
     }
 
     private fun toast(message: String) {

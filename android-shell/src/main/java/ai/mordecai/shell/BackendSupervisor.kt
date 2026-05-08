@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import java.io.OutputStreamWriter
+import org.json.JSONArray
 import org.json.JSONObject
 
 class BackendSupervisor(
@@ -29,6 +30,7 @@ class BackendSupervisor(
     }
 
     data class ChatSnapshot(val ok: Boolean, val reply: String, val provider: String, val error: String? = null)
+    data class AvatarSnapshot(val ok: Boolean, val emotion: String, val svg: String?, val error: String? = null)
 
     suspend fun chat(message: String): ChatSnapshot = withContext(Dispatchers.IO) {
         try {
@@ -56,6 +58,36 @@ class BackendSupervisor(
             )
         } catch (error: Exception) {
             ChatSnapshot(false, "", "", error.message ?: "Backend unavailable")
+        }
+    }
+
+    suspend fun avatar(): AvatarSnapshot = withContext(Dispatchers.IO) {
+        try {
+            val connection = URL("${baseUrlProvider()}/api/avatar").openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 2_000
+            connection.readTimeout = 4_000
+            val body = (if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                .orEmpty()
+            if (connection.responseCode !in 200..299) {
+                return@withContext AvatarSnapshot(false, "neutral", null, body.ifBlank { "Avatar request failed." })
+            }
+            val payload = JSONObject(body)
+            val emotion = payload.optString("current_emotion", "neutral")
+            val frames = payload.optJSONArray("frames") ?: JSONArray()
+            var svg: String? = null
+            for (index in 0 until frames.length()) {
+                val frame = frames.optJSONObject(index) ?: continue
+                if (frame.optString("emotion") == emotion) {
+                    svg = frame.optString("svg")
+                    break
+                }
+            }
+            AvatarSnapshot(true, emotion, svg)
+        } catch (error: Exception) {
+            AvatarSnapshot(false, "neutral", null, error.message ?: "Backend unavailable")
         }
     }
 

@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import ai.mordecai.shell.accessibility.MordecaiAccessibilityService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -104,6 +105,11 @@ class MordecaiShellService : LifecycleService() {
     }
 
     private fun listenForVoiceCommand(manualTrigger: Boolean) {
+        if (MordecaiAccessibilityService.requestVoiceCommand(manualTrigger)) {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_overlay_active)))
+            return
+        }
         commandProcessor?.stop()
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_listening_for_command)))
@@ -183,6 +189,7 @@ class MordecaiShellService : LifecycleService() {
         const val PREF_ADVANCED_ENABLED = "advanced_enabled"
         const val PREF_SERVICE_ENABLED = "service_enabled"
         const val PREF_LAST_REPLY = "last_reply"
+        const val PREF_LOCKSCREEN_OVERLAY = "lockscreen_overlay_enabled"
         const val DEFAULT_WAKE_PHRASE = "mordecai"
         const val ACTION_STOP = "ai.mordecai.shell.action.STOP"
         const val ACTION_WAKE_ONLY = "ai.mordecai.shell.action.WAKE_ONLY"

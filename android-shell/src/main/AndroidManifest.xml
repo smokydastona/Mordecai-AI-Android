@@ -42,6 +42,19 @@
             android:foregroundServiceType="dataSync|microphone" />
 
         <service
+            android:name=".accessibility.MordecaiAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/mordecai_accessibility_config" />
+        </service>
+
+        <service
             android:name=".MordecaiTileService"
             android:exported="true"
             android:icon="@drawable/ic_mordecai_foreground"

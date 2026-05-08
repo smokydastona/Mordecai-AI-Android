@@ -30,6 +30,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Phase 1 Termux installer and lifecycle scripts for portable Mode A deployment under `$HOME/mordecai`
 - Native Android shell app with a WebView dashboard, foreground supervision service, wake-phrase listening, Termux command bridge, and root-gated advanced mode controls
 - Android shell voice command loop with wake phrase, speech capture, backend chat dispatch, spoken replies, notification action entrypoint, and quick-settings tile activation
+- Android shell accessibility service with lock-screen overlay feedback, accessibility onboarding actions, and overlay-backed voice command delegation
 - Permanent avatar system with immutable old-man emotion frames, backend emotion selection, and dashboard rendering
 - Local dashboard memory browser for recent conversation inspection
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels

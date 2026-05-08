@@ -22,12 +22,15 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - `TermuxCommandClient` invokes the Phase 1 scripts through the Termux run-command API
 - `RootDetector` gates advanced mode toggles so Mode B activation remains explicit
 - `MordecaiTileService` gives the shell a quick-settings entrypoint for voice command activation
+- `MordecaiAccessibilityService` exposes a lock-screen-safe accessibility overlay and can own voice command capture when accessibility mode is enabled
+- `MordecaiOverlay` renders avatar feedback and backend replies over the lock screen through `TYPE_ACCESSIBILITY_OVERLAY`
 
 ## Runtime Contract
 
 - the shell assumes the backend is exposed at a configurable localhost URL, defaulting to `http://127.0.0.1:8000`
 - runtime install and lifecycle operations still flow through the Termux-managed scripts under `$HOME/mordecai/scripts`
 - advanced mode updates `.env` through Termux and restarts the backend after changing mode flags
+- when the accessibility service is enabled, notification and wake-phrase voice commands can delegate into the overlay path so replies, avatar emotion, and TTS stay aligned on the lock screen
 
 ## Build Surface
 
@@ -50,3 +53,4 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 
 - the shell supervises the existing backend contract rather than replacing it with an embedded Python runtime
 - Android automation remains bound by the backend policy layer and only becomes available when advanced mode is explicitly enabled
+- local APK validation still depends on a configured Android SDK; without `ANDROID_HOME` or `local.properties`, `assembleDebug` cannot run on this machine
