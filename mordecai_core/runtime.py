@@ -11,6 +11,7 @@ from mordecai.policy import PolicyEngine
 from mordecai.proxy import SafeHttpClient
 from mordecai.self_improvement import SelfImprovementManager
 from mordecai.store import StateStore
+from mordecai.local_models import LocalModelService
 from mordecai_core.events import EventBus
 from mordecai_core.provider_contracts import ProviderCatalog
 from mordecai_core.tool_registry import RuntimeContext, ToolExecutionRequest, ToolExecutionResult, ToolManifest, ToolRegistry
@@ -59,6 +60,7 @@ class RuntimeComponents:
         return {
             "providers": self.provider_catalog.capabilities_matrix(),
             "tools": self.tool_registry.capability_manifest(),
+            "local_models": LocalModelService(self.runtime.settings).capability_manifest(),
         }
 
     def trace_snapshot(self, limit: int = 25) -> dict[str, object]:

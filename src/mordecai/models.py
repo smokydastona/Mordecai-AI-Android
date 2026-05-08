@@ -215,3 +215,23 @@ class AvatarProfile(BaseModel):
     immutable_style: bool
     current_emotion: str
     frames: list[AvatarFrame] = Field(default_factory=list)
+
+
+class LocalModelProfileSnapshot(BaseModel):
+    name: str
+    provider: str
+    modality: str
+    command: str
+    context_window: int
+    enabled: bool = True
+    prompt_format: str | None = None
+    model_path: str | None = None
+    binary_available: bool = False
+    model_available: bool | None = None
+
+
+class LocalModelCatalogSnapshot(BaseModel):
+    models_dir: str
+    available_profiles: int
+    configured_profiles: int
+    profiles: list[LocalModelProfileSnapshot] = Field(default_factory=list)

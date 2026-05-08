@@ -87,6 +87,17 @@ def test_avatar_endpoint_returns_immutable_frames(tmp_path, monkeypatch):
     assert any(frame["emotion"] == "wise-smirk" for frame in payload["frames"])
 
 
+def test_local_models_endpoint_returns_catalog(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.get("/api/local-models")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["configured_profiles"] >= 4
+    assert any(profile["name"] == "whisper-cli" for profile in payload["profiles"])
+
+
 def test_improvement_candidate_blocks_protected_paths(tmp_path, monkeypatch):
     client = build_test_client(tmp_path, monkeypatch)
     protected = Path("src/mordecai/policy.py").as_posix()
@@ -151,6 +162,7 @@ def test_runtime_trace_and_capabilities_endpoints(tmp_path, monkeypatch):
     assert "providers" in capabilities_payload
     assert "openai-compatible" in capabilities_payload["providers"]
     assert any(tool["tool"] == "filesystem.write" for tool in capabilities_payload["tools"])
+    assert any(profile["name"] == "ollama-local" for profile in capabilities_payload["local_models"])
 
 
 def test_tool_execution_endpoint_runs_registered_tool(tmp_path, monkeypatch):

@@ -250,6 +250,10 @@ def render_dashboard() -> str:
         <pre id="proxy"></pre>
       </div>
       <div class="card">
+        <h2>Local Models</h2>
+        <pre id="local-models"></pre>
+      </div>
+      <div class="card">
         <h2>Runtime Trace</h2>
         <div id="trace" class="trace-list"></div>
       </div>
@@ -309,7 +313,7 @@ def render_dashboard() -> str:
     let latestCapabilities = null;
 
     async function load() {
-      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, trace, capabilities, avatar] = await Promise.all([
+      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, localModels, trace, capabilities, avatar] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
         fetch('/api/memory').then(r => r.json()),
@@ -319,6 +323,7 @@ def render_dashboard() -> str:
         fetch('/api/routines').then(r => r.json()),
         fetch('/api/events').then(r => r.json()),
         fetch('/api/proxy/logs').then(r => r.json()),
+        fetch('/api/local-models').then(r => r.json()),
         fetch('/api/runtime/trace').then(r => r.json()),
         fetch('/api/runtime/capabilities').then(r => r.json()),
         fetch('/api/avatar').then(r => r.json()),
@@ -345,6 +350,7 @@ def render_dashboard() -> str:
       document.getElementById('routines').textContent = JSON.stringify(routines, null, 2);
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);
       document.getElementById('proxy').textContent = JSON.stringify(proxyLogs.slice(-10), null, 2);
+      document.getElementById('local-models').textContent = JSON.stringify(localModels, null, 2);
       document.getElementById('trace').innerHTML = trace.events.slice(-8).reverse().map(event => `
         <div class="trace-item">
           <div class="trace-head"><strong>${event.name}</strong><span>${new Date(event.created_at).toLocaleTimeString()}</span></div>

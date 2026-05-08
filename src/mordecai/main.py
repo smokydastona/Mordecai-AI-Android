@@ -9,6 +9,7 @@ from mordecai.android_control import AndroidController
 from mordecai.config import ensure_state_dirs, get_settings
 from mordecai.dashboard import render_dashboard
 from mordecai.git_tools import GitService
+from mordecai.local_models import LocalModelService
 from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
 from mordecai.policy import PolicyEngine
 from mordecai.providers import ProviderRouter
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     improvement_manager = components.improvement_manager
     android = components.android_controller
     policy = components.policy
+    local_models = LocalModelService(settings)
 
     def raise_api_error(status_code: int, code: str, message: str, details: dict[str, object] | None = None) -> None:
         raise HTTPException(
@@ -155,6 +157,10 @@ def create_app() -> FastAPI:
     @app.get("/api/avatar")
     async def avatar() -> dict[str, object]:
         return runtime.avatar().model_dump(mode="json")
+
+    @app.get("/api/local-models")
+    async def local_models_catalog() -> dict[str, object]:
+        return local_models.catalog_snapshot().model_dump(mode="json")
 
     @app.post("/api/chat")
     async def chat(request: ChatRequest) -> dict[str, object]:

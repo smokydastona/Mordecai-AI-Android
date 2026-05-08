@@ -10,6 +10,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.
 - Dashboard memory browser panel backed by the existing `/api/memory` endpoint.
 - Persisted goals and routines with API endpoints, status counters, and dashboard panels.
+- Local model registry exposure through `/api/local-models` and runtime capabilities, with dashboard visibility for configured Whisper, Piper, cloud, and local chat profiles.
 - Policy-enforced self-improvement diff filters for hidden persistence and boot-time autostart patterns.
 - Generic Android setup guidance in `docs/android_setup.md` and proxy configuration guidance in `net_proxy/config.md`.
 - Native Android shell app under `android-shell/` with a WebView dashboard, foreground supervision service, Termux command bridge, wake-phrase listening, and root-gated advanced mode controls.
