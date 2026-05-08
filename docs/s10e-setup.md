@@ -1,6 +1,6 @@
 # Galaxy S10e Setup
 
-This document defines the target baseline for the S10e device that hosts Mordecai.
+This document defines the target baseline for the S10e device that hosts Mordecai in its advanced-device role. For the generic multi-phone Phase 1 install flow, use `docs/phase1-install.md`.
 
 ## Device Goals
 
@@ -33,5 +33,6 @@ This document defines the target baseline for the S10e device that hosts Mordeca
 ## Repo Entry Points
 
 - `android/` contains phone-specific setup notes and future helper scripts.
-- `sandbox/proot-setup.sh` is the canonical bootstrap entry point for the Linux layer.
-- `scripts/termux_boot.sh` remains the direct app bootstrap for the current Python runtime.
+- `scripts/proot-setup.sh` is the canonical public bootstrap entry point for the portable Termux backend.
+- `scripts/start.sh` is the canonical service launcher for Phase 1.
+- `sandbox/proot-setup.sh` remains a compatibility wrapper for older sandbox references.

@@ -34,6 +34,7 @@ class ProxyRequestRecord(BaseModel):
 
 class StatusSnapshot(BaseModel):
     app_name: str
+    mode: str
     provider: str
     environment: str
     git_branch: str | None
@@ -43,6 +44,8 @@ class StatusSnapshot(BaseModel):
     cpu_percent: float
     memory_mb: float
     recent_requests: int
+    service_host: str
+    service_port: int
 
 
 class GithubSearchRequest(BaseModel):
@@ -128,10 +131,13 @@ class ImprovementCandidate(BaseModel):
 
 
 class PolicyReport(BaseModel):
+    mode: str
     protected_paths: list[str]
     forbidden_command_patterns: list[str]
     allowed_domains: list[str]
     wake_words: list[str]
+    allowed_features: list[str] = Field(default_factory=list)
+    blocked_features: list[str] = Field(default_factory=list)
 
 
 class RuntimeEvent(BaseModel):

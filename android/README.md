@@ -1,6 +1,6 @@
 # Android Layer
 
-This directory is reserved for device-specific setup, recovery notes, radio guidance, and guarded control instructions for the Galaxy S10e host.
+This directory is reserved for device-specific setup, recovery notes, radio guidance, and guarded control instructions for supported Android hosts. The Galaxy S10e remains the advanced reference profile, not the only target.
 
 ## Scope
 
@@ -11,6 +11,7 @@ This directory is reserved for device-specific setup, recovery notes, radio guid
 
 ## Current Canonical References
 
+- `docs/phase1-install.md`
 - `docs/s10e-setup.md`
 - `src/mordecai/android_control.py`
 

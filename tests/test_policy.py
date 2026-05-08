@@ -21,3 +21,15 @@ def test_policy_allows_normal_file_change(tmp_path):
     ])
 
     assert decision.allowed
+
+
+def test_policy_report_marks_mode_a_capabilities(tmp_path):
+    settings = Settings(workspace_dir=tmp_path / "backend")
+    policy = PolicyEngine(settings)
+
+    report = policy.report()
+
+    assert report.mode == "mode-a"
+    assert "localhost-fastapi" in report.allowed_features
+    assert "android-automation" in report.blocked_features
+    assert "daemon-mode" in report.blocked_features

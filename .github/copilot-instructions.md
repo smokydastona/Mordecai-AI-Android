@@ -1,6 +1,6 @@
 # Copilot Instructions — Mordecai
 
-This repository is a **policy-bound AI runtime** for a repurposed Android device.
+This repository is a **policy-bound AI runtime** for supported Android phones, with the Galaxy S10e kept as an advanced reference profile.
 
 It provides:
 

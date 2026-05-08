@@ -58,11 +58,33 @@ class PolicyEngine:
         return PolicyDecision(True, "allowed")
 
     def report(self) -> PolicyReport:
+        allowed_features = [
+            "localhost-fastapi",
+            "dashboard",
+            "proxy-web-search",
+            "local-git-backup",
+        ]
+        blocked_features = [
+            "android-automation",
+            "daemon-mode",
+            "root-only-behaviors",
+        ]
+        if self.settings.allow_git_push:
+            allowed_features.append("git-push")
+        if self.settings.enable_android_control:
+            allowed_features.append("android-automation")
+            blocked_features.remove("android-automation")
+        if self.settings.enable_daemon_mode:
+            allowed_features.append("daemon-mode")
+            blocked_features.remove("daemon-mode")
         return PolicyReport(
+            mode=self.settings.mode,
             protected_paths=sorted(self.protected_paths),
             forbidden_command_patterns=self.FORBIDDEN_COMMAND_PATTERNS,
             allowed_domains=self.settings.allowed_domains,
             wake_words=self.settings.wake_words,
+            allowed_features=allowed_features,
+            blocked_features=blocked_features,
         )
 
     @staticmethod

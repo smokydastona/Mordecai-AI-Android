@@ -230,3 +230,25 @@ def test_runtime_components_execute_tools_and_discover_capabilities():
     assert "tools" in capabilities
     assert "providers" in capabilities
     assert any(tool["tool"] == "git.status" for tool in capabilities["tools"])
+
+
+def test_runtime_components_hide_android_and_shell_tools_in_mode_a(tmp_path, monkeypatch):
+    monkeypatch.setenv("MORDECAI_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("MORDECAI_STATE_DIR", str(tmp_path / ".mordecai-test"))
+    monkeypatch.setenv("MORDECAI_SYSTEM_PROMPT_PATH", str(tmp_path / "prompt.txt"))
+    (tmp_path / "prompt.txt").write_text("Test prompt", encoding="utf-8")
+
+    from mordecai.config import get_settings
+    from mordecai.main import build_runtime
+    from mordecai_core.runtime import get_runtime_components
+
+    get_settings.cache_clear()
+    build_runtime.cache_clear()
+    get_runtime_components.cache_clear()
+
+    components = get_runtime_components()
+    tool_names = [manifest.tool for manifest in components.tool_registry.list_tools()]
+
+    assert "android.control" not in tool_names
+    assert "android.accessibility_dump" not in tool_names
+    assert "shell.run" not in tool_names

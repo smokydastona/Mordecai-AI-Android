@@ -1,10 +1,10 @@
 # Mordecai
 
-Mordecai-AI-Android is a modular Android-native AI operating layer focused on automation, hardware integration, hybrid local/cloud routing, and intelligent device control.
+Mordecai-AI-Android is a modular Android-native AI operating layer focused on automation, hardware integration, hybrid local/cloud routing, and intelligent device control across supported Android phones.
 
-This repository is the canonical home of the Galaxy S10e AI OS project. It currently contains the working Mordecai runtime plus the device, sandbox, voice, proxy, and self-modification structure that the broader system will grow into.
+This repository is the canonical home of the Mordecai Android runtime project. It currently contains the working Mordecai runtime plus the device, sandbox, voice, proxy, and self-modification structure that the broader multi-phone system will grow into.
 
-Mordecai itself is a policy-bound AI runtime for a repurposed Android device. The current implementation provides a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, and a sandboxed self-improvement workflow.
+Mordecai itself is a policy-bound AI runtime for Android phones. The current implementation provides a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, a sandboxed self-improvement workflow, and a Phase 1 Termux installer for portable Mode A deployment.
 
 ## Project hygiene
 
@@ -14,13 +14,11 @@ Mordecai itself is a policy-bound AI runtime for a repurposed Android device. Th
 
 ## What is implemented
 
-- FastAPI dashboard and API surface for chat, status, policy, memory, git state, outbound fetches, web search, GitHub search, Android actions, and self-improvement candidates
-- FastAPI dashboard and API surface for chat, status, policy, memory, git state, outbound fetches, web search, GitHub search, Android actions, runtime events, proxy logs, and self-improvement candidates
+- FastAPI dashboard and API surface for chat, status, policy, memory, git state, outbound fetches, web search, GitHub search, runtime events, proxy logs, and self-improvement candidates
 - Formal Mordecai identity with wake words and personality modes
 - Policy engine that protects core safety files, blocks destructive shell patterns, and enforces an outbound domain allowlist
 - Safe HTTP client with per-minute request throttling and request logging
 - Git integration for local backups and optional pushes
-- Self-improvement manager that stages file changes in a sandbox, runs tests, previews diffs, and only applies approved candidates
 - Self-improvement manager that stages file changes in a sandbox workspace, runs tests there, supports rollback, previews diffs, and only applies approved candidates
 - Resource watchdog that reports CPU and memory usage
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
@@ -28,10 +26,11 @@ Mordecai itself is a policy-bound AI runtime for a repurposed Android device. Th
 - Structured tool execution engine with runtime context, permission checks, validation, retries, timeouts, cooperative cancellation, and execution telemetry
 - Developer trace and capability surfaces for provider routing, tool policy metadata, and runtime event inspection
 - Persisted execution history and an operator-facing dashboard tool runner for direct invocation of registered tools
+- Phase 1 Termux installer and lifecycle scripts for portable Mode A deployment under `$HOME/mordecai`
 
 ## Strategic direction
 
-- Mordecai is being positioned as an Android-native control layer, not a generic chat app.
+- Mordecai is being positioned as an Android-native control layer for supported Android phones, not a generic chat app.
 - The strongest differentiation is hardware integration, device automation, controller and HID workflows, and hybrid local/cloud AI routing.
 - Architectural growth is anchored on modular interfaces, execution observability, and progressive permission unlocking.
 
@@ -62,8 +61,12 @@ src/mordecai/
   voice.py
   watchdog.py
 prompts/system_prompt.txt
+scripts/proot-setup.sh
+scripts/start.sh
+scripts/stop.sh
 scripts/start_server.ps1
 scripts/termux_boot.sh
+scripts/update.sh
 tests/
 ```
 
@@ -71,12 +74,13 @@ tests/
 
 - `docs/` holds high-level architecture, persona, and device setup guidance.
 - `android/` is reserved for device-specific operating-system and control notes.
-- `sandbox/` contains the Linux bootstrap layer for Termux and proot.
+- `sandbox/` contains compatibility wrappers and Linux bootstrap notes for Termux and proot.
 - `mordecai_core/` defines the logical home of the AI runtime while the packaged implementation remains in `src/mordecai/`.
 - `providers/` holds concrete tool-provider implementations that bind safe runtime services into the unified execution engine.
 - `self_mod/` documents the self-improvement subsystem and its guardrails.
 - `net_proxy/` captures the safe internet boundary and its configuration model.
 - `voice/` defines the wake-word, STT, and TTS expansion surface.
+- `scripts/` contains the supported Phase 1 installer and lifecycle entry points.
 
 ## Architecture priorities
 
@@ -108,6 +112,31 @@ python -m pip install -e .[dev]
 
 5. Open `http://127.0.0.1:8000`.
 
+## Phase 1 phone install
+
+Phase 1 is the portable Mode A backend contract for Termux-based Android installs.
+
+Install from Termux with one command:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/smokydastona/Mordecai-AI-Android/main/scripts/proot-setup.sh)
+```
+
+Then start the backend:
+
+```bash
+$HOME/mordecai/scripts/start.sh
+```
+
+This install flow creates:
+
+- `$HOME/mordecai/backend`
+- `$HOME/mordecai/env`
+- `$HOME/mordecai/data`
+- `$HOME/mordecai/scripts`
+
+Phase 1 runs only on `127.0.0.1` by default and does not expose Android automation, daemon mode, or other Mode B-only behavior.
+
 ## Important operating constraints
 
 - Core policy modules are protected from self-modification.
@@ -135,7 +164,7 @@ Notes:
 
 ## Android deployment notes
 
-This codebase is designed to run inside the sandboxed Linux layer described in the blueprint, such as Termux plus proot Ubuntu on the target phone. The included shell script is a starting point for bootstrapping that runtime.
+This codebase is designed to run inside the sandboxed Linux layer described in the blueprint, such as Termux plus proot Ubuntu on the target phone. `scripts/proot-setup.sh` is now the canonical public installer entry point for the portable Phase 1 backend, while `sandbox/proot-setup.sh` remains a compatibility wrapper for older references.
 
 ## CI and debugging
 
@@ -149,6 +178,9 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 ## Reference docs
 
 - `docs/architecture.md`
+- `docs/phase1-contract.md`
+- `docs/phase1-install.md`
+- `docs/modeA-vs-modeB.md`
 - `docs/persona.md`
 - `docs/architecture/modular-foundations.md`
 - `docs/roadmap/foundation.md`

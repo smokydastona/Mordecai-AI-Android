@@ -176,7 +176,7 @@ def render_dashboard() -> str:
       <div class="card">
         <h2>Mordecai</h2>
         <h1>The Formal AI Runtime</h1>
-        <p>Policy-bound, reversible, git-backed, and built to run as the core AI service for a repurposed Android device.</p>
+        <p>Policy-bound, reversible, git-backed, and built to run as the core AI service for supported Android phones.</p>
         <div id="wake-words"></div>
       </div>
       <div class="card metrics" id="metrics"></div>

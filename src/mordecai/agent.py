@@ -77,6 +77,7 @@ class MordecaiRuntime:
         resources = self.watchdog.snapshot()
         return StatusSnapshot(
             app_name=self.settings.app_name,
+            mode=self.settings.mode,
             provider=self.settings.default_provider,
             environment=self.settings.environment,
             git_branch=git_status["branch"],
@@ -86,6 +87,8 @@ class MordecaiRuntime:
             cpu_percent=resources.cpu_percent,
             memory_mb=resources.memory_mb,
             recent_requests=len(self.store.read_proxy_records()),
+            service_host=self.settings.service_host,
+            service_port=self.settings.service_port,
         )
 
     def memory(self) -> list[ConversationEntry]:

@@ -27,6 +27,15 @@ def test_health_endpoint(tmp_path, monkeypatch):
     assert response.json()["status"] == "ok"
 
 
+def test_dashboard_alias_endpoint(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "Mordecai Console" in response.text
+
+
 def test_chat_and_status_endpoints(tmp_path, monkeypatch):
     client = build_test_client(tmp_path, monkeypatch)
 
@@ -136,10 +145,10 @@ def test_tool_execution_endpoint_returns_structured_failure(tmp_path, monkeypatc
         },
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404
     error = response.json()["detail"]["error"]
-    assert error["code"] == "PermissionDenied"
-    assert "execution_id" in error["details"]
+    assert error["code"] == "NotFound"
+    assert "not available" in error["message"]
 
 
 def test_runtime_trace_includes_persisted_tool_execution_history(tmp_path, monkeypatch):

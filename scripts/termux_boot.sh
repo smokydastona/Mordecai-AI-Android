@@ -1,14 +1,13 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-ROOT_DIR="${HOME}/mordecai"
-cd "$ROOT_DIR"
+SCRIPT_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="${MORDECAI_INSTALL_ROOT:-$(cd "${SCRIPT_HOME}/.." && pwd)}"
+RUNTIME_SCRIPT="${INSTALL_ROOT}/scripts/start.sh"
 
-if [ ! -d ".venv" ]; then
-  python -m venv .venv
+if [ ! -x "${RUNTIME_SCRIPT}" ]; then
+  printf '%s\n' "Missing ${RUNTIME_SCRIPT}. Run scripts/proot-setup.sh first." >&2
+  exit 1
 fi
 
-. .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
-python -m uvicorn mordecai.main:app --host 0.0.0.0 --port 8000
+exec "${RUNTIME_SCRIPT}"

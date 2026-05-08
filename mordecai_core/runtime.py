@@ -149,14 +149,21 @@ def _build_tool_registry(
         ),
         proxy.github_search_repositories,
     )
-    for provider in (
+    providers = [
         GitOpsToolProvider(git_service),
         LocalLLMToolProvider(runtime.provider_router.catalog),
         CloudLLMToolProvider(runtime.provider_router),
-        AndroidControlToolProvider(android_controller),
-        AccessibilityToolProvider(runtime.settings, runtime.policy),
-        ShellToolProvider(runtime.settings, runtime.policy),
-    ):
+    ]
+    if runtime.settings.enable_android_control:
+        providers.extend(
+            [
+                AndroidControlToolProvider(android_controller),
+                AccessibilityToolProvider(runtime.settings, runtime.policy),
+            ]
+        )
+    if runtime.settings.mode != "mode-a":
+        providers.append(ShellToolProvider(runtime.settings, runtime.policy))
+    for provider in providers:
         for manifest, handler in provider.tools():
             registry.register(manifest, handler)
     return registry
