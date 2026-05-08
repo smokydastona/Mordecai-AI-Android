@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
-from inspect import signature
+from inspect import isawaitable, signature
 from threading import Event
 from time import perf_counter
 from typing import Any, Callable, Literal
@@ -100,6 +101,26 @@ class ToolTimeout(ToolExecutionFailure):
 class ToolCancelled(ToolExecutionFailure):
     def __init__(self, message: str = "Tool execution was cancelled.", *, details: dict[str, object] | None = None) -> None:
         super().__init__("ExecutionCancelled", message, details=details)
+
+
+class ProviderUnavailable(ToolExecutionFailure):
+    def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__("ProviderUnavailable", message, details=details)
+
+
+class AutomationMismatch(ToolExecutionFailure):
+    def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__("AutomationMismatch", message, details=details)
+
+
+class RateLimited(ToolExecutionFailure):
+    def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__("RateLimited", message, retryable=True, details=details)
+
+
+class ContextOverflow(ToolExecutionFailure):
+    def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__("ContextOverflow", message, details=details)
 
 
 @dataclass(frozen=True, slots=True)
@@ -299,12 +320,21 @@ class ToolRegistry:
 
     def _run_with_timeout(self, request: ToolExecutionRequest, handler: ToolHandler) -> Any:
         parameters = signature(handler).parameters
-        if "context" in parameters:
+        if "runtime_context" in parameters:
+            call = lambda: handler(runtime_context=request.context, **request.arguments)
+        elif "context" in parameters and "context" not in request.arguments:
             call = lambda: handler(context=request.context, **request.arguments)
         else:
             call = lambda: handler(**request.arguments)
+
+        def invoke_handler() -> Any:
+            result = call()
+            if isawaitable(result):
+                return asyncio.run(result)
+            return result
+
         executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(call)
+        future = executor.submit(invoke_handler)
         try:
             return future.result(timeout=request.timeout_seconds)
         except FutureTimeoutError as exc:

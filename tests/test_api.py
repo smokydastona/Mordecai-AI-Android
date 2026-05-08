@@ -69,8 +69,9 @@ def test_openai_compatible_provider_requires_allowlisted_host(tmp_path, monkeypa
 
     response = client.post("/api/chat", json={"message": "Hello"})
 
-    assert response.status_code == 400
-    assert "allowlist" in response.json()["detail"]
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"]["code"] == "PermissionDenied"
+    assert "allowlist" in response.json()["detail"]["error"]["message"]
 
 
 def test_events_and_proxy_logs_endpoints(tmp_path, monkeypatch):
@@ -102,3 +103,40 @@ def test_runtime_trace_and_capabilities_endpoints(tmp_path, monkeypatch):
     assert "providers" in capabilities_payload
     assert "openai-compatible" in capabilities_payload["providers"]
     assert any(tool["tool"] == "filesystem.write" for tool in capabilities_payload["tools"])
+
+
+def test_tool_execution_endpoint_runs_registered_tool(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.post(
+        "/api/tools/execute",
+        json={
+            "tool": "git.status",
+            "granted_permissions": ["git"],
+            "arguments": {},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+    assert payload["tool_name"] == "git.status"
+    assert isinstance(payload["output"], dict)
+
+
+def test_tool_execution_endpoint_returns_structured_failure(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.post(
+        "/api/tools/execute",
+        json={
+            "tool": "android.control",
+            "granted_permissions": ["android-control"],
+            "arguments": {"action": "tap", "arguments": ["1", "2"]},
+        },
+    )
+
+    assert response.status_code == 403
+    error = response.json()["detail"]["error"]
+    assert error["code"] == "PermissionDenied"
+    assert "execution_id" in error["details"]

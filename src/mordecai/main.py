@@ -8,13 +8,14 @@ from mordecai.android_control import AndroidController
 from mordecai.config import ensure_state_dirs, get_settings
 from mordecai.dashboard import render_dashboard
 from mordecai.git_tools import GitService
-from mordecai.models import AndroidActionRequest, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, ImprovementRequest, WebSearchRequest
+from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, ImprovementRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
 from mordecai.policy import PolicyEngine
 from mordecai.providers import ProviderRouter
 from mordecai.proxy import SafeHttpClient
 from mordecai.self_improvement import SelfImprovementManager
 from mordecai.store import StateStore
 from mordecai.watchdog import Watchdog
+from mordecai_core.tool_registry import RuntimeContext
 
 
 @lru_cache(maxsize=1)
@@ -52,6 +53,43 @@ def create_app() -> FastAPI:
     improvement_manager = components.improvement_manager
     android = components.android_controller
     policy = components.policy
+
+    def raise_api_error(status_code: int, code: str, message: str, details: dict[str, object] | None = None) -> None:
+        raise HTTPException(
+            status_code=status_code,
+            detail=ApiErrorResponse(error=RuntimeFailure(code=code, message=message, details=details or {})).model_dump(mode="json"),
+        )
+
+    def raise_mapped_exception(exc: Exception) -> None:
+        if isinstance(exc, PermissionError):
+            raise_api_error(403, "PermissionDenied", str(exc))
+        if isinstance(exc, FileNotFoundError):
+            raise_api_error(404, "NotFound", str(exc))
+        if isinstance(exc, KeyError):
+            raise_api_error(404, "NotFound", str(exc).strip("'"))
+        if isinstance(exc, ValueError):
+            raise_api_error(400, "ValidationFailure", str(exc))
+        if isinstance(exc, RuntimeError):
+            lowered = str(exc).lower()
+            if "rate limit" in lowered:
+                raise_api_error(429, "RateLimited", str(exc))
+            raise_api_error(400, "ExecutionFailed", str(exc))
+        raise_api_error(500, "ExecutionFailed", str(exc))
+
+    def status_code_for_failure(code: str) -> int:
+        if code in {"PermissionDenied"}:
+            return 403
+        if code in {"ValidationFailure", "AutomationMismatch", "ContextOverflow"}:
+            return 400
+        if code in {"ToolTimeout"}:
+            return 408
+        if code in {"RateLimited"}:
+            return 429
+        if code in {"ProviderUnavailable"}:
+            return 503
+        if code in {"ExecutionCancelled"}:
+            return 409
+        return 500
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard() -> str:
@@ -98,7 +136,7 @@ def create_app() -> FastAPI:
         try:
             response = await runtime.chat(request.message)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
         return response.model_dump(mode="json")
 
     @app.post("/api/github/search")
@@ -106,22 +144,63 @@ def create_app() -> FastAPI:
         try:
             return await proxy.github_search_repositories(request.query, request.limit)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
 
     @app.post("/api/web/search")
     async def web_search(request: WebSearchRequest) -> dict[str, object]:
         try:
             return await proxy.web_search(request.query)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
 
     @app.post("/api/fetch")
     async def fetch(request: FetchRequest) -> dict[str, object]:
         try:
             text = await proxy.fetch_text(str(request.url))
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
         return {"url": str(request.url), "content": text[:5000]}
+
+    @app.post("/api/tools/execute", response_model=ToolExecutionApiResponse)
+    async def tools_execute(request: ToolExecutionApiRequest) -> dict[str, object]:
+        result = components.execute_tool(
+            request.tool,
+            arguments=request.arguments,
+            context=RuntimeContext(
+                session_id=request.session_id,
+                granted_permissions=frozenset(request.granted_permissions),
+                provider_state=request.provider_state,
+                memory_refs=tuple(request.memory_refs),
+                active_overlays=tuple(request.active_overlays),
+                device_state=request.device_state,
+                execution_metadata=request.execution_metadata,
+                safe_mode=request.safe_mode,
+            ),
+            timeout_seconds=request.timeout_seconds,
+            max_retries=request.max_retries,
+        )
+        if result.status != "completed":
+            code = result.error.code if result.error else "ExecutionFailed"
+            raise_api_error(
+                status_code_for_failure(code),
+                code,
+                result.error.message if result.error else "Tool execution failed.",
+                details={
+                    **(result.error.details if result.error else {}),
+                    "execution_id": result.execution_id,
+                    "tool": result.tool_name,
+                    "attempts": result.attempts,
+                    "duration_ms": result.duration_ms,
+                },
+            )
+        return ToolExecutionApiResponse(
+            execution_id=result.execution_id,
+            tool_name=result.tool_name,
+            status=result.status,
+            output=result.output,
+            attempts=result.attempts,
+            duration_ms=result.duration_ms,
+        ).model_dump(mode="json")
 
     @app.get("/api/git/status")
     async def git_status() -> dict[str, object]:
@@ -130,18 +209,18 @@ def create_app() -> FastAPI:
     @app.post("/api/git/backup")
     async def git_backup(request: GitBackupRequest) -> dict[str, object]:
         if request.push and not settings.allow_git_push:
-            raise HTTPException(status_code=403, detail="Push is disabled by configuration")
+            raise_api_error(403, "PermissionDenied", "Push is disabled by configuration")
         try:
             return git_service.backup(request.message, push=request.push)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
 
     @app.post("/api/improvement/propose")
     async def improvement_propose(request: ImprovementRequest) -> dict[str, object]:
         try:
             candidate = improvement_manager.create_candidate(request)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
         return candidate.model_dump(mode="json")
 
     @app.get("/api/improvement/candidates")
@@ -157,7 +236,7 @@ def create_app() -> FastAPI:
         try:
             candidate = improvement_manager.apply_candidate(candidate_id)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
         return candidate.model_dump(mode="json")
 
     @app.post("/api/improvement/rollback/{candidate_id}")
@@ -165,7 +244,7 @@ def create_app() -> FastAPI:
         try:
             candidate = improvement_manager.rollback_candidate(candidate_id)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
         return candidate.model_dump(mode="json")
 
     @app.post("/api/android/action")
@@ -173,7 +252,7 @@ def create_app() -> FastAPI:
         try:
             return android.perform(request.action, request.arguments)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise_mapped_exception(exc)
 
     return app
 

@@ -29,6 +29,7 @@ packages = [
     "mordecai_core.tools",
     "mordecai_core.models",
     "mordecai_core.safety",
+    "providers",
     "self_mod",
     "net_proxy",
     "voice",
@@ -40,6 +41,7 @@ mordecai_core = "mordecai_core"
 "mordecai_core.tools" = "mordecai_core/tools"
 "mordecai_core.models" = "mordecai_core/models"
 "mordecai_core.safety" = "mordecai_core/safety"
+providers = "providers"
 self_mod = "self_mod"
 net_proxy = "net_proxy"
 voice = "voice"

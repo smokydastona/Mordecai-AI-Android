@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field, HttpUrl
@@ -64,6 +66,41 @@ class AndroidActionRequest(BaseModel):
 class GitBackupRequest(BaseModel):
     message: str = Field(min_length=3)
     push: bool = False
+
+
+class RuntimeFailure(BaseModel):
+    code: str
+    message: str
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ApiErrorResponse(BaseModel):
+    error: RuntimeFailure
+
+
+class ToolExecutionApiRequest(BaseModel):
+    tool: str = Field(min_length=1)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    granted_permissions: list[str] = Field(default_factory=list)
+    session_id: str = "api"
+    timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    max_retries: int = Field(default=0, ge=0, le=3)
+    safe_mode: bool = True
+    provider_state: dict[str, Any] = Field(default_factory=dict)
+    memory_refs: list[str] = Field(default_factory=list)
+    active_overlays: list[str] = Field(default_factory=list)
+    device_state: dict[str, Any] = Field(default_factory=dict)
+    execution_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ToolExecutionApiResponse(BaseModel):
+    execution_id: str
+    tool_name: str
+    status: str
+    output: Any = None
+    error: RuntimeFailure | None = None
+    attempts: int
+    duration_ms: float
 
 
 class ImprovementFileChange(BaseModel):

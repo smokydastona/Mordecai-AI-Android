@@ -44,6 +44,7 @@ mordecai_core/
 self_mod/
 net_proxy/
 voice/
+providers/
 src/mordecai/
   agent.py
   android_control.py
@@ -71,6 +72,7 @@ tests/
 - `android/` is reserved for device-specific operating-system and control notes.
 - `sandbox/` contains the Linux bootstrap layer for Termux and proot.
 - `mordecai_core/` defines the logical home of the AI runtime while the packaged implementation remains in `src/mordecai/`.
+- `providers/` holds concrete tool-provider implementations that bind safe runtime services into the unified execution engine.
 - `self_mod/` documents the self-improvement subsystem and its guardrails.
 - `net_proxy/` captures the safe internet boundary and its configuration model.
 - `voice/` defines the wake-word, STT, and TTS expansion surface.
@@ -144,6 +146,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 ## Reference docs
 
 - `docs/architecture.md`
+- `docs/persona.md`
 - `docs/architecture/modular-foundations.md`
 - `docs/roadmap/foundation.md`
 

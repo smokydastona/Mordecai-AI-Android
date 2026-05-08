@@ -15,6 +15,10 @@ from mordecai_core.events import EventBus
 from mordecai_core.provider_contracts import ProviderCatalog
 from mordecai_core.tool_registry import RuntimeContext, ToolExecutionRequest, ToolExecutionResult, ToolManifest, ToolRegistry
 from mordecai_core.tools.file_ops import FileTools
+from providers.android_control import AndroidControlToolProvider
+from providers.cloud_llm import CloudLLMToolProvider
+from providers.git_ops import GitOpsToolProvider
+from providers.local_llm import LocalLLMToolProvider
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,9 +72,13 @@ class RuntimeComponents:
             "events": events,
             "provider_decisions": self.runtime.provider_router.recent_decisions()[-limit:],
         }
-
-
-def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service: GitService) -> ToolRegistry:
+def _build_tool_registry(
+    event_bus: EventBus,
+    proxy: SafeHttpClient,
+    git_service: GitService,
+    runtime: MordecaiRuntime,
+    android_controller: AndroidController,
+) -> ToolRegistry:
     registry = ToolRegistry(event_bus)
     file_tools = FileTools()
     registry.register(
@@ -135,6 +143,14 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
         ),
         proxy.github_search_repositories,
     )
+    for provider in (
+        GitOpsToolProvider(git_service),
+        LocalLLMToolProvider(runtime.provider_router.catalog),
+        CloudLLMToolProvider(runtime.provider_router),
+        AndroidControlToolProvider(android_controller),
+    ):
+        for manifest, handler in provider.tools():
+            registry.register(manifest, handler)
     return registry
 
 
@@ -142,7 +158,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
 def get_runtime_components() -> RuntimeComponents:
     runtime, proxy, git_service, improvement_manager, android, policy, store = build_runtime()
     event_bus = EventBus()
-    tool_registry = _build_tool_registry(event_bus, proxy, git_service)
+    tool_registry = _build_tool_registry(event_bus, proxy, git_service, runtime, android)
     runtime.provider_router.attach_event_bus(event_bus)
     return RuntimeComponents(
         runtime=runtime,

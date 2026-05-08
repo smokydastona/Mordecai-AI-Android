@@ -1,41 +1,91 @@
 # Mordecai AI OS Architecture
 
-Mordecai-AI-Android is the canonical repository for the Galaxy S10e AI OS project. The repository is organized around a layered model so the physical phone, sandboxed runtime, policy engine, and assistant behavior remain separable and debuggable.
+Mordecai is not being built as a feature-heavy assistant application. It is being built as an Android-native operating layer with explicit constitutions around policy, execution, observability, and reversibility. This document defines the architectural rules that keep that direction stable.
 
-## Eight Layers
+## Constitutional principles
 
-1. Device layer
-   The Samsung Galaxy S10e hardware, radios, sensors, battery management, and physical recovery surface.
+1. Safety boundaries are real boundaries.
+   Network, git, Android control, and self-modification must remain behind explicit policy and approval surfaces.
 
-2. Android OS layer
-   The phone operating system, ideally a debloated LineageOS-style base with explicit control over updates, radios, and developer access.
+2. Capabilities stay decoupled from implementations.
+   Tools, providers, and runtime services are selected through contracts and registries rather than hard-wired call chains.
 
-3. Root and control layer
-   Optional Magisk-style elevation, guarded ADB access, and device automation hooks. This layer must stay opt-in and recoverable.
+3. Execution must be inspectable.
+   High-impact actions need execution IDs, trace events, structured failures, and enough retained context to explain what happened.
 
-4. Sandbox layer
-   The Termux plus proot Linux environment where Python services, model runtimes, and experiments execute without directly mutating the base OS.
+4. Automation is progressive, not assumed.
+   Device control, overlays, accessibility, and shell-class behaviors must unlock through explicit permissions and safe-mode constraints.
 
-5. Mordecai runtime layer
-   The active FastAPI runtime and orchestration code currently implemented in `src/mordecai/`. This includes chat orchestration, policy enforcement, network proxying, git backup, dashboard serving, and self-improvement flow control.
+5. Self-modification is reversible or it does not ship.
+   Candidates must stage in a sandbox, run tests there, surface diffs, and preserve rollback paths.
 
-6. Safety and policy layer
-   Protected paths, command guards, outbound allowlists, rate limits, and rollback mechanisms. This is the hard boundary that keeps experimentation from escaping into unsafe control.
+## Runtime stack
 
-7. Model and voice layer
-   Cloud or local model routing, future STT and TTS pipelines, wake-word handling, and persona-consistent response generation.
+### 1. Device layer
 
-8. Self-improvement and operator layer
-   Candidate changes, test-gated promotion, rollback, observability, and the human approval path for any high-impact modification.
+The Samsung Galaxy S10e hardware, radios, sensors, power management, and physical recovery surface.
 
-## Current Mapping In This Repo
+### 2. Android OS layer
 
-- `src/mordecai/` holds the working runtime implementation.
-- `tests/` validates API behavior, policy enforcement, provider routing, and sandboxed self-improvement.
-- `prompts/system_prompt.txt` defines the active assistant identity.
-- `scripts/termux_boot.sh` bootstraps the Linux runtime inside the phone-side sandbox.
-- `.github/workflows/` provides CI, CodeQL, and debug-bundle automation.
+The handset operating system, ideally a debloated base with explicit control over updates, radios, and developer access.
 
-## Canonical Direction
+### 3. Control layer
 
-The top-level directories `android/`, `sandbox/`, `mordecai_core/`, `self_mod/`, `net_proxy/`, and `voice/` are the long-term project compartments for the S10e AI OS. They document and stage the next layer of work without forcing a disruptive source-code move before the runtime is ready for it.
+ADB access, package allowlists, guarded automation hooks, and any future accessibility or overlay drivers. This layer must remain opt-in and recoverable.
+
+### 4. Sandbox layer
+
+The Termux plus proot Linux environment where Python services, model runtimes, and experiments run without mutating the base OS directly.
+
+### 5. Runtime layer
+
+The active FastAPI runtime currently implemented in `src/mordecai/`. This layer owns chat orchestration, API serving, dashboard rendering, state storage, and service wiring.
+
+### 6. Execution layer
+
+The modular execution surface in `mordecai_core/` and `providers/`. This includes:
+
+- tool registry and manifests
+- runtime context and execution IDs
+- timeout and retry boundaries
+- structured failure taxonomy
+- provider capability routing
+- developer trace surfaces
+
+### 7. Policy layer
+
+Protected paths, command guards, outbound allowlists, rate limits, and permission gating. This is the hard boundary that keeps experimentation from escaping into unsafe control.
+
+### 8. Model and voice layer
+
+Cloud and local model routing, future STT/TTS systems, wake-word handling, and persona enforcement.
+
+### 9. Self-modification and operator layer
+
+Candidate proposal, sandbox execution, promotion, rollback, observability, and the human approval path for anything with real impact.
+
+## Repository mapping
+
+- `src/mordecai/` holds the working runtime implementation and HTTP/dashboard surface.
+- `mordecai_core/` holds execution primitives, eventing, runtime composition, and provider contracts.
+- `providers/` holds concrete tool providers such as Android control, git operations, and local/cloud LLM execution.
+- `tests/` is the enforcement layer for API behavior, tool contracts, proxy allowlists, policy protection, and sandboxed self-modification.
+- `prompts/system_prompt.txt` defines the active operator-facing directive surface.
+- `scripts/termux_boot.sh` bootstraps the Linux runtime inside the device sandbox.
+- `.github/workflows/` provides CI, documentation sync enforcement, and debug-bundle automation.
+
+## Architectural boundaries that must hold
+
+- `src/mordecai/policy.py`, `src/mordecai/proxy.py`, `src/mordecai/self_improvement.py`, `src/mordecai/config.py`, and `prompts/system_prompt.txt` remain protected from self-modification.
+- Outbound networking flows through the safe proxy and allowlist model.
+- Runtime failures surface with structured codes instead of free-form exception leakage.
+- Tool execution happens through manifests, contexts, and permission checks rather than direct service reach-through.
+- High-risk tools must declare confirmation policy, risk level, safe-mode behavior, and sandbox profile.
+
+## Near-term direction
+
+- stabilize the tool-execution API as the developer and agent execution spine
+- keep the provider capability matrix honest as more local and cloud backends arrive
+- extend trace surfaces into a real operational cockpit
+- expand Android-native tool providers without weakening the permission model
+- keep self-modification test-gated and rollback-first

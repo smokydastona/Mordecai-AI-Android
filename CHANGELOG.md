@@ -10,12 +10,16 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - New architecture and roadmap documents for the modular Android-native operating-layer direction.
 - Structured tool execution engine with runtime context, permission verification, validation, retries, timeout handling, cooperative cancellation, and execution telemetry.
 - Runtime trace and capability-inspection endpoints, including provider capability matrices and tool sandbox metadata.
+- First concrete tool-provider package for Android control, git operations, local LLM execution, and cloud LLM execution.
+- Dedicated self-mod enforcement tests for policy protection, tool contracts, sandbox apply/rollback, and proxy allowlists.
+- Tool-execution API endpoint with structured runtime failure responses.
 
 ### Changed
 
 - README positioning now emphasizes Mordecai as an Android-native AI operating layer rather than a generic assistant.
 - Runtime components now expose direct tool execution and capability discovery from the modular runtime layer.
 - Provider routing now selects against declared provider capabilities and emits observable routing events.
+- `docs/architecture.md` and new `docs/persona.md` now act as the architectural and behavioral constitution for Mordecai.
 
 ### Added
 
