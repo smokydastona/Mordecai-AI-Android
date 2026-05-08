@@ -1,6 +1,8 @@
 name: Debug Smoke Bundle
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
