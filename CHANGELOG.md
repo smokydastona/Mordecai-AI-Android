@@ -18,6 +18,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - CI and debug-smoke workflows now build the Android shell debug APK through the Gradle wrapper and publish Android build artifacts.
 - Android workflows now use `android-actions/setup-android@v4` package installation directly instead of a manual `sdkmanager --licenses` pipe that failed under GitHub Actions `pipefail`.
 - `gradlew` is now tracked as executable and Linux workflows apply `chmod +x ./gradlew` before Android builds, fixing wrapper permission failures on GitHub runners.
+- The Android shell module now includes `androidx.lifecycle:lifecycle-service`, fixing `LifecycleService` and service-scope compilation failures in CI.
 - Runtime settings now define explicit install, data, log, host, port, mode, and advanced-capability flags instead of relying on the process working directory alone.
 - Mode A now binds the backend to `127.0.0.1` by default and hides Android control tools from the registry unless explicitly enabled.
 - `sandbox/proot-setup.sh` now delegates to the public installer in `scripts/proot-setup.sh`.
