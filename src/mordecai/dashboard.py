@@ -222,6 +222,10 @@ def render_dashboard() -> str:
         <pre id="policy"></pre>
       </div>
       <div class="card">
+        <h2>Memory Browser</h2>
+        <pre id="memory"></pre>
+      </div>
+      <div class="card">
         <h2>Git State</h2>
         <pre id="git"></pre>
       </div>
@@ -297,9 +301,10 @@ def render_dashboard() -> str:
     let latestCapabilities = null;
 
     async function load() {
-      const [status, policy, gitState, candidates, events, proxyLogs, trace, capabilities, avatar] = await Promise.all([
+      const [status, policy, memory, gitState, candidates, events, proxyLogs, trace, capabilities, avatar] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
+        fetch('/api/memory').then(r => r.json()),
         fetch('/api/git/status').then(r => r.json()),
         fetch('/api/improvement/candidates').then(r => r.json()),
         fetch('/api/events').then(r => r.json()),
@@ -321,6 +326,7 @@ def render_dashboard() -> str:
       document.getElementById('avatar-frame').innerHTML = currentFrame ? currentFrame.svg : '';
       document.getElementById('avatar-meta').textContent = `${avatar.style} | emotion=${avatar.current_emotion} | immutable assets=${avatar.immutable_assets}`;
       document.getElementById('policy').textContent = JSON.stringify(policy, null, 2);
+      document.getElementById('memory').textContent = JSON.stringify(memory.slice(-20), null, 2);
       document.getElementById('git').textContent = JSON.stringify(gitState, null, 2);
       document.getElementById('candidates').textContent = JSON.stringify(candidates, null, 2);
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);

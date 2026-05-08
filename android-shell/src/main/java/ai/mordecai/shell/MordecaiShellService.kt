@@ -21,7 +21,9 @@ import kotlinx.coroutines.launch
 class MordecaiShellService : LifecycleService() {
     private lateinit var prefs: android.content.SharedPreferences
     private lateinit var backendSupervisor: BackendSupervisor
+    private lateinit var speechOutput: SpeechOutput
     private var wakePhraseManager: WakePhraseManager? = null
+    private var commandProcessor: SpeechCommandProcessor? = null
     private var pollingJob: Job? = null
 
     override fun onCreate() {
@@ -30,6 +32,7 @@ class MordecaiShellService : LifecycleService() {
         backendSupervisor = BackendSupervisor(TermuxCommandClient(this)) {
             prefs.getString(PREF_BACKEND_URL, BackendSupervisor.DEFAULT_BASE_URL) ?: BackendSupervisor.DEFAULT_BASE_URL
         }
+        speechOutput = SpeechOutput(this)
         createChannel()
     }
 
@@ -40,6 +43,7 @@ class MordecaiShellService : LifecycleService() {
                 stopSelf()
                 return Service.START_NOT_STICKY
             }
+            ACTION_VOICE_COMMAND -> listenForVoiceCommand(manualTrigger = true)
             ACTION_WAKE_ONLY -> startWakePhraseIfEnabled()
             else -> Unit
         }
@@ -54,6 +58,8 @@ class MordecaiShellService : LifecycleService() {
     override fun onDestroy() {
         pollingJob?.cancel()
         wakePhraseManager?.stop()
+        commandProcessor?.stop()
+        speechOutput.shutdown()
         prefs.edit().putBoolean(PREF_SERVICE_ENABLED, false).apply()
         super.onDestroy()
     }
@@ -92,8 +98,37 @@ class MordecaiShellService : LifecycleService() {
             backendSupervisor.startRuntime()
             val manager = getSystemService(NotificationManager::class.java)
             manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_wake_phrase_heard)))
+            listenForVoiceCommand(manualTrigger = false)
         }
         wakePhraseManager?.start()
+    }
+
+    private fun listenForVoiceCommand(manualTrigger: Boolean) {
+        commandProcessor?.stop()
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_listening_for_command)))
+        commandProcessor = SpeechCommandProcessor(
+            context = this,
+            onCommandHeard = { command ->
+                lifecycleScope.launch {
+                    val result = backendSupervisor.chat(command)
+                    if (result.ok) {
+                        val spokenReply = result.reply.ifBlank { getString(R.string.notification_empty_reply) }
+                        speechOutput.speak(spokenReply)
+                        prefs.edit().putString(PREF_LAST_REPLY, spokenReply).apply()
+                        manager.notify(NOTIFICATION_ID, buildNotification(spokenReply))
+                    } else {
+                        val errorMessage = result.error ?: getString(R.string.notification_command_failed)
+                        manager.notify(NOTIFICATION_ID, buildNotification(errorMessage))
+                    }
+                }
+            },
+            onFailure = { error ->
+                val message = if (manualTrigger) error else getString(R.string.notification_command_timeout)
+                manager.notify(NOTIFICATION_ID, buildNotification(message))
+            },
+        )
+        commandProcessor?.startListening()
     }
 
     private fun buildNotification(content: String): Notification {
@@ -109,13 +144,21 @@ class MordecaiShellService : LifecycleService() {
             Intent(this, MordecaiShellService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val voiceIntent = PendingIntent.getService(
+            this,
+            102,
+            Intent(this, MordecaiShellService::class.java).setAction(ACTION_VOICE_COMMAND),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(content)
             .setSmallIcon(R.drawable.ic_mordecai_foreground)
             .setOngoing(true)
             .setContentIntent(openIntent)
+            .addAction(0, getString(R.string.action_voice_command), voiceIntent)
             .addAction(0, getString(R.string.action_stop_service), stopIntent)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(content))
             .build()
     }
 
@@ -139,12 +182,18 @@ class MordecaiShellService : LifecycleService() {
         const val PREF_WAKE_PHRASE = "wake_phrase"
         const val PREF_ADVANCED_ENABLED = "advanced_enabled"
         const val PREF_SERVICE_ENABLED = "service_enabled"
+        const val PREF_LAST_REPLY = "last_reply"
         const val DEFAULT_WAKE_PHRASE = "mordecai"
         const val ACTION_STOP = "ai.mordecai.shell.action.STOP"
         const val ACTION_WAKE_ONLY = "ai.mordecai.shell.action.WAKE_ONLY"
+        const val ACTION_VOICE_COMMAND = "ai.mordecai.shell.action.VOICE_COMMAND"
 
-        fun start(context: Context) {
-            val intent = Intent(context, MordecaiShellService::class.java)
+        fun start(context: Context, action: String? = null) {
+            val intent = Intent(context, MordecaiShellService::class.java).apply {
+                if (action != null) {
+                    setAction(action)
+                }
+            }
             ContextCompat.startForegroundService(context, intent)
         }
     }

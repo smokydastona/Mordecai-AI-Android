@@ -12,6 +12,7 @@
     <string name="action_refresh">Refresh</string>
     <string name="action_save_settings">Save settings</string>
     <string name="action_stop_service">Stop service</string>
+    <string name="action_voice_command">Voice command</string>
     <string name="label_service">Keep Mordecai service active</string>
     <string name="label_wake_phrase">Listen for wake phrase</string>
     <string name="label_autostart_backend">Auto-start backend when offline</string>
@@ -31,5 +32,10 @@
     <string name="notification_backend_online">Backend reachable on localhost.</string>
     <string name="notification_backend_offline">Backend offline. Attempting recovery.</string>
     <string name="notification_wake_phrase_heard">Wake phrase heard. Starting backend.</string>
+    <string name="notification_listening_for_command">Listening for a voice command.</string>
+    <string name="notification_empty_reply">No reply content returned from the backend.</string>
+    <string name="notification_command_timeout">No voice command was captured.</string>
+    <string name="notification_command_failed">Voice command failed.</string>
     <string name="settings_saved">Settings saved.</string>
+    <string name="tile_label">Mordecai</string>
 </resources>

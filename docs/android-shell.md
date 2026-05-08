@@ -17,8 +17,11 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - `MainActivity` provides install, start, stop, update, refresh, and settings controls
 - `MordecaiShellService` polls the localhost backend and can auto-start it through Termux when offline
 - `WakePhraseManager` listens for the configured wake phrase and triggers backend startup when it is heard
+- `SpeechCommandProcessor` captures the next spoken command and dispatches it to the backend chat API
+- `SpeechOutput` speaks backend replies through Android TTS with an older, slower default cadence
 - `TermuxCommandClient` invokes the Phase 1 scripts through the Termux run-command API
 - `RootDetector` gates advanced mode toggles so Mode B activation remains explicit
+- `MordecaiTileService` gives the shell a quick-settings entrypoint for voice command activation
 
 ## Runtime Contract
 
