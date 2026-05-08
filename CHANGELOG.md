@@ -12,6 +12,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Persisted goals and routines with API endpoints, status counters, and dashboard panels.
 - Local model registry exposure through `/api/local-models` and runtime capabilities, with dashboard visibility for configured Whisper, Piper, cloud, and local chat profiles.
 - Android accessibility service, lock-screen accessibility overlay, setup actions, and overlay-backed voice command delegation in the shell app.
+- Restricted accessibility action set for overlay buttons and local voice commands, covering back, home, recents, notifications, quick settings, and center-screen tap.
 - Policy-enforced self-improvement diff filters for hidden persistence and boot-time autostart patterns.
 - Generic Android setup guidance in `docs/android_setup.md` and proxy configuration guidance in `net_proxy/config.md`.
 - Native Android shell app under `android-shell/` with a WebView dashboard, foreground supervision service, Termux command bridge, wake-phrase listening, and root-gated advanced mode controls.

@@ -24,6 +24,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - `MordecaiTileService` gives the shell a quick-settings entrypoint for voice command activation
 - `MordecaiAccessibilityService` exposes a lock-screen-safe accessibility overlay and can own voice command capture when accessibility mode is enabled
 - `MordecaiOverlay` renders avatar feedback and backend replies over the lock screen through `TYPE_ACCESSIBILITY_OVERLAY`
+- the overlay now includes a restricted local action set for safe navigation gestures and can resolve matching voice commands locally before escalating to backend chat
 
 ## Runtime Contract
 

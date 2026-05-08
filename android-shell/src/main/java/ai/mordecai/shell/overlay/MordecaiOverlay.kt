@@ -14,6 +14,7 @@ import ai.mordecai.shell.R
 class MordecaiOverlay(
     private val context: Context,
     private val onListenRequested: () -> Unit,
+    private val onActionRequested: (String) -> Unit,
 ) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val rootView: LinearLayout = LinearLayout(context)
@@ -21,6 +22,7 @@ class MordecaiOverlay(
     private val statusTitle: TextView = TextView(context)
     private val statusBody: TextView = TextView(context)
     private val actionButton: Button = Button(context)
+    private val actionsRow: LinearLayout = LinearLayout(context)
     private var attached = false
 
     private val layoutParams = WindowManager.LayoutParams(
@@ -55,10 +57,27 @@ class MordecaiOverlay(
         actionButton.text = context.getString(R.string.action_voice_command)
         actionButton.setOnClickListener { onListenRequested() }
 
+        actionsRow.orientation = LinearLayout.HORIZONTAL
+        actionsRow.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        listOf(
+            R.string.overlay_action_back to "BACK",
+            R.string.overlay_action_home to "HOME",
+            R.string.overlay_action_notifications to "NOTIFICATIONS",
+            R.string.overlay_action_center to "TAP_CENTER",
+        ).forEach { (labelId, action) ->
+            val button = Button(context).apply {
+                text = context.getString(labelId)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setOnClickListener { onActionRequested(action) }
+            }
+            actionsRow.addView(button)
+        }
+
         rootView.addView(avatarView)
         rootView.addView(statusTitle)
         rootView.addView(statusBody)
         rootView.addView(actionButton)
+        rootView.addView(actionsRow)
     }
 
     fun show() {

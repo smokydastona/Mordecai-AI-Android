@@ -50,11 +50,24 @@
     <string name="settings_saved">Settings saved.</string>
     <string name="tile_label">Mordecai</string>
     <string name="overlay_title">Mordecai Overlay</string>
+    <string name="overlay_action_title">Local action</string>
     <string name="overlay_listening_title">Listening</string>
     <string name="overlay_processing_title">Processing</string>
     <string name="overlay_error_title">Attention</string>
     <string name="overlay_reply_title">Mordecai · %1$s</string>
     <string name="overlay_sync_complete">Overlay state synchronized.</string>
+    <string name="overlay_action_back">Back</string>
+    <string name="overlay_action_home">Home</string>
+    <string name="overlay_action_notifications">Notifications</string>
+    <string name="overlay_action_center">Center tap</string>
+    <string name="overlay_action_unknown">That overlay action is not available.</string>
+    <string name="overlay_action_failed">The requested accessibility action did not complete.</string>
+    <string name="overlay_action_back_done">Went back.</string>
+    <string name="overlay_action_home_done">Returned to the home screen.</string>
+    <string name="overlay_action_recents_done">Opened recent apps.</string>
+    <string name="overlay_action_notifications_done">Opened notifications.</string>
+    <string name="overlay_action_quick_settings_done">Opened quick settings.</string>
+    <string name="overlay_action_tap_center_done">Pressed the center of the screen.</string>
     <string name="accessibility_service_summary">Lock-screen voice control and overlay for Mordecai.</string>
     <string name="accessibility_service_description">Lets Mordecai display a lock-screen-safe accessibility overlay and route voice commands to the localhost backend.</string>
 </resources>
