@@ -39,6 +39,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - build command on Windows: `./gradlew.bat :android-shell:assembleDebug`
 - build command on Unix-like shells: `./gradlew :android-shell:assembleDebug`
 - CI now runs the wrapper-backed Android build and uploads the debug APK as an artifact
+- CI provisions Android SDK packages through `android-actions/setup-android@v4` instead of a manual `sdkmanager --licenses` pipe, which avoids broken-pipe failures under `bash -o pipefail`
 
 ## Limitations
 

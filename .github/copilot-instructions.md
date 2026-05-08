@@ -103,6 +103,7 @@ Non-negotiables:
 - Treat GitHub Actions as the authoritative clean build.
 - If CI fails, inspect logs, reproduce locally when possible, and fix the root cause before moving on.
 - Preserve debugging artifacts on failure when workflows support uploads.
+- Prefer first-party or current major-version GitHub Actions when they remove fragile shell glue, especially around Android SDK setup and license handling.
 
 ## Common commands
 

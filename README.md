@@ -194,6 +194,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 
 - GitHub Actions now runs cross-platform install, compile, test, and app-smoke checks through `.github/workflows/ci.yml`.
 - GitHub Actions now also builds the native Android shell debug APK through the checked-in Gradle wrapper and uploads the APK artifact.
+- Android SDK provisioning in CI now uses `android-actions/setup-android@v4` package installation directly, which avoids the fragile manual `sdkmanager --licenses` pipe.
 - GitHub Actions now runs a documentation sync gate before test execution.
 - Every CI run uploads debug artifacts including pytest output, JUnit XML, Python version, and `pip freeze`.
 - Manual deep triage is available through `.github/workflows/debug-smoke.yml`, which now also captures Android build output and uploads the debug APK when available.
