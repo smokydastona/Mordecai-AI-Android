@@ -10,6 +10,10 @@ from mordecai.policy import PolicyEngine
 from mordecai.proxy import SafeHttpClient
 from mordecai.self_improvement import SelfImprovementManager
 from mordecai.store import StateStore
+from mordecai_core.events import EventBus
+from mordecai_core.provider_contracts import ProviderCatalog
+from mordecai_core.tool_registry import ToolManifest, ToolRegistry
+from mordecai_core.tools.file_ops import FileTools
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,10 +25,70 @@ class RuntimeComponents:
     android_controller: AndroidController
     policy: PolicyEngine
     store: StateStore
+    event_bus: EventBus
+    tool_registry: ToolRegistry
+    provider_catalog: ProviderCatalog
+
+
+def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service: GitService) -> ToolRegistry:
+    registry = ToolRegistry(event_bus)
+    file_tools = FileTools()
+    registry.register(
+        ToolManifest(
+            tool="filesystem.read",
+            permissions=("storage",),
+            description="Read file contents from the workspace.",
+            input_schema={"path": "string"},
+            output_schema={"content": "string"},
+        ),
+        file_tools.read_text,
+    )
+    registry.register(
+        ToolManifest(
+            tool="filesystem.write",
+            permissions=("storage",),
+            description="Write file contents inside the workspace.",
+            input_schema={"path": "string", "content": "string"},
+            output_schema={"path": "string"},
+        ),
+        file_tools.write_text,
+    )
+    registry.register(
+        ToolManifest(
+            tool="git.status",
+            permissions=("git",),
+            description="Inspect repository status.",
+            output_schema={"branch": "string", "dirty": "boolean"},
+        ),
+        git_service.status,
+    )
+    registry.register(
+        ToolManifest(
+            tool="web.search",
+            permissions=("network",),
+            description="Run a safe web search through the outbound proxy.",
+            input_schema={"query": "string"},
+            output_schema={"abstract": "string", "related": "array"},
+        ),
+        proxy.web_search,
+    )
+    registry.register(
+        ToolManifest(
+            tool="github.search",
+            permissions=("network",),
+            description="Search GitHub repositories through the safe outbound proxy.",
+            input_schema={"query": "string", "limit": "integer"},
+            output_schema={"results": "array"},
+        ),
+        proxy.github_search_repositories,
+    )
+    return registry
 
 
 def get_runtime_components() -> RuntimeComponents:
     runtime, proxy, git_service, improvement_manager, android, policy, store = build_runtime()
+    event_bus = EventBus()
+    tool_registry = _build_tool_registry(event_bus, proxy, git_service)
     return RuntimeComponents(
         runtime=runtime,
         proxy=proxy,
@@ -33,4 +97,7 @@ def get_runtime_components() -> RuntimeComponents:
         android_controller=android,
         policy=policy,
         store=store,
+        event_bus=event_bus,
+        tool_registry=tool_registry,
+        provider_catalog=runtime.provider_router.catalog,
     )

@@ -6,6 +6,15 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 
 ### Added
 
+- Observable architecture foundations for a unified event bus, self-describing tool registry, and replaceable provider contracts.
+- New architecture and roadmap documents for the modular Android-native operating-layer direction.
+
+### Changed
+
+- README positioning now emphasizes Mordecai as an Android-native AI operating layer rather than a generic assistant.
+
+### Added
+
 - Initial Mordecai policy-bound FastAPI runtime with guarded outbound networking, dashboard, git backup, Android control hooks, and sandboxed self-improvement.
 - Runtime diagnostics including events, proxy logs, improvement backups, and rollback support.
 - GitHub Actions CI, CodeQL, and debug-bundle workflows with artifact upload.

@@ -1,6 +1,8 @@
 # Mordecai
 
-Mordecai-AI-Android is the canonical home of the Galaxy S10e AI OS project. This repository currently contains the working Mordecai runtime plus the device, sandbox, voice, proxy, and self-modification structure that the broader system will grow into.
+Mordecai-AI-Android is a modular Android-native AI operating layer focused on automation, hardware integration, hybrid local/cloud routing, and intelligent device control.
+
+This repository is the canonical home of the Galaxy S10e AI OS project. It currently contains the working Mordecai runtime plus the device, sandbox, voice, proxy, and self-modification structure that the broader system will grow into.
 
 Mordecai itself is a policy-bound AI runtime for a repurposed Android device. The current implementation provides a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, and a sandboxed self-improvement workflow.
 
@@ -22,6 +24,13 @@ Mordecai itself is a policy-bound AI runtime for a repurposed Android device. Th
 - Self-improvement manager that stages file changes in a sandbox workspace, runs tests there, supports rollback, previews diffs, and only applies approved candidates
 - Resource watchdog that reports CPU and memory usage
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
+- Canonical architecture foundations for a unified tool registry, replaceable provider contracts, and an observable event bus in `mordecai_core/`
+
+## Strategic direction
+
+- Mordecai is being positioned as an Android-native control layer, not a generic chat app.
+- The strongest differentiation is hardware integration, device automation, controller and HID workflows, and hybrid local/cloud AI routing.
+- Architectural growth is anchored on modular interfaces, execution observability, and progressive permission unlocking.
 
 ## Project layout
 
@@ -63,6 +72,13 @@ tests/
 - `self_mod/` documents the self-improvement subsystem and its guardrails.
 - `net_proxy/` captures the safe internet boundary and its configuration model.
 - `voice/` defines the wake-word, STT, and TTS expansion surface.
+
+## Architecture priorities
+
+- Unified tool registry: self-describing tools with stable contracts and explicit permission requirements.
+- Event bus: observable execution flow and loose coupling between runtime subsystems.
+- Replaceable provider layer: cloud and local providers routed behind stable contracts.
+- Reliable Android integration: progressive permissions, defensive automation, and OEM-fragility isolation.
 
 ## Quick start
 
@@ -119,6 +135,12 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 - Manual deep triage is available through `.github/workflows/debug-smoke.yml`, which produces a bundled diagnostics artifact.
 - Security scanning is handled by `.github/workflows/codeql.yml`.
 - GitHub issue templates in `.github/ISSUE_TEMPLATE/` now match Mordecai and are structured around reproducible debugging evidence.
+
+## Reference docs
+
+- `docs/architecture.md`
+- `docs/architecture/modular-foundations.md`
+- `docs/roadmap/foundation.md`
 
 ## Diagnostics surface
 
