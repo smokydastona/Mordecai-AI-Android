@@ -70,6 +70,8 @@ The permanent avatar also anchors here as a policy-protected identity surface wh
 
 Candidate proposal, sandbox execution, promotion, rollback, observability, and the human approval path for anything with real impact.
 
+The runtime also persists long-term goals and routine triggers as operator-visible state, keeping task memory explicit instead of hidden in prompt-only context.
+
 ## Repository mapping
 
 - `src/mordecai/` holds the working runtime implementation and HTTP/dashboard surface.

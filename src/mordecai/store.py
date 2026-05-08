@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from mordecai.models import ConversationEntry, ImprovementBackupRecord, ImprovementCandidate, ProxyRequestRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord
+from mordecai.models import ConversationEntry, GoalRecord, ImprovementBackupRecord, ImprovementCandidate, ProxyRequestRecord, RoutineRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord
 
 
 class StateStore:
@@ -21,6 +21,8 @@ class StateStore:
         self._events_path = state_dir / "events.json"
         self._backups_path = state_dir / "backups.json"
         self._tool_executions_path = state_dir / "tool_executions.json"
+        self._goals_path = state_dir / "goals.json"
+        self._routines_path = state_dir / "routines.json"
         for path, default in (
             (self._conversation_path, []),
             (self._proxy_log_path, []),
@@ -28,6 +30,8 @@ class StateStore:
             (self._events_path, []),
             (self._backups_path, []),
             (self._tool_executions_path, []),
+            (self._goals_path, []),
+            (self._routines_path, []),
         ):
             if not path.exists():
                 path.write_text(json.dumps(default, indent=2), encoding="utf-8")
@@ -119,3 +123,25 @@ class StateStore:
     def read_tool_executions(self) -> list[ToolExecutionRecord]:
         with self._lock:
             return [ToolExecutionRecord.model_validate(item) for item in self._load(self._tool_executions_path)]
+
+    def save_goal(self, record: GoalRecord) -> None:
+        with self._lock:
+            payload = self._load(self._goals_path)
+            payload = [item for item in payload if item["goal_id"] != record.goal_id]
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._goals_path, payload)
+
+    def read_goals(self) -> list[GoalRecord]:
+        with self._lock:
+            return [GoalRecord.model_validate(item) for item in self._load(self._goals_path)]
+
+    def save_routine(self, record: RoutineRecord) -> None:
+        with self._lock:
+            payload = self._load(self._routines_path)
+            payload = [item for item in payload if item["routine_id"] != record.routine_id]
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._routines_path, payload)
+
+    def read_routines(self) -> list[RoutineRecord]:
+        with self._lock:
+            return [RoutineRecord.model_validate(item) for item in self._load(self._routines_path)]

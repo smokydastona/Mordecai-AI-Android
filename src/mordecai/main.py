@@ -9,7 +9,7 @@ from mordecai.android_control import AndroidController
 from mordecai.config import ensure_state_dirs, get_settings
 from mordecai.dashboard import render_dashboard
 from mordecai.git_tools import GitService
-from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, ImprovementRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
+from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
 from mordecai.policy import PolicyEngine
 from mordecai.providers import ProviderRouter
 from mordecai.proxy import SafeHttpClient
@@ -115,6 +115,22 @@ def create_app() -> FastAPI:
     @app.get("/api/memory")
     async def memory() -> list[dict[str, object]]:
         return [entry.model_dump(mode="json") for entry in runtime.memory()]
+
+    @app.get("/api/goals")
+    async def goals() -> list[dict[str, object]]:
+        return [goal.model_dump(mode="json") for goal in runtime.goals()]
+
+    @app.post("/api/goals")
+    async def create_goal(request: GoalRequest) -> dict[str, object]:
+        return runtime.create_goal(request).model_dump(mode="json")
+
+    @app.get("/api/routines")
+    async def routines() -> list[dict[str, object]]:
+        return [routine.model_dump(mode="json") for routine in runtime.routines()]
+
+    @app.post("/api/routines")
+    async def create_routine(request: RoutineRequest) -> dict[str, object]:
+        return runtime.create_routine(request).model_dump(mode="json")
 
     @app.get("/api/events")
     async def events() -> list[dict[str, object]]:

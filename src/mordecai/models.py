@@ -47,6 +47,8 @@ class StatusSnapshot(BaseModel):
     service_host: str
     service_port: int
     avatar_emotion: str
+    active_goals: int = 0
+    active_routines: int = 0
 
 
 class GithubSearchRequest(BaseModel):
@@ -163,6 +165,40 @@ class ToolExecutionRecord(BaseModel):
     output: Any = None
     error: RuntimeFailure | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class GoalRecord(BaseModel):
+    goal_id: str
+    title: str
+    description: str
+    status: str = "active"
+    priority: str = "normal"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class RoutineRecord(BaseModel):
+    routine_id: str
+    title: str
+    description: str
+    trigger: str
+    enabled: bool = True
+    last_run_at: datetime | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class GoalRequest(BaseModel):
+    title: str = Field(min_length=3)
+    description: str = Field(min_length=3)
+    priority: str = Field(default="normal")
+
+
+class RoutineRequest(BaseModel):
+    title: str = Field(min_length=3)
+    description: str = Field(min_length=3)
+    trigger: str = Field(min_length=3)
+    enabled: bool = True
 
 
 class AvatarFrame(BaseModel):

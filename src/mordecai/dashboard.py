@@ -234,6 +234,14 @@ def render_dashboard() -> str:
         <pre id="candidates"></pre>
       </div>
       <div class="card">
+        <h2>Goals</h2>
+        <pre id="goals"></pre>
+      </div>
+      <div class="card">
+        <h2>Routines</h2>
+        <pre id="routines"></pre>
+      </div>
+      <div class="card">
         <h2>Recent Events</h2>
         <pre id="events"></pre>
       </div>
@@ -301,12 +309,14 @@ def render_dashboard() -> str:
     let latestCapabilities = null;
 
     async function load() {
-      const [status, policy, memory, gitState, candidates, events, proxyLogs, trace, capabilities, avatar] = await Promise.all([
+      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, trace, capabilities, avatar] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
         fetch('/api/memory').then(r => r.json()),
         fetch('/api/git/status').then(r => r.json()),
         fetch('/api/improvement/candidates').then(r => r.json()),
+        fetch('/api/goals').then(r => r.json()),
+        fetch('/api/routines').then(r => r.json()),
         fetch('/api/events').then(r => r.json()),
         fetch('/api/proxy/logs').then(r => r.json()),
         fetch('/api/runtime/trace').then(r => r.json()),
@@ -319,7 +329,9 @@ def render_dashboard() -> str:
         <div class="metric"><div class="label">Provider</div><div class="value">${status.provider}</div></div>
         <div class="metric"><div class="label">CPU</div><div class="value">${status.cpu_percent.toFixed(1)}%</div></div>
         <div class="metric"><div class="label">Memory</div><div class="value">${status.memory_mb.toFixed(1)} MB</div></div>
-        <div class="metric"><div class="label">Pending</div><div class="value">${status.pending_candidates}</div></div>`;
+        <div class="metric"><div class="label">Pending</div><div class="value">${status.pending_candidates}</div></div>
+        <div class="metric"><div class="label">Goals</div><div class="value">${status.active_goals}</div></div>
+        <div class="metric"><div class="label">Routines</div><div class="value">${status.active_routines}</div></div>`;
 
       document.getElementById('wake-words').innerHTML = status.wake_words.map(word => `<span class="tag">${word}</span>`).join('');
       const currentFrame = avatar.frames.find(frame => frame.emotion === avatar.current_emotion) || avatar.frames[0];
@@ -329,6 +341,8 @@ def render_dashboard() -> str:
       document.getElementById('memory').textContent = JSON.stringify(memory.slice(-20), null, 2);
       document.getElementById('git').textContent = JSON.stringify(gitState, null, 2);
       document.getElementById('candidates').textContent = JSON.stringify(candidates, null, 2);
+      document.getElementById('goals').textContent = JSON.stringify(goals, null, 2);
+      document.getElementById('routines').textContent = JSON.stringify(routines, null, 2);
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);
       document.getElementById('proxy').textContent = JSON.stringify(proxyLogs.slice(-10), null, 2);
       document.getElementById('trace').innerHTML = trace.events.slice(-8).reverse().map(event => `

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
+from datetime import UTC, datetime
 
 from mordecai.config import Settings
 from mordecai.avatar import DEFAULT_AVATAR_EMOTION, build_avatar_profile, classify_avatar_emotion
 from mordecai.git_tools import GitService
-from mordecai.models import AvatarProfile, ChatResponse, ConversationEntry, StatusSnapshot
+from mordecai.models import AvatarProfile, ChatResponse, ConversationEntry, GoalRecord, GoalRequest, RoutineRecord, RoutineRequest, RuntimeEvent, StatusSnapshot
 from mordecai.policy import PolicyEngine
 from mordecai.providers import ProviderRouter
 from mordecai.proxy import SafeHttpClient
@@ -93,6 +95,8 @@ class MordecaiRuntime:
             service_host=self.settings.service_host,
             service_port=self.settings.service_port,
             avatar_emotion=self.avatar_emotion,
+            active_goals=len([goal for goal in self.store.read_goals() if goal.status == "active"]),
+            active_routines=len([routine for routine in self.store.read_routines() if routine.enabled]),
         )
 
     def memory(self) -> list[ConversationEntry]:
@@ -106,6 +110,41 @@ class MordecaiRuntime:
 
     def avatar(self) -> AvatarProfile:
         return build_avatar_profile(self.settings, current_emotion=self.avatar_emotion)
+
+    def goals(self) -> list[GoalRecord]:
+        return self.store.read_goals()
+
+    def routines(self) -> list[RoutineRecord]:
+        return self.store.read_routines()
+
+    def create_goal(self, request: GoalRequest) -> GoalRecord:
+        now = datetime.now(UTC)
+        record = GoalRecord(
+            goal_id=uuid4().hex[:12],
+            title=request.title,
+            description=request.description,
+            priority=request.priority,
+            created_at=now,
+            updated_at=now,
+        )
+        self.store.save_goal(record)
+        self.store.append_event(RuntimeEvent(category="goal", detail=f"created:{record.goal_id}"))
+        return record
+
+    def create_routine(self, request: RoutineRequest) -> RoutineRecord:
+        now = datetime.now(UTC)
+        record = RoutineRecord(
+            routine_id=uuid4().hex[:12],
+            title=request.title,
+            description=request.description,
+            trigger=request.trigger,
+            enabled=request.enabled,
+            created_at=now,
+            updated_at=now,
+        )
+        self.store.save_routine(record)
+        self.store.append_event(RuntimeEvent(category="routine", detail=f"created:{record.routine_id}"))
+        return record
 
     def _build_context(self) -> str:
         git_state = self.git_service.status()

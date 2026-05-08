@@ -32,6 +32,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Android shell voice command loop with wake phrase, speech capture, backend chat dispatch, spoken replies, notification action entrypoint, and quick-settings tile activation
 - Permanent avatar system with immutable old-man emotion frames, backend emotion selection, and dashboard rendering
 - Local dashboard memory browser for recent conversation inspection
+- Persisted long-term goals and daily routines surfaced through API and dashboard panels
 
 ## Strategic direction
 

@@ -47,6 +47,30 @@ def test_chat_and_status_endpoints(tmp_path, monkeypatch):
     assert status_response.status_code == 200
     assert status_response.json()["app_name"] == "Mordecai"
     assert "avatar_emotion" in status_response.json()
+    assert "active_goals" in status_response.json()
+    assert "active_routines" in status_response.json()
+
+
+def test_goals_and_routines_endpoints_persist_records(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    goal_response = client.post(
+        "/api/goals",
+        json={"title": "Protect the runtime", "description": "Keep safety boundaries intact.", "priority": "high"},
+    )
+    routine_response = client.post(
+        "/api/routines",
+        json={"title": "Morning status", "description": "Check local backend each morning.", "trigger": "time:08:00", "enabled": True},
+    )
+    goals_response = client.get("/api/goals")
+    routines_response = client.get("/api/routines")
+
+    assert goal_response.status_code == 200
+    assert routine_response.status_code == 200
+    assert goals_response.status_code == 200
+    assert routines_response.status_code == 200
+    assert goals_response.json()[0]["title"] == "Protect the runtime"
+    assert routines_response.json()[0]["trigger"] == "time:08:00"
 
 
 def test_avatar_endpoint_returns_immutable_frames(tmp_path, monkeypatch):
