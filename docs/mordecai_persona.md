@@ -46,3 +46,5 @@ The active runtime persona is currently enforced by:
 - `prompts/system_prompt.txt`
 - `src/mordecai/voice.py`
 - `src/mordecai/agent.py`
+- `src/mordecai/avatar.py`
+- `assets/avatar/`

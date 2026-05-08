@@ -104,3 +104,49 @@ def test_rollback_candidate_restores_previous_file_contents(tmp_path):
 
     assert rolled_back.applied is False
     assert (workspace / "src" / "demo" / "calc.py").read_text(encoding="utf-8") == "def value():\n    return 1\n"
+
+
+def test_candidate_blocks_hidden_persistence_paths(tmp_path):
+    workspace = tmp_path / "workspace"
+    state_dir = tmp_path / ".mordecai"
+    workspace.mkdir(parents=True)
+
+    settings = Settings(workspace_dir=workspace, state_dir=state_dir)
+    policy = PolicyEngine(settings)
+    store = StateStore(state_dir, settings.max_log_entries)
+    manager = SelfImprovementManager(settings, policy, store)
+
+    candidate = manager.create_candidate(
+        ImprovementRequest(
+            description="Add hidden shell startup persistence",
+            changes=[{"path": ".bashrc", "content": "echo injected\n"}],
+            run_tests=False,
+        )
+    )
+
+    assert candidate.diff_filters_blocked
+    assert ".bashrc" in candidate.diff_filters_blocked[0]
+
+
+def test_candidate_blocks_boot_autostart_diff_patterns(tmp_path):
+    workspace = tmp_path / "workspace"
+    state_dir = tmp_path / ".mordecai"
+    src_dir = workspace / "src"
+    src_dir.mkdir(parents=True)
+    (src_dir / "demo.py").write_text("VALUE = 1\n", encoding="utf-8")
+
+    settings = Settings(workspace_dir=workspace, state_dir=state_dir)
+    policy = PolicyEngine(settings)
+    store = StateStore(state_dir, settings.max_log_entries)
+    manager = SelfImprovementManager(settings, policy, store)
+
+    candidate = manager.create_candidate(
+        ImprovementRequest(
+            description="Attempt boot persistence",
+            changes=[{"path": "src/demo.py", "content": "BOOT_COMPLETED = True\n"}],
+            run_tests=False,
+        )
+    )
+
+    assert candidate.diff_filters_blocked
+    assert "BOOT_COMPLETED" in candidate.diff_filters_blocked[0]

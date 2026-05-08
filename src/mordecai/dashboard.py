@@ -59,6 +59,30 @@ def render_dashboard() -> str:
       margin-top: 20px;
     }
     .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .avatar-stage {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      justify-items: center;
+      text-align: center;
+    }
+    .avatar-frame {
+      width: min(100%, 240px);
+      aspect-ratio: 1;
+      padding: 14px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: radial-gradient(circle at top, rgba(197,154,73,0.18), rgba(0,0,0,0.05) 50%), var(--panel-2);
+    }
+    .avatar-frame svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .avatar-meta {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
     .metric {
       background: var(--panel-2);
       border-radius: 14px;
@@ -180,6 +204,11 @@ def render_dashboard() -> str:
         <div id="wake-words"></div>
       </div>
       <div class="card metrics" id="metrics"></div>
+      <div class="card avatar-stage">
+        <h2>Permanent Avatar</h2>
+        <div id="avatar-frame" class="avatar-frame"></div>
+        <div id="avatar-meta" class="avatar-meta"></div>
+      </div>
     </section>
     <section class="grid">
       <div class="card">
@@ -268,7 +297,7 @@ def render_dashboard() -> str:
     let latestCapabilities = null;
 
     async function load() {
-      const [status, policy, gitState, candidates, events, proxyLogs, trace, capabilities] = await Promise.all([
+      const [status, policy, gitState, candidates, events, proxyLogs, trace, capabilities, avatar] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
         fetch('/api/git/status').then(r => r.json()),
@@ -277,6 +306,7 @@ def render_dashboard() -> str:
         fetch('/api/proxy/logs').then(r => r.json()),
         fetch('/api/runtime/trace').then(r => r.json()),
         fetch('/api/runtime/capabilities').then(r => r.json()),
+        fetch('/api/avatar').then(r => r.json()),
       ]);
       latestCapabilities = capabilities;
 
@@ -287,6 +317,9 @@ def render_dashboard() -> str:
         <div class="metric"><div class="label">Pending</div><div class="value">${status.pending_candidates}</div></div>`;
 
       document.getElementById('wake-words').innerHTML = status.wake_words.map(word => `<span class="tag">${word}</span>`).join('');
+      const currentFrame = avatar.frames.find(frame => frame.emotion === avatar.current_emotion) || avatar.frames[0];
+      document.getElementById('avatar-frame').innerHTML = currentFrame ? currentFrame.svg : '';
+      document.getElementById('avatar-meta').textContent = `${avatar.style} | emotion=${avatar.current_emotion} | immutable assets=${avatar.immutable_assets}`;
       document.getElementById('policy').textContent = JSON.stringify(policy, null, 2);
       document.getElementById('git').textContent = JSON.stringify(gitState, null, 2);
       document.getElementById('candidates').textContent = JSON.stringify(candidates, null, 2);

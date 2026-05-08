@@ -25,6 +25,28 @@ class PolicyEngine:
         r"\biptables\b",
         r"\brm\s+-rf\s+/(?!tmp)",
     ]
+    FORBIDDEN_DIFF_PATTERNS = [
+        r"@reboot",
+        r"systemctl\s+enable",
+        r"crontab",
+        r"schtasks",
+        r"RECEIVE_BOOT_COMPLETED",
+        r"BOOT_COMPLETED",
+        r"TermuxBoot",
+        r"Startup",
+    ]
+    FORBIDDEN_DIFF_PATH_PREFIXES = (
+        ".termux/boot/",
+        "init.d/",
+        "systemd/",
+        "cron.",
+    )
+    FORBIDDEN_DIFF_PATHS = {
+        ".bashrc",
+        ".bash_profile",
+        ".profile",
+        ".zshrc",
+    }
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -33,8 +55,12 @@ class PolicyEngine:
             "src/mordecai/proxy.py",
             "src/mordecai/self_improvement.py",
             "src/mordecai/config.py",
+            "src/mordecai/avatar.py",
             "prompts/system_prompt.txt",
         }
+        self.protected_prefixes = (
+            "assets/avatar/",
+        )
 
     def validate_url(self, url: str) -> PolicyDecision:
         parsed = urlparse(url)
@@ -52,9 +78,26 @@ class PolicyEngine:
 
     def validate_file_changes(self, changes: list[ImprovementFileChange]) -> PolicyDecision:
         touched = {self._normalize_path(change.path) for change in changes}
-        blocked = sorted(touched & self.protected_paths)
+        blocked = sorted(
+            path for path in touched if path in self.protected_paths or any(path.startswith(prefix) for prefix in self.protected_prefixes)
+        )
         if blocked:
             return PolicyDecision(False, f"Protected paths cannot be changed: {', '.join(blocked)}")
+        return PolicyDecision(True, "allowed")
+
+    def validate_change_content(self, changes: list[ImprovementFileChange]) -> PolicyDecision:
+        blocked: list[str] = []
+        for change in changes:
+            normalized_path = self._normalize_path(change.path)
+            if normalized_path in self.FORBIDDEN_DIFF_PATHS or any(normalized_path.startswith(prefix) for prefix in self.FORBIDDEN_DIFF_PATH_PREFIXES):
+                blocked.append(f"{normalized_path} (hidden persistence path)")
+                continue
+            for pattern in self.FORBIDDEN_DIFF_PATTERNS:
+                if re.search(pattern, change.content, flags=re.IGNORECASE):
+                    blocked.append(f"{normalized_path} (blocked diff pattern: {pattern})")
+                    break
+        if blocked:
+            return PolicyDecision(False, f"Diff filters blocked changes: {', '.join(blocked)}")
         return PolicyDecision(True, "allowed")
 
     def report(self) -> PolicyReport:
@@ -69,6 +112,7 @@ class PolicyEngine:
             "daemon-mode",
             "root-only-behaviors",
         ]
+        allowed_features.append("permanent-avatar")
         if self.settings.allow_git_push:
             allowed_features.append("git-push")
         if self.settings.enable_android_control:
@@ -89,4 +133,4 @@ class PolicyEngine:
 
     @staticmethod
     def _normalize_path(path: str) -> str:
-        return Path(path).as_posix().lstrip("./")
+        return Path(path).as_posix()

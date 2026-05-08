@@ -46,6 +46,7 @@ class StatusSnapshot(BaseModel):
     recent_requests: int
     service_host: str
     service_port: int
+    avatar_emotion: str
 
 
 class GithubSearchRequest(BaseModel):
@@ -124,6 +125,7 @@ class ImprovementCandidate(BaseModel):
     created_at: datetime
     files: list[str]
     protected_paths_blocked: list[str] = Field(default_factory=list)
+    diff_filters_blocked: list[str] = Field(default_factory=list)
     tests_passed: bool | None = None
     test_output: str = ""
     diff_preview: dict[str, str] = Field(default_factory=dict)
@@ -161,3 +163,19 @@ class ToolExecutionRecord(BaseModel):
     output: Any = None
     error: RuntimeFailure | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class AvatarFrame(BaseModel):
+    emotion: str
+    label: str
+    asset_path: str
+    svg: str
+
+
+class AvatarProfile(BaseModel):
+    style: str
+    immutable_assets: bool
+    immutable_behavior: bool
+    immutable_style: bool
+    current_emotion: str
+    frames: list[AvatarFrame] = Field(default_factory=list)

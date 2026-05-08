@@ -64,6 +64,8 @@ Protected paths, command guards, outbound allowlists, rate limits, and permissio
 
 Cloud and local model routing, future STT/TTS systems, wake-word handling, and persona enforcement.
 
+The permanent avatar also anchors here as a policy-protected identity surface whose assets and behavior are not mutable through the self-improvement path.
+
 ### 9. Self-modification and operator layer
 
 Candidate proposal, sandbox execution, promotion, rollback, observability, and the human approval path for anything with real impact.

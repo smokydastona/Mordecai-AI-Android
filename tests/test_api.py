@@ -46,6 +46,21 @@ def test_chat_and_status_endpoints(tmp_path, monkeypatch):
     assert "Mordecai" in chat_response.json()["reply"] or "stable" in chat_response.json()["reply"]
     assert status_response.status_code == 200
     assert status_response.json()["app_name"] == "Mordecai"
+    assert "avatar_emotion" in status_response.json()
+
+
+def test_avatar_endpoint_returns_immutable_frames(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.get("/api/avatar")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["immutable_assets"] is True
+    assert payload["immutable_behavior"] is True
+    assert payload["immutable_style"] is True
+    assert len(payload["frames"]) == 7
+    assert any(frame["emotion"] == "wise-smirk" for frame in payload["frames"])
 
 
 def test_improvement_candidate_blocks_protected_paths(tmp_path, monkeypatch):

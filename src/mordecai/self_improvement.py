@@ -32,11 +32,13 @@ class SelfImprovementManager:
 
     def create_candidate(self, request: ImprovementRequest) -> ImprovementCandidate:
         file_decision = self.policy.validate_file_changes(request.changes)
+        content_decision = self.policy.validate_change_content(request.changes)
         blocked = [] if file_decision.allowed else file_decision.reason.split(": ", 1)[-1].split(", ")
+        diff_filters_blocked = [] if content_decision.allowed else content_decision.reason.split(": ", 1)[-1].split(", ")
         candidate_id = datetime.now(UTC).strftime("%Y%m%d%H%M%S") + "-" + uuid4().hex[:8]
         candidate_root = self.settings.state_dir / "candidates" / candidate_id
         candidate_root.mkdir(parents=True, exist_ok=True)
-        candidate_workspace = self._prepare_candidate_workspace(candidate_root) if file_decision.allowed else None
+        candidate_workspace = self._prepare_candidate_workspace(candidate_root) if file_decision.allowed and content_decision.allowed else None
         diff_preview: dict[str, str] = {}
         files: list[str] = []
         for change in request.changes:
@@ -58,7 +60,7 @@ class SelfImprovementManager:
                 sandbox_path.write_text(change.content, encoding="utf-8")
         tests_passed = None
         test_output = "Not run"
-        if request.run_tests and file_decision.allowed:
+        if request.run_tests and file_decision.allowed and content_decision.allowed:
             tests_passed, test_output = self._run_tests(candidate_workspace)
         candidate = ImprovementCandidate(
             candidate_id=candidate_id,
@@ -66,6 +68,7 @@ class SelfImprovementManager:
             created_at=datetime.now(UTC),
             files=files,
             protected_paths_blocked=blocked,
+            diff_filters_blocked=diff_filters_blocked,
             tests_passed=tests_passed,
             test_output=test_output,
             diff_preview=diff_preview,
@@ -73,7 +76,7 @@ class SelfImprovementManager:
         )
         self.store.save_candidate(candidate)
         self.store.append_event(RuntimeEvent(category="improvement", detail=f"Candidate created: {candidate_id}"))
-        if (request.auto_apply or self.settings.auto_apply_improvements) and candidate.tests_passed and not candidate.protected_paths_blocked:
+        if (request.auto_apply or self.settings.auto_apply_improvements) and candidate.tests_passed and not candidate.protected_paths_blocked and not candidate.diff_filters_blocked:
             self.apply_candidate(candidate_id)
             candidate.applied = True
             self.store.save_candidate(candidate)
@@ -83,6 +86,8 @@ class SelfImprovementManager:
         candidate = self._get_candidate(candidate_id)
         if candidate.protected_paths_blocked:
             raise PermissionError("Candidate touches protected paths")
+        if candidate.diff_filters_blocked:
+            raise PermissionError("Candidate diff blocked by policy filters")
         if candidate.tests_passed is False:
             raise RuntimeError("Candidate tests failed")
         candidate_root = self.settings.state_dir / "candidates" / candidate_id

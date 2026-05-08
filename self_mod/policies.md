@@ -13,6 +13,8 @@ Mordecai may only improve itself through reversible, test-gated, observable chan
 ## Forbidden
 
 - Editing protected policy and safety surfaces
+- Editing avatar assets, avatar style, or avatar behavior
+- Introducing hidden persistence through shell rc files, boot receivers, scheduled tasks, or autostart registration patterns
 - Applying failed candidates
 - Writing hidden persistence or hidden startup behavior
 - Bypassing the git, proxy, Android, or safety policy layers
@@ -25,4 +27,6 @@ The current runtime protects at least these files from self-modification:
 - `src/mordecai/proxy.py`
 - `src/mordecai/self_improvement.py`
 - `src/mordecai/config.py`
+- `src/mordecai/avatar.py`
 - `prompts/system_prompt.txt`
+- `assets/avatar/`

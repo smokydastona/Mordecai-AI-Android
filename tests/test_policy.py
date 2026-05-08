@@ -31,5 +31,17 @@ def test_policy_report_marks_mode_a_capabilities(tmp_path):
 
     assert report.mode == "mode-a"
     assert "localhost-fastapi" in report.allowed_features
+    assert "permanent-avatar" in report.allowed_features
     assert "android-automation" in report.blocked_features
     assert "daemon-mode" in report.blocked_features
+
+
+def test_policy_blocks_avatar_asset_changes(tmp_path):
+    settings = Settings(workspace_dir=tmp_path / "backend")
+    policy = PolicyEngine(settings)
+
+    decision = policy.validate_file_changes([
+        ImprovementFileChange(path="assets/avatar/happy.svg", content="<svg />")
+    ])
+
+    assert not decision.allowed

@@ -136,6 +136,10 @@ def create_app() -> FastAPI:
     async def voice() -> dict[str, object]:
         return runtime.voice().__dict__
 
+    @app.get("/api/avatar")
+    async def avatar() -> dict[str, object]:
+        return runtime.avatar().model_dump(mode="json")
+
     @app.post("/api/chat")
     async def chat(request: ChatRequest) -> dict[str, object]:
         try:

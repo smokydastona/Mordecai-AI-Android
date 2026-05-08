@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from mordecai.config import Settings
+from mordecai.avatar import DEFAULT_AVATAR_EMOTION, build_avatar_profile, classify_avatar_emotion
 from mordecai.git_tools import GitService
-from mordecai.models import ChatResponse, ConversationEntry, StatusSnapshot
+from mordecai.models import AvatarProfile, ChatResponse, ConversationEntry, StatusSnapshot
 from mordecai.policy import PolicyEngine
 from mordecai.providers import ProviderRouter
 from mordecai.proxy import SafeHttpClient
@@ -35,6 +36,7 @@ class MordecaiRuntime:
         self.improvement_manager = improvement_manager
         self.watchdog = watchdog
         self.voice_profile = build_voice_profile(settings)
+        self.avatar_emotion = DEFAULT_AVATAR_EMOTION
         self.system_prompt = self._load_system_prompt()
 
     async def chat(self, message: str) -> ChatResponse:
@@ -65,6 +67,7 @@ class MordecaiRuntime:
             provider_name = provider_reply.provider
 
         self.store.append_conversation(ConversationEntry(role="assistant", content=reply))
+        self.avatar_emotion = classify_avatar_emotion(reply, actions)
         return ChatResponse(
             reply=reply,
             provider=provider_name,
@@ -89,6 +92,7 @@ class MordecaiRuntime:
             recent_requests=len(self.store.read_proxy_records()),
             service_host=self.settings.service_host,
             service_port=self.settings.service_port,
+            avatar_emotion=self.avatar_emotion,
         )
 
     def memory(self) -> list[ConversationEntry]:
@@ -99,6 +103,9 @@ class MordecaiRuntime:
 
     def voice(self) -> VoiceProfile:
         return self.voice_profile
+
+    def avatar(self) -> AvatarProfile:
+        return build_avatar_profile(self.settings, current_emotion=self.avatar_emotion)
 
     def _build_context(self) -> str:
         git_state = self.git_service.status()

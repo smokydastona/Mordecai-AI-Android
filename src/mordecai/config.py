@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     log_dir: Path | None = None
     cache_dir: Path | None = None
     models_dir: Path | None = None
+    avatar_assets_dir: Path | None = None
     default_provider: str = "rule-based"
     openai_base_url: str | None = None
     openai_api_key: str | None = None
@@ -86,6 +87,13 @@ class Settings(BaseSettings):
             self._normalize_path(self.system_prompt_path)
             if self.system_prompt_path
             else workspace_dir / "prompts" / "system_prompt.txt"
+        )
+        default_avatar_assets_dir = workspace_dir / "assets" / "avatar"
+        repo_avatar_assets_dir = Path(__file__).resolve().parents[2] / "assets" / "avatar"
+        self.avatar_assets_dir = (
+            self._normalize_path(self.avatar_assets_dir)
+            if self.avatar_assets_dir
+            else (default_avatar_assets_dir if default_avatar_assets_dir.exists() else repo_avatar_assets_dir)
         )
         return self
 

@@ -20,6 +20,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Safe HTTP client with per-minute request throttling and request logging
 - Git integration for local backups and optional pushes
 - Self-improvement manager that stages file changes in a sandbox workspace, runs tests there, supports rollback, previews diffs, and only applies approved candidates
+- Self-improvement perimeter with protected-path enforcement, hidden-persistence diff filters, sandboxed test gating, and rollback snapshots
 - Resource watchdog that reports CPU and memory usage
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
 - Canonical architecture foundations for a unified tool registry, replaceable provider contracts, and an observable event bus in `mordecai_core/`
@@ -28,6 +29,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Persisted execution history and an operator-facing dashboard tool runner for direct invocation of registered tools
 - Phase 1 Termux installer and lifecycle scripts for portable Mode A deployment under `$HOME/mordecai`
 - Native Android shell app with a WebView dashboard, foreground supervision service, wake-phrase listening, Termux command bridge, and root-gated advanced mode controls
+- Permanent avatar system with immutable old-man emotion frames, backend emotion selection, and dashboard rendering
 
 ## Strategic direction
 
@@ -225,6 +227,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 - `GET /api/runtime/trace` returns recent execution and provider-routing events from the modular runtime surface.
 - `GET /api/runtime/trace` also returns persisted tool execution history so completed tool chains survive process restarts.
 - `GET /api/runtime/capabilities` returns the provider capability matrix plus tool permission and sandbox metadata.
+- `GET /api/avatar` returns the immutable avatar style, current emotion, and all protected frame assets.
 - `POST /api/tools/execute` is the operator and agent execution spine for registered tools.
 - `GET /api/improvement/backups` lists rollback metadata for applied candidates.
 - `POST /api/improvement/rollback/{candidate_id}` restores backed-up files for a previously applied candidate.
