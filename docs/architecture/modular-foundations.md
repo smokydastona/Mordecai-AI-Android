@@ -13,8 +13,33 @@ The canonical runtime now exposes a registry of self-describing tools. Each tool
 - description
 - input schema
 - output schema
+- risk level
+- confirmation policy
+- safe-mode behavior
 
 This is the backbone for agent planning, plugin compatibility, debugging, and future MCP-style interoperability.
+
+### Tool execution engine
+
+The registry now backs a structured execution layer rather than a raw function call. Each execution request carries:
+
+- execution ID
+- typed runtime context
+- argument validation
+- timeout boundary
+- retry budget
+- permission checks
+- cooperative cancellation token
+
+Each execution returns a structured result with status, output, attempts, duration, and a standardized failure payload when the call does not complete normally.
+
+The current failure taxonomy begins with:
+
+- `PermissionDenied`
+- `ValidationFailure`
+- `ToolTimeout`
+- `ExecutionCancelled`
+- `ExecutionFailed`
 
 ### Event bus
 
@@ -23,8 +48,10 @@ Direct feature coupling is being replaced with an event stream model. The event 
 Target event families include:
 
 - `tool.registered`
-- `tool.invoked`
-- `tool.completed`
+- `tool.execution.started`
+- `tool.execution.retrying`
+- `tool.execution.completed`
+- `tool.execution.failed`
 - `notification.received`
 - `accessibility.action_failed`
 - `provider.changed`
@@ -40,3 +67,4 @@ Provider routing is now driven by a provider contract rather than provider-speci
 3. Agent execution stays observable through explicit events and traceable tool invocations.
 4. Android automation must validate state, fail safely, and never assume a stable UI layout.
 5. Permission escalation remains progressive and task-driven.
+6. Runtime execution context must stay typed and explicit rather than expanding through arbitrary dictionaries.

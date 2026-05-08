@@ -8,10 +8,12 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 
 - Observable architecture foundations for a unified event bus, self-describing tool registry, and replaceable provider contracts.
 - New architecture and roadmap documents for the modular Android-native operating-layer direction.
+- Structured tool execution engine with runtime context, permission verification, validation, retries, timeout handling, cooperative cancellation, and execution telemetry.
 
 ### Changed
 
 - README positioning now emphasizes Mordecai as an Android-native AI operating layer rather than a generic assistant.
+- Runtime components now expose direct tool execution and capability discovery from the modular runtime layer.
 
 ### Added
 

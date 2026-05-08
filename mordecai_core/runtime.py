@@ -12,7 +12,7 @@ from mordecai.self_improvement import SelfImprovementManager
 from mordecai.store import StateStore
 from mordecai_core.events import EventBus
 from mordecai_core.provider_contracts import ProviderCatalog
-from mordecai_core.tool_registry import ToolManifest, ToolRegistry
+from mordecai_core.tool_registry import RuntimeContext, ToolExecutionRequest, ToolExecutionResult, ToolManifest, ToolRegistry
 from mordecai_core.tools.file_ops import FileTools
 
 
@@ -29,6 +29,31 @@ class RuntimeComponents:
     tool_registry: ToolRegistry
     provider_catalog: ProviderCatalog
 
+    def execute_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, object] | None = None,
+        context: RuntimeContext | None = None,
+        *,
+        timeout_seconds: float = 10.0,
+        max_retries: int = 0,
+    ) -> ToolExecutionResult:
+        return self.tool_registry.execute(
+            ToolExecutionRequest(
+                tool_name=tool_name,
+                arguments=arguments or {},
+                context=context or RuntimeContext(session_id="runtime", granted_permissions=frozenset()),
+                timeout_seconds=timeout_seconds,
+                max_retries=max_retries,
+            )
+        )
+
+    def discover_capabilities(self) -> dict[str, object]:
+        return {
+            "providers": self.provider_catalog.names(),
+            "tools": [manifest.tool for manifest in self.tool_registry.list_tools()],
+        }
+
 
 def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service: GitService) -> ToolRegistry:
     registry = ToolRegistry(event_bus)
@@ -40,6 +65,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             description="Read file contents from the workspace.",
             input_schema={"path": "string"},
             output_schema={"content": "string"},
+            safe_mode_behavior="read-only",
         ),
         file_tools.read_text,
     )
@@ -50,6 +76,8 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             description="Write file contents inside the workspace.",
             input_schema={"path": "string", "content": "string"},
             output_schema={"path": "string"},
+            risk_level="moderate",
+            confirmation_policy="on-request",
         ),
         file_tools.write_text,
     )
@@ -59,6 +87,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             permissions=("git",),
             description="Inspect repository status.",
             output_schema={"branch": "string", "dirty": "boolean"},
+            safe_mode_behavior="read-only",
         ),
         git_service.status,
     )
@@ -69,6 +98,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             description="Run a safe web search through the outbound proxy.",
             input_schema={"query": "string"},
             output_schema={"abstract": "string", "related": "array"},
+            risk_level="moderate",
         ),
         proxy.web_search,
     )
@@ -79,6 +109,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             description="Search GitHub repositories through the safe outbound proxy.",
             input_schema={"query": "string", "limit": "integer"},
             output_schema={"results": "array"},
+            risk_level="moderate",
         ),
         proxy.github_search_repositories,
     )

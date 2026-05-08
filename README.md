@@ -25,6 +25,7 @@ Mordecai itself is a policy-bound AI runtime for a repurposed Android device. Th
 - Resource watchdog that reports CPU and memory usage
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
 - Canonical architecture foundations for a unified tool registry, replaceable provider contracts, and an observable event bus in `mordecai_core/`
+- Structured tool execution engine with runtime context, permission checks, validation, retries, timeouts, cooperative cancellation, and execution telemetry
 
 ## Strategic direction
 
@@ -76,9 +77,11 @@ tests/
 ## Architecture priorities
 
 - Unified tool registry: self-describing tools with stable contracts and explicit permission requirements.
+- Tool execution engine: registry-backed execution IDs, structured failures, retries, and timeout boundaries.
 - Event bus: observable execution flow and loose coupling between runtime subsystems.
 - Replaceable provider layer: cloud and local providers routed behind stable contracts.
 - Reliable Android integration: progressive permissions, defensive automation, and OEM-fragility isolation.
+- Structured runtime context: execution metadata, provider state, permission state, and device state travel through a typed execution surface instead of ad hoc dictionaries.
 
 ## Quick start
 

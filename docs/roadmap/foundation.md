@@ -7,8 +7,10 @@ This roadmap translates the current strategic direction into execution order.
 - stabilize the modular runtime shell
 - keep the provider contract replaceable
 - expand the unified tool registry
+- stabilize the execution engine with structured failures and timeout boundaries
 - route execution traces through the event bus
 - isolate permissions and Android capability boundaries
+- expose runtime capability discovery for tools and providers
 
 ## Phase 2
 
