@@ -26,6 +26,7 @@ Mordecai itself is a policy-bound AI runtime for a repurposed Android device. Th
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
 - Canonical architecture foundations for a unified tool registry, replaceable provider contracts, and an observable event bus in `mordecai_core/`
 - Structured tool execution engine with runtime context, permission checks, validation, retries, timeouts, cooperative cancellation, and execution telemetry
+- Developer trace and capability surfaces for provider routing, tool policy metadata, and runtime event inspection
 
 ## Strategic direction
 
@@ -79,9 +80,10 @@ tests/
 - Unified tool registry: self-describing tools with stable contracts and explicit permission requirements.
 - Tool execution engine: registry-backed execution IDs, structured failures, retries, and timeout boundaries.
 - Event bus: observable execution flow and loose coupling between runtime subsystems.
-- Replaceable provider layer: cloud and local providers routed behind stable contracts.
+- Replaceable provider layer: cloud and local providers routed behind stable contracts and a declared capability matrix.
 - Reliable Android integration: progressive permissions, defensive automation, and OEM-fragility isolation.
 - Structured runtime context: execution metadata, provider state, permission state, and device state travel through a typed execution surface instead of ad hoc dictionaries.
+- Developer observability: runtime trace and capability inspection are exposed through the API and dashboard for debugging-first operation.
 
 ## Quick start
 
@@ -149,5 +151,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 
 - `GET /api/events` returns recent runtime events such as candidate creation, apply, rollback, and proxy activity.
 - `GET /api/proxy/logs` returns the outbound request log with allow / deny decisions.
+- `GET /api/runtime/trace` returns recent execution and provider-routing events from the modular runtime surface.
+- `GET /api/runtime/capabilities` returns the provider capability matrix plus tool permission and sandbox metadata.
 - `GET /api/improvement/backups` lists rollback metadata for applied candidates.
 - `POST /api/improvement/rollback/{candidate_id}` restores backed-up files for a previously applied candidate.

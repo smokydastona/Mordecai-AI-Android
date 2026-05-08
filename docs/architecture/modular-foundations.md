@@ -16,6 +16,7 @@ The canonical runtime now exposes a registry of self-describing tools. Each tool
 - risk level
 - confirmation policy
 - safe-mode behavior
+- sandbox profile
 
 This is the backbone for agent planning, plugin compatibility, debugging, and future MCP-style interoperability.
 
@@ -41,6 +42,16 @@ The current failure taxonomy begins with:
 - `ExecutionCancelled`
 - `ExecutionFailed`
 
+### Developer trace surface
+
+The event bus is now consumed as a first-class debugging surface. The runtime publishes trace events for:
+
+- tool registration
+- tool execution start, retry, completion, and failure
+- provider selection and fallback decisions
+
+The dashboard and API expose these traces directly so execution paths can be inspected without reading logs from disk.
+
 ### Event bus
 
 Direct feature coupling is being replaced with an event stream model. The event bus supports publish, subscribe, and recent-history inspection so execution can be traced instead of guessed.
@@ -52,13 +63,23 @@ Target event families include:
 - `tool.execution.retrying`
 - `tool.execution.completed`
 - `tool.execution.failed`
+- `provider.selected`
+- `provider.fallback`
 - `notification.received`
 - `accessibility.action_failed`
 - `provider.changed`
 
 ### Replaceable provider contracts
 
-Provider routing is now driven by a provider contract rather than provider-specific branching alone. This keeps the runtime from hard-wiring itself to a single model vendor and reduces future migration cost.
+Provider routing is now driven by a provider contract rather than provider-specific branching alone. Each provider declares a capability matrix including:
+
+- streaming support
+- vision support
+- tool-calling support
+- context window
+- local versus remote execution
+
+This keeps the runtime from hard-wiring itself to a single model vendor, makes degraded-mode fallback explicit, and reduces future migration cost.
 
 ## Architectural rules
 

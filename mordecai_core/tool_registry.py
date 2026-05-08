@@ -112,6 +112,7 @@ class ToolManifest:
     risk_level: Literal["low", "moderate", "high"] = "low"
     confirmation_policy: Literal["never", "on-request", "always"] = "never"
     safe_mode_behavior: Literal["allow", "deny", "read-only"] = "allow"
+    sandbox_profile: Literal["trusted", "workspace-write", "networked", "device-control"] = "trusted"
 
 
 class ToolRegistry:
@@ -130,6 +131,22 @@ class ToolRegistry:
 
     def list_tools(self) -> list[ToolManifest]:
         return [self._manifests[name] for name in sorted(self._manifests)]
+
+    def capability_manifest(self) -> list[dict[str, object]]:
+        return [
+            {
+                "tool": manifest.tool,
+                "permissions": list(manifest.permissions),
+                "description": manifest.description,
+                "input_schema": manifest.input_schema,
+                "output_schema": manifest.output_schema,
+                "risk_level": manifest.risk_level,
+                "confirmation_policy": manifest.confirmation_policy,
+                "safe_mode_behavior": manifest.safe_mode_behavior,
+                "sandbox_profile": manifest.sandbox_profile,
+            }
+            for manifest in self.list_tools()
+        ]
 
     def describe(self, tool_name: str) -> ToolManifest:
         return self._manifests[tool_name]

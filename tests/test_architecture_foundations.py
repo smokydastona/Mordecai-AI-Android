@@ -229,4 +229,4 @@ def test_runtime_components_execute_tools_and_discover_capabilities():
     assert isinstance(result.output, dict)
     assert "tools" in capabilities
     assert "providers" in capabilities
-    assert "git.status" in capabilities["tools"]
+    assert any(tool["tool"] == "git.status" for tool in capabilities["tools"])

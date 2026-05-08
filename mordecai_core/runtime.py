@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 from mordecai.agent import MordecaiRuntime
 from mordecai.android_control import AndroidController
@@ -50,8 +51,22 @@ class RuntimeComponents:
 
     def discover_capabilities(self) -> dict[str, object]:
         return {
-            "providers": self.provider_catalog.names(),
-            "tools": [manifest.tool for manifest in self.tool_registry.list_tools()],
+            "providers": self.provider_catalog.capabilities_matrix(),
+            "tools": self.tool_registry.capability_manifest(),
+        }
+
+    def trace_snapshot(self, limit: int = 25) -> dict[str, object]:
+        events = [
+            {
+                "name": event.name,
+                "payload": event.payload,
+                "created_at": event.created_at.isoformat(),
+            }
+            for event in self.event_bus.recent()[-limit:]
+        ]
+        return {
+            "events": events,
+            "provider_decisions": self.runtime.provider_router.recent_decisions()[-limit:],
         }
 
 
@@ -66,6 +81,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             input_schema={"path": "string"},
             output_schema={"content": "string"},
             safe_mode_behavior="read-only",
+            sandbox_profile="trusted",
         ),
         file_tools.read_text,
     )
@@ -78,6 +94,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             output_schema={"path": "string"},
             risk_level="moderate",
             confirmation_policy="on-request",
+            sandbox_profile="workspace-write",
         ),
         file_tools.write_text,
     )
@@ -88,6 +105,7 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             description="Inspect repository status.",
             output_schema={"branch": "string", "dirty": "boolean"},
             safe_mode_behavior="read-only",
+            sandbox_profile="trusted",
         ),
         git_service.status,
     )
@@ -99,6 +117,8 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             input_schema={"query": "string"},
             output_schema={"abstract": "string", "related": "array"},
             risk_level="moderate",
+            confirmation_policy="on-request",
+            sandbox_profile="networked",
         ),
         proxy.web_search,
     )
@@ -110,16 +130,20 @@ def _build_tool_registry(event_bus: EventBus, proxy: SafeHttpClient, git_service
             input_schema={"query": "string", "limit": "integer"},
             output_schema={"results": "array"},
             risk_level="moderate",
+            confirmation_policy="on-request",
+            sandbox_profile="networked",
         ),
         proxy.github_search_repositories,
     )
     return registry
 
 
+@lru_cache(maxsize=1)
 def get_runtime_components() -> RuntimeComponents:
     runtime, proxy, git_service, improvement_manager, android, policy, store = build_runtime()
     event_bus = EventBus()
     tool_registry = _build_tool_registry(event_bus, proxy, git_service)
+    runtime.provider_router.attach_event_bus(event_bus)
     return RuntimeComponents(
         runtime=runtime,
         proxy=proxy,

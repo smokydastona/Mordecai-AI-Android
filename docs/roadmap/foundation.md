@@ -11,6 +11,7 @@ This roadmap translates the current strategic direction into execution order.
 - route execution traces through the event bus
 - isolate permissions and Android capability boundaries
 - expose runtime capability discovery for tools and providers
+- harden the developer trace panel so tool chains and provider routing stay inspectable
 
 ## Phase 2
 

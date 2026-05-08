@@ -96,6 +96,38 @@ def render_dashboard() -> str:
       min-height: 120px;
       border: 1px solid rgba(255,255,255,0.06);
     }
+    .trace-list {
+      display: grid;
+      gap: 10px;
+    }
+    .trace-item {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,0.03);
+    }
+    .trace-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .trace-meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .cap-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .cap-card {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,0.03);
+    }
     .tag {
       display: inline-flex;
       padding: 6px 10px;
@@ -149,17 +181,27 @@ def render_dashboard() -> str:
         <h2>Proxy Activity</h2>
         <pre id="proxy"></pre>
       </div>
+      <div class="card">
+        <h2>Runtime Trace</h2>
+        <div id="trace" class="trace-list"></div>
+      </div>
+      <div class="card">
+        <h2>Capabilities Matrix</h2>
+        <div id="capabilities" class="cap-grid"></div>
+      </div>
     </section>
   </div>
   <script>
     async function load() {
-      const [status, policy, gitState, candidates, events, proxyLogs] = await Promise.all([
+      const [status, policy, gitState, candidates, events, proxyLogs, trace, capabilities] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
         fetch('/api/git/status').then(r => r.json()),
         fetch('/api/improvement/candidates').then(r => r.json()),
         fetch('/api/events').then(r => r.json()),
         fetch('/api/proxy/logs').then(r => r.json()),
+        fetch('/api/runtime/trace').then(r => r.json()),
+        fetch('/api/runtime/capabilities').then(r => r.json()),
       ]);
 
       document.getElementById('metrics').innerHTML = `
@@ -174,6 +216,27 @@ def render_dashboard() -> str:
       document.getElementById('candidates').textContent = JSON.stringify(candidates, null, 2);
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);
       document.getElementById('proxy').textContent = JSON.stringify(proxyLogs.slice(-10), null, 2);
+      document.getElementById('trace').innerHTML = trace.events.slice(-8).reverse().map(event => `
+        <div class="trace-item">
+          <div class="trace-head"><strong>${event.name}</strong><span>${new Date(event.created_at).toLocaleTimeString()}</span></div>
+          <div class="trace-meta">${JSON.stringify(event.payload)}</div>
+        </div>
+      `).join('') || '<div class="trace-item">No trace events yet.</div>';
+
+      const providerCards = Object.entries(capabilities.providers).map(([name, value]) => `
+        <div class="cap-card">
+          <strong>${name}</strong>
+          <pre>${JSON.stringify(value, null, 2)}</pre>
+        </div>
+      `).join('');
+      const toolCards = capabilities.tools.map(tool => `
+        <div class="cap-card">
+          <strong>${tool.tool}</strong>
+          <div class="trace-meta">risk=${tool.risk_level} | confirm=${tool.confirmation_policy} | sandbox=${tool.sandbox_profile}</div>
+          <pre>${JSON.stringify(tool, null, 2)}</pre>
+        </div>
+      `).join('');
+      document.getElementById('capabilities').innerHTML = providerCards + toolCards;
     }
 
     document.getElementById('send').addEventListener('click', async () => {

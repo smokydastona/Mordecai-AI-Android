@@ -43,7 +43,15 @@ def build_runtime() -> tuple[MordecaiRuntime, SafeHttpClient, GitService, SelfIm
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name)
-    runtime, proxy, git_service, improvement_manager, android, policy, _ = build_runtime()
+    from mordecai_core.runtime import get_runtime_components
+
+    components = get_runtime_components()
+    runtime = components.runtime
+    proxy = components.proxy
+    git_service = components.git_service
+    improvement_manager = components.improvement_manager
+    android = components.android_controller
+    policy = components.policy
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard() -> str:
@@ -69,9 +77,17 @@ def create_app() -> FastAPI:
     async def events() -> list[dict[str, object]]:
         return runtime.events()
 
+    @app.get("/api/runtime/trace")
+    async def runtime_trace() -> dict[str, object]:
+        return components.trace_snapshot()
+
+    @app.get("/api/runtime/capabilities")
+    async def runtime_capabilities() -> dict[str, object]:
+        return components.discover_capabilities()
+
     @app.get("/api/proxy/logs")
     async def proxy_logs() -> list[dict[str, object]]:
-        return [entry.model_dump(mode="json") for entry in build_runtime()[-1].read_proxy_records()]
+        return [entry.model_dump(mode="json") for entry in components.store.read_proxy_records()]
 
     @app.get("/api/voice")
     async def voice() -> dict[str, object]:

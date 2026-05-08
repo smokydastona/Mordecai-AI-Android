@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from mordecai.config import get_settings
 from mordecai.main import build_runtime, create_app
+from mordecai_core.runtime import get_runtime_components
 
 
 def build_test_client(tmp_path, monkeypatch):
@@ -13,6 +14,7 @@ def build_test_client(tmp_path, monkeypatch):
     (tmp_path / "prompt.txt").write_text("Test prompt", encoding="utf-8")
     get_settings.cache_clear()
     build_runtime.cache_clear()
+    get_runtime_components.cache_clear()
     return TestClient(create_app())
 
 
@@ -62,6 +64,7 @@ def test_openai_compatible_provider_requires_allowlisted_host(tmp_path, monkeypa
     monkeypatch.setenv("MORDECAI_OPENAI_MODEL", "gpt-test")
     get_settings.cache_clear()
     build_runtime.cache_clear()
+    get_runtime_components.cache_clear()
     client = TestClient(create_app())
 
     response = client.post("/api/chat", json={"message": "Hello"})
@@ -81,3 +84,21 @@ def test_events_and_proxy_logs_endpoints(tmp_path, monkeypatch):
     assert proxy_response.status_code == 200
     assert any(event["category"] == "proxy" for event in events_response.json())
     assert proxy_response.json()
+
+
+def test_runtime_trace_and_capabilities_endpoints(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    client.post("/api/chat", json={"message": "Status report, Mordecai."})
+    trace_response = client.get("/api/runtime/trace")
+    capabilities_response = client.get("/api/runtime/capabilities")
+
+    assert trace_response.status_code == 200
+    assert capabilities_response.status_code == 200
+    trace_payload = trace_response.json()
+    capabilities_payload = capabilities_response.json()
+    assert "events" in trace_payload
+    assert any(event["name"].startswith("provider.") for event in trace_payload["events"])
+    assert "providers" in capabilities_payload
+    assert "openai-compatible" in capabilities_payload["providers"]
+    assert any(tool["tool"] == "filesystem.write" for tool in capabilities_payload["tools"])
