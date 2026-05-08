@@ -7,6 +7,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 ### Added
 
 - Native Android shell app under `android-shell/` with a WebView dashboard, foreground supervision service, Termux command bridge, wake-phrase listening, and root-gated advanced mode controls.
+- Checked-in Gradle wrapper and root Android build files so the native shell can build from a clean repository checkout.
 - Phase 1 portable Termux backend contract docs in `docs/phase1-contract.md`, `docs/phase1-install.md`, and `docs/modeA-vs-modeB.md`.
 - Canonical Termux lifecycle scripts for install, start, stop, update, and optional boot integration under `scripts/`.
 
@@ -14,6 +15,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 
 - Project positioning now frames Mordecai as a multi-phone Android runtime, with the Galaxy S10e retained as an advanced reference device instead of the implied default target.
 - Documentation sync rules now treat the Android shell module and root Gradle files as first-class implementation surface.
+- CI and debug-smoke workflows now build the Android shell debug APK through the Gradle wrapper and publish Android build artifacts.
 - Runtime settings now define explicit install, data, log, host, port, mode, and advanced-capability flags instead of relying on the process working directory alone.
 - Mode A now binds the backend to `127.0.0.1` by default and hides Android control tools from the registry unless explicitly enabled.
 - `sandbox/proot-setup.sh` now delegates to the public installer in `scripts/proot-setup.sh`.

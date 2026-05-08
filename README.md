@@ -115,6 +115,27 @@ python -m pip install -e .[dev]
 
 5. Open `http://127.0.0.1:8000`.
 
+## Android shell build
+
+The repository now includes a checked-in Gradle wrapper, so the native shell can be built from a clean checkout without a system Gradle install.
+
+1. Install JDK 17.
+2. Install Android SDK platform 35, build-tools 35.0.0, and platform-tools.
+3. Set `ANDROID_SDK_ROOT` or open the project in Android Studio.
+4. Build the debug APK:
+
+```powershell
+.\gradlew.bat :android-shell:assembleDebug
+```
+
+On Unix-like shells:
+
+```bash
+./gradlew :android-shell:assembleDebug
+```
+
+The output APK is written under `android-shell/build/outputs/apk/debug/`.
+
 ## Phase 1 phone install
 
 Phase 1 is the portable Mode A backend contract for Termux-based Android installs.
@@ -172,9 +193,10 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 ## CI and debugging
 
 - GitHub Actions now runs cross-platform install, compile, test, and app-smoke checks through `.github/workflows/ci.yml`.
+- GitHub Actions now also builds the native Android shell debug APK through the checked-in Gradle wrapper and uploads the APK artifact.
 - GitHub Actions now runs a documentation sync gate before test execution.
 - Every CI run uploads debug artifacts including pytest output, JUnit XML, Python version, and `pip freeze`.
-- Manual deep triage is available through `.github/workflows/debug-smoke.yml`, which produces a bundled diagnostics artifact.
+- Manual deep triage is available through `.github/workflows/debug-smoke.yml`, which now also captures Android build output and uploads the debug APK when available.
 - Security scanning is handled by `.github/workflows/codeql.yml`.
 - GitHub issue templates in `.github/ISSUE_TEMPLATE/` now match Mordecai and are structured around reproducible debugging evidence.
 

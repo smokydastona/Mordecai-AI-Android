@@ -110,4 +110,5 @@ Non-negotiables:
 - Test: `.venv/Scripts/python.exe -m pytest -q`
 - Run app: `./scripts/start_server.ps1`
 - Direct app server: `.venv/Scripts/python.exe -m uvicorn mordecai.main:app --reload`
+- Build Android shell: `./gradlew.bat :android-shell:assembleDebug`
 

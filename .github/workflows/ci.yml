@@ -28,6 +28,49 @@ jobs:
       - name: Verify changelog and docs updates
         run: python scripts/check_docs_sync.py
 
+  android-shell:
+    name: Android Shell Build
+    runs-on: ubuntu-latest
+    needs: docs-sync
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Verify Gradle wrapper
+        run: ./gradlew --version
+
+      - name: Assemble Android shell debug APK
+        run: ./gradlew :android-shell:assembleDebug
+
+      - name: Upload Android shell artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-shell-debug-apk
+          path: |
+            android-shell/build/outputs/apk/debug/*.apk
+            android-shell/build/reports/**
+          if-no-files-found: warn
+
   test:
     name: Lint, Test, and Smoke
     runs-on: ${{ matrix.os }}

@@ -29,10 +29,18 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 ## Build Surface
 
 - root Gradle files: `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`
+- Gradle wrapper: `gradlew`, `gradlew.bat`, `gradle/wrapper/`
 - app module: `android-shell/`
+
+## Build And Validation
+
+- local builds no longer require a system Gradle install because the repository ships the Gradle wrapper
+- required local tooling is JDK 17 plus Android SDK platform 35, build-tools 35.0.0, and platform-tools
+- build command on Windows: `./gradlew.bat :android-shell:assembleDebug`
+- build command on Unix-like shells: `./gradlew :android-shell:assembleDebug`
+- CI now runs the wrapper-backed Android build and uploads the debug APK as an artifact
 
 ## Limitations
 
-- this repo does not currently include a Gradle wrapper, so local builds require Android Studio or a local Gradle installation
 - the shell supervises the existing backend contract rather than replacing it with an embedded Python runtime
 - Android automation remains bound by the backend policy layer and only becomes available when advanced mode is explicitly enabled
