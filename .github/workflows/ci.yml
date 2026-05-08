@@ -10,9 +10,28 @@ permissions:
   contents: read
 
 jobs:
+  docs-sync:
+    name: Documentation Sync Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Verify changelog and docs updates
+        run: python scripts/check_docs_sync.py
+
   test:
     name: Lint, Test, and Smoke
     runs-on: ${{ matrix.os }}
+    needs: docs-sync
     strategy:
       fail-fast: false
       matrix:

@@ -46,7 +46,9 @@ Non-negotiables:
    - Run the narrowest executable validation for the touched slice.
 
 2) Update connected docs and templates
+  - `CHANGELOG.md`
    - `README.md`
+  - `docs/*` for architecture, setup, persona, or operational surface changes
    - `prompts/system_prompt.txt` when identity or directives change
    - `.github/*` when workflows, templates, or debugging processes change
 
@@ -57,6 +59,14 @@ Non-negotiables:
 4) Keep the repo shippable
    - Do not commit generated state from `.mordecai/`, `.pytest_cache/`, `.venv/`, or `*.egg-info/`.
    - Do not leave broken workflows in `.github/workflows/`.
+  - Do not push implementation changes without updating `CHANGELOG.md`, `README.md`, and relevant files under `docs/`.
+
+## Push Discipline
+
+- Every completed pushed change must update `CHANGELOG.md`.
+- Every completed pushed change that affects runtime behavior, tooling, workflows, setup, or architecture must update `README.md` and at least one relevant file under `docs/`.
+- Workflow or repository process changes must also update `.github/copilot-instructions.md`.
+- CI enforces this through `scripts/check_docs_sync.py` and the `Documentation Sync Gate` job in `.github/workflows/ci.yml`.
 
 ## Impact Radius Checklists
 

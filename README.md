@@ -4,6 +4,12 @@ Mordecai-AI-Android is the canonical home of the Galaxy S10e AI OS project. This
 
 Mordecai itself is a policy-bound AI runtime for a repurposed Android device. The current implementation provides a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, and a sandboxed self-improvement workflow.
 
+## Project hygiene
+
+- `CHANGELOG.md` tracks notable repository changes.
+- `README.md`, `docs/`, and `.github/copilot-instructions.md` are treated as first-class project surfaces and must be updated with implementation and workflow changes.
+- CI now includes a documentation sync gate that fails when implementation changes are pushed without the changelog and required docs updates.
+
 ## What is implemented
 
 - FastAPI dashboard and API surface for chat, status, policy, memory, git state, outbound fetches, web search, GitHub search, Android actions, and self-improvement candidates
@@ -108,6 +114,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 ## CI and debugging
 
 - GitHub Actions now runs cross-platform install, compile, test, and app-smoke checks through `.github/workflows/ci.yml`.
+- GitHub Actions now runs a documentation sync gate before test execution.
 - Every CI run uploads debug artifacts including pytest output, JUnit XML, Python version, and `pip freeze`.
 - Manual deep triage is available through `.github/workflows/debug-smoke.yml`, which produces a bundled diagnostics artifact.
 - Security scanning is handled by `.github/workflows/codeql.yml`.
