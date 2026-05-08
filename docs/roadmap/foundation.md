@@ -18,11 +18,12 @@ This roadmap translates the current strategic direction into execution order.
 - add reliable notification, intent, overlay, filesystem, and accessibility tools
 - add Bluetooth, USB, and controller-oriented tooling
 - strengthen automation verification and failure handling
+- expand the shell and accessibility surfaces without weakening permission or sandbox boundaries
 
 ## Phase 3
 
 - add planner, executor, verifier, and tool-selection agent slices
-- persist execution history for replay and debugging
+- extend execution history into replay and deeper debugging workflows
 - build hybrid local and cloud routing policies
 
 ## Phase 4

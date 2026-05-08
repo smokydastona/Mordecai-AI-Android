@@ -13,6 +13,8 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - First concrete tool-provider package for Android control, git operations, local LLM execution, and cloud LLM execution.
 - Dedicated self-mod enforcement tests for policy protection, tool contracts, sandbox apply/rollback, and proxy allowlists.
 - Tool-execution API endpoint with structured runtime failure responses.
+- High-risk shell and accessibility providers with the same execution taxonomy as the rest of the runtime.
+- Persisted tool execution history surfaced through runtime trace responses and the dashboard.
 
 ### Changed
 
@@ -20,6 +22,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Runtime components now expose direct tool execution and capability discovery from the modular runtime layer.
 - Provider routing now selects against declared provider capabilities and emits observable routing events.
 - `docs/architecture.md` and new `docs/persona.md` now act as the architectural and behavioral constitution for Mordecai.
+- The dashboard now includes a direct tool runner and execution-history surface for operator-driven debugging.
 
 ### Added
 

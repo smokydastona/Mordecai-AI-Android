@@ -16,9 +16,11 @@ from mordecai_core.provider_contracts import ProviderCatalog
 from mordecai_core.tool_registry import RuntimeContext, ToolExecutionRequest, ToolExecutionResult, ToolManifest, ToolRegistry
 from mordecai_core.tools.file_ops import FileTools
 from providers.android_control import AndroidControlToolProvider
+from providers.accessibility import AccessibilityToolProvider
 from providers.cloud_llm import CloudLLMToolProvider
 from providers.git_ops import GitOpsToolProvider
 from providers.local_llm import LocalLLMToolProvider
+from providers.shell_ops import ShellToolProvider
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,16 +72,20 @@ class RuntimeComponents:
         ]
         return {
             "events": events,
+            "executions": [record.model_dump(mode="json") for record in self.store.read_tool_executions()[-limit:]],
             "provider_decisions": self.runtime.provider_router.recent_decisions()[-limit:],
         }
+
+
 def _build_tool_registry(
     event_bus: EventBus,
     proxy: SafeHttpClient,
     git_service: GitService,
     runtime: MordecaiRuntime,
     android_controller: AndroidController,
+    store: StateStore,
 ) -> ToolRegistry:
-    registry = ToolRegistry(event_bus)
+    registry = ToolRegistry(event_bus, execution_recorder=store.append_tool_execution)
     file_tools = FileTools()
     registry.register(
         ToolManifest(
@@ -148,6 +154,8 @@ def _build_tool_registry(
         LocalLLMToolProvider(runtime.provider_router.catalog),
         CloudLLMToolProvider(runtime.provider_router),
         AndroidControlToolProvider(android_controller),
+        AccessibilityToolProvider(runtime.settings, runtime.policy),
+        ShellToolProvider(runtime.settings, runtime.policy),
     ):
         for manifest, handler in provider.tools():
             registry.register(manifest, handler)
@@ -158,7 +166,7 @@ def _build_tool_registry(
 def get_runtime_components() -> RuntimeComponents:
     runtime, proxy, git_service, improvement_manager, android, policy, store = build_runtime()
     event_bus = EventBus()
-    tool_registry = _build_tool_registry(event_bus, proxy, git_service, runtime, android)
+    tool_registry = _build_tool_registry(event_bus, proxy, git_service, runtime, android, store)
     runtime.provider_router.attach_event_bus(event_bus)
     return RuntimeComponents(
         runtime=runtime,

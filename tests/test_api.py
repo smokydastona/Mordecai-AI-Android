@@ -140,3 +140,24 @@ def test_tool_execution_endpoint_returns_structured_failure(tmp_path, monkeypatc
     error = response.json()["detail"]["error"]
     assert error["code"] == "PermissionDenied"
     assert "execution_id" in error["details"]
+
+
+def test_runtime_trace_includes_persisted_tool_execution_history(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    execute_response = client.post(
+        "/api/tools/execute",
+        json={
+            "tool": "git.status",
+            "granted_permissions": ["git"],
+            "arguments": {},
+        },
+    )
+    trace_response = client.get("/api/runtime/trace")
+
+    assert execute_response.status_code == 200
+    assert trace_response.status_code == 200
+    executions = trace_response.json()["executions"]
+    assert executions
+    assert executions[-1]["tool_name"] == "git.status"
+    assert executions[-1]["status"] == "completed"

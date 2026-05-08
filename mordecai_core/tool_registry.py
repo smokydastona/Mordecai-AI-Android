@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from dataclasses import asdict
 from dataclasses import dataclass, field
 from inspect import isawaitable, signature
 from threading import Event
@@ -137,8 +138,9 @@ class ToolManifest:
 
 
 class ToolRegistry:
-    def __init__(self, event_bus: EventBus | None = None) -> None:
+    def __init__(self, event_bus: EventBus | None = None, execution_recorder: Callable[..., None] | None = None) -> None:
         self.event_bus = event_bus or EventBus()
+        self.execution_recorder = execution_recorder
         self._manifests: dict[str, ToolManifest] = {}
         self._handlers: dict[str, ToolHandler] = {}
 
@@ -211,6 +213,7 @@ class ToolRegistry:
                             "duration_ms": duration_ms,
                         },
                     )
+                    self._record_execution(result)
                     return result
                 except ToolExecutionFailure as exc:
                     last_error = exc.to_error()
@@ -260,7 +263,7 @@ class ToolRegistry:
                 "error_code": last_error.code if last_error else "ExecutionFailed",
             },
         )
-        return ToolExecutionResult(
+        result = ToolExecutionResult(
             execution_id=request.execution_id,
             tool_name=request.tool_name,
             status=status,
@@ -268,6 +271,8 @@ class ToolRegistry:
             attempts=max(attempts, 1),
             duration_ms=duration_ms,
         )
+        self._record_execution(result)
+        return result
 
     def invoke(self, tool_name: str, *args: object, **kwargs: object) -> Any:
         manifest = self.describe(tool_name)
@@ -345,3 +350,16 @@ class ToolRegistry:
             ) from exc
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
+
+    def _record_execution(self, result: ToolExecutionResult) -> None:
+        if self.execution_recorder is None:
+            return
+        self.execution_recorder(
+            execution_id=result.execution_id,
+            tool_name=result.tool_name,
+            status=result.status,
+            attempts=result.attempts,
+            duration_ms=result.duration_ms,
+            output=result.output,
+            error=asdict(result.error) if result.error else None,
+        )

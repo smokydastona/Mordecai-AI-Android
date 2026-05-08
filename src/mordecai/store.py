@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from mordecai.models import ConversationEntry, ImprovementBackupRecord, ImprovementCandidate, ProxyRequestRecord, RuntimeEvent
+from mordecai.models import ConversationEntry, ImprovementBackupRecord, ImprovementCandidate, ProxyRequestRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord
 
 
 class StateStore:
@@ -19,12 +20,14 @@ class StateStore:
         self._candidates_path = state_dir / "candidates.json"
         self._events_path = state_dir / "events.json"
         self._backups_path = state_dir / "backups.json"
+        self._tool_executions_path = state_dir / "tool_executions.json"
         for path, default in (
             (self._conversation_path, []),
             (self._proxy_log_path, []),
             (self._candidates_path, []),
             (self._events_path, []),
             (self._backups_path, []),
+            (self._tool_executions_path, []),
         ):
             if not path.exists():
                 path.write_text(json.dumps(default, indent=2), encoding="utf-8")
@@ -86,3 +89,33 @@ class StateStore:
     def read_backup_records(self) -> list[ImprovementBackupRecord]:
         with self._lock:
             return [ImprovementBackupRecord.model_validate(item) for item in self._load(self._backups_path)]
+
+    def append_tool_execution(
+        self,
+        *,
+        execution_id: str,
+        tool_name: str,
+        status: str,
+        attempts: int,
+        duration_ms: float,
+        output: Any = None,
+        error: dict[str, Any] | None = None,
+    ) -> None:
+        record = ToolExecutionRecord(
+            execution_id=execution_id,
+            tool_name=tool_name,
+            status=status,
+            attempts=attempts,
+            duration_ms=duration_ms,
+            output=output,
+            error=RuntimeFailure.model_validate(error) if error else None,
+            created_at=datetime.now(UTC),
+        )
+        with self._lock:
+            payload = self._load(self._tool_executions_path)
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._tool_executions_path, payload)
+
+    def read_tool_executions(self) -> list[ToolExecutionRecord]:
+        with self._lock:
+            return [ToolExecutionRecord.model_validate(item) for item in self._load(self._tool_executions_path)]

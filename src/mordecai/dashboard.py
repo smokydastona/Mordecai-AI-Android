@@ -128,6 +128,33 @@ def render_dashboard() -> str:
       padding: 12px;
       background: rgba(255,255,255,0.03);
     }
+    .control-stack {
+      display: grid;
+      gap: 12px;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    input, select {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #0d1117;
+      color: var(--text);
+      padding: 12px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
     .tag {
       display: inline-flex;
       padding: 6px 10px;
@@ -189,9 +216,57 @@ def render_dashboard() -> str:
         <h2>Capabilities Matrix</h2>
         <div id="capabilities" class="cap-grid"></div>
       </div>
+      <div class="card">
+        <h2>Tool Runner</h2>
+        <div class="control-stack">
+          <div class="field">
+            <label for="tool-name">Tool</label>
+            <select id="tool-name"></select>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="tool-permissions">Permissions</label>
+              <input id="tool-permissions" value="git" placeholder="git,llm,network" />
+            </div>
+            <div class="field">
+              <label for="tool-session">Session Id</label>
+              <input id="tool-session" value="dashboard" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="tool-timeout">Timeout Seconds</label>
+              <input id="tool-timeout" type="number" min="1" max="60" value="10" />
+            </div>
+            <div class="field">
+              <label for="tool-retries">Retries</label>
+              <input id="tool-retries" type="number" min="0" max="3" value="0" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="tool-safe-mode">Safe Mode</label>
+            <select id="tool-safe-mode">
+              <option value="true" selected>Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="tool-arguments">Arguments JSON</label>
+            <textarea id="tool-arguments" class="terminal">{}</textarea>
+          </div>
+          <button id="run-tool">Execute Tool</button>
+          <pre id="tool-response"></pre>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Execution History</h2>
+        <div id="execution-history" class="trace-list"></div>
+      </div>
     </section>
   </div>
   <script>
+    let latestCapabilities = null;
+
     async function load() {
       const [status, policy, gitState, candidates, events, proxyLogs, trace, capabilities] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
@@ -203,6 +278,7 @@ def render_dashboard() -> str:
         fetch('/api/runtime/trace').then(r => r.json()),
         fetch('/api/runtime/capabilities').then(r => r.json()),
       ]);
+      latestCapabilities = capabilities;
 
       document.getElementById('metrics').innerHTML = `
         <div class="metric"><div class="label">Provider</div><div class="value">${status.provider}</div></div>
@@ -237,6 +313,46 @@ def render_dashboard() -> str:
         </div>
       `).join('');
       document.getElementById('capabilities').innerHTML = providerCards + toolCards;
+      document.getElementById('execution-history').innerHTML = trace.executions.slice(-8).reverse().map(record => `
+        <div class="trace-item">
+          <div class="trace-head"><strong>${record.tool_name}</strong><span>${record.status}</span></div>
+          <div class="trace-meta">attempts=${record.attempts} | duration=${record.duration_ms.toFixed(2)}ms</div>
+          <pre>${JSON.stringify(record, null, 2)}</pre>
+        </div>
+      `).join('') || '<div class="trace-item">No recorded tool executions yet.</div>';
+
+      const toolSelect = document.getElementById('tool-name');
+      const currentTool = toolSelect.value;
+      toolSelect.innerHTML = capabilities.tools.map(tool => `<option value="${tool.tool}">${tool.tool}</option>`).join('');
+      if (currentTool && capabilities.tools.some(tool => tool.tool === currentTool)) {
+        toolSelect.value = currentTool;
+      }
+      updateToolDefaults();
+    }
+
+    function updateToolDefaults() {
+      if (!latestCapabilities) {
+        return;
+      }
+      const toolName = document.getElementById('tool-name').value;
+      const tool = latestCapabilities.tools.find(item => item.tool === toolName);
+      if (!tool) {
+        return;
+      }
+      document.getElementById('tool-permissions').value = tool.permissions.join(',');
+      const defaults = {};
+      for (const [key, value] of Object.entries(tool.input_schema)) {
+        if (value === 'array') {
+          defaults[key] = [];
+        } else if (value === 'boolean') {
+          defaults[key] = false;
+        } else if (value === 'integer') {
+          defaults[key] = 0;
+        } else {
+          defaults[key] = '';
+        }
+      }
+      document.getElementById('tool-arguments').value = JSON.stringify(defaults, null, 2);
     }
 
     document.getElementById('send').addEventListener('click', async () => {
@@ -247,6 +363,34 @@ def render_dashboard() -> str:
         body: JSON.stringify({ message }),
       }).then(r => r.json());
       document.getElementById('reply').textContent = JSON.stringify(response, null, 2);
+      await load();
+    });
+
+    document.getElementById('tool-name').addEventListener('change', updateToolDefaults);
+
+    document.getElementById('run-tool').addEventListener('click', async () => {
+      let argumentsPayload = {};
+      try {
+        argumentsPayload = JSON.parse(document.getElementById('tool-arguments').value || '{}');
+      } catch (error) {
+        document.getElementById('tool-response').textContent = JSON.stringify({ error: 'Arguments must be valid JSON.' }, null, 2);
+        return;
+      }
+      const response = await fetch('/api/tools/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tool: document.getElementById('tool-name').value,
+          arguments: argumentsPayload,
+          granted_permissions: document.getElementById('tool-permissions').value.split(',').map(item => item.trim()).filter(Boolean),
+          session_id: document.getElementById('tool-session').value,
+          timeout_seconds: Number(document.getElementById('tool-timeout').value),
+          max_retries: Number(document.getElementById('tool-retries').value),
+          safe_mode: document.getElementById('tool-safe-mode').value === 'true',
+        }),
+      });
+      const payload = await response.json();
+      document.getElementById('tool-response').textContent = JSON.stringify(payload, null, 2);
       await load();
     });
 

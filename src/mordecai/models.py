@@ -144,3 +144,14 @@ class ImprovementBackupRecord(BaseModel):
     candidate_id: str
     files: list[str]
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ToolExecutionRecord(BaseModel):
+    execution_id: str
+    tool_name: str
+    status: str
+    attempts: int
+    duration_ms: float
+    output: Any = None
+    error: RuntimeFailure | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

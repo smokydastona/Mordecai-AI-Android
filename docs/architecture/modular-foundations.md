@@ -34,6 +34,8 @@ The registry now backs a structured execution layer rather than a raw function c
 
 Each execution returns a structured result with status, output, attempts, duration, and a standardized failure payload when the call does not complete normally.
 
+Completed executions are also persisted into runtime state so the execution trail survives process restarts and can be replayed from the dashboard trace surface.
+
 The current failure taxonomy begins with:
 
 - `PermissionDenied`
@@ -51,6 +53,8 @@ The event bus is now consumed as a first-class debugging surface. The runtime pu
 - provider selection and fallback decisions
 
 The dashboard and API expose these traces directly so execution paths can be inspected without reading logs from disk.
+
+The operator dashboard can also invoke registered tools directly against the same execution endpoint used by agents and tests.
 
 ### Event bus
 
@@ -89,3 +93,4 @@ This keeps the runtime from hard-wiring itself to a single model vendor, makes d
 4. Android automation must validate state, fail safely, and never assume a stable UI layout.
 5. Permission escalation remains progressive and task-driven.
 6. Runtime execution context must stay typed and explicit rather than expanding through arbitrary dictionaries.
+7. High-risk providers such as shell and accessibility tools must use the same execution registry, permission checks, and failure taxonomy as lower-risk tools.
