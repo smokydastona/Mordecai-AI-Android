@@ -1,0 +1,38 @@
+# Android Shell
+
+The Android shell is the native app layer that supervises the portable Termux-backed Mordecai runtime.
+
+## Scope
+
+- native Android entrypoint for Phase 2
+- WebView shell over the localhost dashboard
+- foreground service for runtime supervision
+- wake-phrase listening through Android speech recognition
+- Termux command bridge for install, start, stop, and update operations
+- root-gated advanced mode toggles for Mode B enablement
+
+## Current Implementation
+
+- `android-shell/` is a standalone Android application module built with Kotlin and Gradle
+- `MainActivity` provides install, start, stop, update, refresh, and settings controls
+- `MordecaiShellService` polls the localhost backend and can auto-start it through Termux when offline
+- `WakePhraseManager` listens for the configured wake phrase and triggers backend startup when it is heard
+- `TermuxCommandClient` invokes the Phase 1 scripts through the Termux run-command API
+- `RootDetector` gates advanced mode toggles so Mode B activation remains explicit
+
+## Runtime Contract
+
+- the shell assumes the backend is exposed at a configurable localhost URL, defaulting to `http://127.0.0.1:8000`
+- runtime install and lifecycle operations still flow through the Termux-managed scripts under `$HOME/mordecai/scripts`
+- advanced mode updates `.env` through Termux and restarts the backend after changing mode flags
+
+## Build Surface
+
+- root Gradle files: `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`
+- app module: `android-shell/`
+
+## Limitations
+
+- this repo does not currently include a Gradle wrapper, so local builds require Android Studio or a local Gradle installation
+- the shell supervises the existing backend contract rather than replacing it with an embedded Python runtime
+- Android automation remains bound by the backend policy layer and only becomes available when advanced mode is explicitly enabled

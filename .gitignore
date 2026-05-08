@@ -5,3 +5,7 @@
 *.egg-info/
 __pycache__/
 *.pyc
+.gradle/
+build/
+local.properties
+android-shell/build/

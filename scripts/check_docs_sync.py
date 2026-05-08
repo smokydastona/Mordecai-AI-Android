@@ -18,6 +18,7 @@ IMPLEMENTATION_PREFIXES = (
     "src/",
     "tests/",
     "android/",
+    "android-shell/",
     "sandbox/",
     "mordecai_core/",
     "self_mod/",
@@ -29,6 +30,9 @@ IMPLEMENTATION_PREFIXES = (
 IMPLEMENTATION_FILES = {
     "pyproject.toml",
     ".env.example",
+    "settings.gradle.kts",
+    "build.gradle.kts",
+    "gradle.properties",
 }
 PROCESS_PREFIXES = (
     ".github/workflows/",

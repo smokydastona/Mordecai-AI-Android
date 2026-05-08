@@ -26,3 +26,11 @@ def test_docs_sync_passes_when_required_docs_are_present():
     )
 
     assert errors == []
+
+
+def test_docs_sync_treats_android_shell_and_gradle_files_as_implementation():
+    errors = validate_docs_sync(["android-shell/src/main/java/ai/mordecai/shell/MainActivity.kt", "settings.gradle.kts"])
+
+    assert any("CHANGELOG.md" in error for error in errors)
+    assert any("README.md" in error for error in errors)
+    assert any("docs/" in error for error in errors)

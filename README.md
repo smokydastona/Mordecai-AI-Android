@@ -27,6 +27,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Developer trace and capability surfaces for provider routing, tool policy metadata, and runtime event inspection
 - Persisted execution history and an operator-facing dashboard tool runner for direct invocation of registered tools
 - Phase 1 Termux installer and lifecycle scripts for portable Mode A deployment under `$HOME/mordecai`
+- Native Android shell app with a WebView dashboard, foreground supervision service, wake-phrase listening, Termux command bridge, and root-gated advanced mode controls
 
 ## Strategic direction
 
@@ -39,6 +40,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 ```text
 docs/
 android/
+android-shell/
 sandbox/
 mordecai_core/
 self_mod/
@@ -74,6 +76,7 @@ tests/
 
 - `docs/` holds high-level architecture, persona, and device setup guidance.
 - `android/` is reserved for device-specific operating-system and control notes.
+- `android-shell/` contains the native Android app shell that supervises the portable localhost backend.
 - `sandbox/` contains compatibility wrappers and Linux bootstrap notes for Termux and proot.
 - `mordecai_core/` defines the logical home of the AI runtime while the packaged implementation remains in `src/mordecai/`.
 - `providers/` holds concrete tool-provider implementations that bind safe runtime services into the unified execution engine.
@@ -164,7 +167,7 @@ Notes:
 
 ## Android deployment notes
 
-This codebase is designed to run inside the sandboxed Linux layer described in the blueprint, such as Termux plus proot Ubuntu on the target phone. `scripts/proot-setup.sh` is now the canonical public installer entry point for the portable Phase 1 backend, while `sandbox/proot-setup.sh` remains a compatibility wrapper for older references.
+This codebase is designed to run inside the sandboxed Linux layer described in the blueprint, such as Termux plus proot Ubuntu on the target phone. `scripts/proot-setup.sh` is now the canonical public installer entry point for the portable Phase 1 backend, while `sandbox/proot-setup.sh` remains a compatibility wrapper for older references. The native shell app in `android-shell/` supervises that localhost backend from Android.
 
 ## CI and debugging
 
@@ -178,6 +181,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 ## Reference docs
 
 - `docs/architecture.md`
+- `docs/android-shell.md`
 - `docs/phase1-contract.md`
 - `docs/phase1-install.md`
 - `docs/modeA-vs-modeB.md`

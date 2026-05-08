@@ -43,6 +43,8 @@ Phase 1 freezes this layer into a portable backend contract rooted at `$HOME/mor
 
 The active FastAPI runtime currently implemented in `src/mordecai/`. This layer owns chat orchestration, API serving, dashboard rendering, state storage, and service wiring.
 
+The native Android shell in `android-shell/` sits above this layer as the Phase 2 supervision surface, but it does not bypass the runtime or policy layers.
+
 ### 6. Execution layer
 
 The modular execution surface in `mordecai_core/` and `providers/`. This includes:
@@ -76,6 +78,7 @@ Candidate proposal, sandbox execution, promotion, rollback, observability, and t
 - `scripts/proot-setup.sh` is the canonical public installer for the portable Termux backend.
 - `scripts/start.sh` is the canonical runtime launcher for Phase 1.
 - `scripts/termux_boot.sh` is an optional wrapper for users who later enable Termux:Boot.
+- `android-shell/` contains the native Android shell that supervises the localhost backend, foreground lifecycle, wake phrase listening, and root-gated advanced mode toggles.
 - `.github/workflows/` provides CI, documentation sync enforcement, and debug-bundle automation.
 
 ## Architectural boundaries that must hold

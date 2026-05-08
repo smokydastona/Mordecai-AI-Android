@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mordecai Shell</string>
+    <string name="app_subtitle">Android shell for the portable Termux-backed Mordecai runtime.</string>
+    <string name="status_heading">Device status</string>
+    <string name="dashboard_heading">Dashboard</string>
+    <string name="action_install_runtime">Install runtime</string>
+    <string name="action_open_termux">Open Termux</string>
+    <string name="action_start_backend">Start backend</string>
+    <string name="action_stop_backend">Stop backend</string>
+    <string name="action_update_runtime">Update runtime</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_save_settings">Save settings</string>
+    <string name="action_stop_service">Stop service</string>
+    <string name="label_service">Keep Mordecai service active</string>
+    <string name="label_wake_phrase">Listen for wake phrase</string>
+    <string name="label_autostart_backend">Auto-start backend when offline</string>
+    <string name="label_advanced_mode">Enable advanced mode on rooted devices</string>
+    <string name="hint_backend_url">Backend URL, for example http://127.0.0.1:8000</string>
+    <string name="hint_wake_phrase">Wake phrase</string>
+    <string name="termux_detected">Termux detected</string>
+    <string name="termux_missing">Termux is required for runtime supervision.</string>
+    <string name="root_available">Root available</string>
+    <string name="root_unavailable">Root unavailable</string>
+    <string name="backend_online">Backend online at http://127.0.0.1:8000</string>
+    <string name="backend_offline">Backend offline: %1$s</string>
+    <string name="advanced_mode_requires_root">Advanced mode requires root access.</string>
+    <string name="channel_name">Mordecai shell</string>
+    <string name="channel_description">Foreground service status for the Mordecai Android shell.</string>
+    <string name="notification_starting">Starting shell supervision.</string>
+    <string name="notification_backend_online">Backend reachable on localhost.</string>
+    <string name="notification_backend_offline">Backend offline. Attempting recovery.</string>
+    <string name="notification_wake_phrase_heard">Wake phrase heard. Starting backend.</string>
+    <string name="settings_saved">Settings saved.</string>
+</resources>

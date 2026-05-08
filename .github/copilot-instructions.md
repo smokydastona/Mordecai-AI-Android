@@ -19,6 +19,7 @@ Non-negotiables:
 
 ## Where things live
 
+- `android-shell/` — native Android shell app and supervision layer
 - `src/mordecai/` — runtime code
 - `tests/` — validation for API, policy, and future runtime behavior
 - `prompts/` — system prompt and identity configuration
@@ -87,6 +88,11 @@ Non-negotiables:
   - Confirm endpoints still serialize correctly.
   - Confirm the dashboard reflects current API fields.
   - Confirm tests cover changed routes or contracts.
+
+- Android shell changes (`android-shell/**`)
+  - Confirm the shell still targets the localhost backend contract.
+  - Confirm wake-phrase and foreground-service behavior remain explicit and debuggable.
+  - Confirm advanced-mode controls stay gated behind root detection and do not bypass backend policy.
 
 - Android control changes (`src/mordecai/android_control.py`)
   - Confirm unsafe commands remain blocked by policy.
