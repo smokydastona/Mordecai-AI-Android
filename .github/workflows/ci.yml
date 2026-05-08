@@ -54,6 +54,9 @@ jobs:
             platforms;android-35
             build-tools;35.0.0
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
       - name: Verify Gradle wrapper
         run: ./gradlew --version
 
