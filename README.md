@@ -1,6 +1,8 @@
 # Mordecai
 
-Mordecai is a policy-bound AI runtime for a repurposed Android device. This repository implements the service layer described in the design blueprint: a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, and a sandboxed self-improvement workflow.
+Mordecai-AI-Android is the canonical home of the Galaxy S10e AI OS project. This repository currently contains the working Mordecai runtime plus the device, sandbox, voice, proxy, and self-modification structure that the broader system will grow into.
+
+Mordecai itself is a policy-bound AI runtime for a repurposed Android device. The current implementation provides a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, and a sandboxed self-improvement workflow.
 
 ## What is implemented
 
@@ -18,6 +20,13 @@ Mordecai is a policy-bound AI runtime for a repurposed Android device. This repo
 ## Project layout
 
 ```text
+docs/
+android/
+sandbox/
+mordecai_core/
+self_mod/
+net_proxy/
+voice/
 src/mordecai/
   agent.py
   android_control.py
@@ -38,6 +47,16 @@ scripts/start_server.ps1
 scripts/termux_boot.sh
 tests/
 ```
+
+## Canonical repo structure
+
+- `docs/` holds high-level architecture, persona, and device setup guidance.
+- `android/` is reserved for device-specific operating-system and control notes.
+- `sandbox/` contains the Linux bootstrap layer for Termux and proot.
+- `mordecai_core/` defines the logical home of the AI runtime while the packaged implementation remains in `src/mordecai/`.
+- `self_mod/` documents the self-improvement subsystem and its guardrails.
+- `net_proxy/` captures the safe internet boundary and its configuration model.
+- `voice/` defines the wake-word, STT, and TTS expansion surface.
 
 ## Quick start
 

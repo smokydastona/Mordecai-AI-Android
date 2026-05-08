@@ -1,0 +1,19 @@
+allowed_domains:
+  - api.duckduckgo.com
+  - api.github.com
+  - api.openai.com
+  - api.anthropic.com
+  - generativelanguage.googleapis.com
+  - openrouter.ai
+  - github.com
+  - huggingface.co
+  - pypi.org
+  - docs.python.org
+  - duckduckgo.com
+  - html.duckduckgo.com
+limits:
+  max_requests_per_minute: 30
+  timeout_seconds: 20
+logging:
+  enabled: true
+  destination: .mordecai/proxy_log.json

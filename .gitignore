@@ -1,6 +1,7 @@
 .mordecai/
 .pytest_cache/
 .venv/
+.mordecai-*.json
 *.egg-info/
 __pycache__/
 *.pyc

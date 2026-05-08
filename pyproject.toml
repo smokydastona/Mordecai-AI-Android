@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.115,<1.0",
     "httpx>=0.28,<1.0",
     "psutil>=6.1,<7.0",
+    "pyyaml>=6.0,<7.0",
     "pydantic-settings>=2.6,<3.0",
     "uvicorn>=0.32,<1.0"
 ]
@@ -22,10 +23,29 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+packages = [
+    "mordecai",
+    "mordecai_core",
+    "mordecai_core.tools",
+    "mordecai_core.models",
+    "mordecai_core.safety",
+    "self_mod",
+    "net_proxy",
+    "voice",
+]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools.package-dir]
+mordecai = "src/mordecai"
+mordecai_core = "mordecai_core"
+"mordecai_core.tools" = "mordecai_core/tools"
+"mordecai_core.models" = "mordecai_core/models"
+"mordecai_core.safety" = "mordecai_core/safety"
+self_mod = "self_mod"
+net_proxy = "net_proxy"
+voice = "voice"
+
+[tool.setuptools.package-data]
+net_proxy = ["config.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
