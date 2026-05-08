@@ -207,13 +207,16 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 ## Reference docs
 
 - `docs/architecture.md`
+- `docs/android_setup.md`
 - `docs/android-shell.md`
 - `docs/phase1-contract.md`
 - `docs/phase1-install.md`
 - `docs/modeA-vs-modeB.md`
 - `docs/persona.md`
+- `docs/mordecai_persona.md`
 - `docs/architecture/modular-foundations.md`
 - `docs/roadmap/foundation.md`
+- `net_proxy/config.md`
 
 ## Diagnostics surface
 

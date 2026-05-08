@@ -6,6 +6,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 
 ### Added
 
+- Generic Android setup guidance in `docs/android_setup.md` and proxy configuration guidance in `net_proxy/config.md`.
 - Native Android shell app under `android-shell/` with a WebView dashboard, foreground supervision service, Termux command bridge, wake-phrase listening, and root-gated advanced mode controls.
 - Checked-in Gradle wrapper and root Android build files so the native shell can build from a clean repository checkout.
 - Phase 1 portable Termux backend contract docs in `docs/phase1-contract.md`, `docs/phase1-install.md`, and `docs/modeA-vs-modeB.md`.

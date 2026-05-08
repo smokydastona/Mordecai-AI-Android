@@ -11,6 +11,7 @@ This directory is reserved for device-specific setup, recovery notes, radio guid
 
 ## Current Canonical References
 
+- `docs/android_setup.md`
 - `docs/android-shell.md`
 - `docs/phase1-install.md`
 - `docs/s10e-setup.md`

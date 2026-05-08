@@ -6,6 +6,8 @@ This directory is the canonical home for Mordecai's safe internet boundary.
 
 The active proxy runtime is implemented in `src/mordecai/proxy.py` with policy decisions sourced from `src/mordecai/policy.py` and configuration from `src/mordecai/config.py`.
 
+For the repository-level proxy configuration contract, see `net_proxy/config.md` and `net_proxy/config.yaml`.
+
 ## Responsibilities
 
 - Domain allowlists
