@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a reproducible problem in Mordecai.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Provide a tight reproduction with diagnostics. If you have a CI artifact or local debug bundle, attach it.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the failure.
+      placeholder: Safe proxy rejects an allowlisted GitHub request
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Exact steps, commands, or API calls required to trigger the issue.
+      placeholder: |
+        1. Start the app with ./scripts/start_server.ps1
+        2. Open the dashboard
+        3. Send "github search fastapi"
+        4. Observe failure
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Dashboard
+        - API
+        - Policy engine
+        - Safe proxy
+        - Self-improvement flow
+        - Android control
+        - Git backup
+        - CI / workflow
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Logs, traces, and diagnostics
+      description: Paste stack traces, HTTP responses, or attach artifacts.
+      render: shell
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, install method, relevant env vars, and whether the issue reproduces in CI.
+      placeholder: |
+        OS: Windows 11
+        Python: 3.12
+        Install: python -m pip install -e .[dev]
+        Env: MORDECAI_ENABLE_ANDROID_CONTROL=false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I ran the current test suite locally.
+        - label: I checked whether the issue is already reported.
+        - label: I included enough detail to reproduce the problem.

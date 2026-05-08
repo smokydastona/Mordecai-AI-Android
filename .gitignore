@@ -1,0 +1,6 @@
+.mordecai/
+.pytest_cache/
+.venv/
+*.egg-info/
+__pycache__/
+*.pyc

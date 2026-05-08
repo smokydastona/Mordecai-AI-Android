@@ -1,0 +1,44 @@
+name: Debug Smoke Bundle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Build Debug Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Generate debug bundle
+        shell: bash
+        run: |
+          mkdir -p debug-bundle
+          python -V > debug-bundle/python-version.txt
+          python -m pip freeze > debug-bundle/pip-freeze.txt
+          python -m pytest -q --junitxml=debug-bundle/pytest-junit.xml > debug-bundle/pytest-output.txt
+          python -c "from mordecai.main import create_app; app = create_app(); print(app.title)" > debug-bundle/app-smoke.txt
+          printf '%s\n' 'Repository tree:' > debug-bundle/tree.txt
+          find . -maxdepth 3 -type f | sort >> debug-bundle/tree.txt
+
+      - name: Upload debug bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mordecai-debug-bundle
+          path: debug-bundle/
+          if-no-files-found: error

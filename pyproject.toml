@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mordecai-ai"
+version = "0.1.0"
+description = "Mordecai: a sandboxed, policy-driven AI runtime for a repurposed Android device"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "httpx>=0.28,<1.0",
+    "psutil>=6.1,<7.0",
+    "pydantic-settings>=2.6,<3.0",
+    "uvicorn>=0.32,<1.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9.0"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
