@@ -24,6 +24,8 @@ The installer will:
 - create `$HOME/mordecai/data` and `$HOME/mordecai/scripts`
 - write a local `$HOME/mordecai/.env` scaffold if one does not already exist
 
+On Android, the install no longer depends on `psutil` building successfully. When `psutil` is unavailable, Mordecai uses a standard-library watchdog fallback for CPU and memory reporting.
+
 ## 3. Start Mordecai
 
 ```bash
@@ -73,4 +75,5 @@ $HOME/mordecai/scripts/update.sh
 
 - if `start.sh` says the backend is already running, inspect `data/logs/backend.pid` and `data/logs/backend.log`
 - if the install fails during package setup, run `pkg update -y` and retry the installer
+- if `pip` reports that `psutil` is unsupported on Android, update the backend checkout and rerun the installer so the conditional dependency and fallback watchdog code are picked up
 - if the dashboard does not load, confirm the service is bound to `127.0.0.1` and that the port in `.env` matches the URL you opened

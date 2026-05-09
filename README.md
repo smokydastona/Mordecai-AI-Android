@@ -149,6 +149,8 @@ The output APK is written under `android-shell/build/outputs/apk/debug/`.
 
 Phase 1 is the portable Mode A backend contract for Termux-based Android installs.
 
+On Android and Termux, the runtime now falls back to a standard-library resource watchdog when `psutil` is unavailable, so the portable install path does not depend on building `psutil` on-device.
+
 Install from Termux with one command:
 
 ```bash

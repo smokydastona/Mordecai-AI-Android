@@ -1,4 +1,5 @@
 from mordecai.config import Settings
+from mordecai.watchdog import Watchdog
 
 
 def test_settings_derive_phase1_layout_from_backend_workspace(tmp_path):
@@ -22,3 +23,17 @@ def test_settings_preserve_custom_state_dir_when_provided(tmp_path):
 
     assert settings.state_dir == custom_state.resolve()
     assert settings.data_dir == custom_state.resolve()
+
+
+def test_watchdog_falls_back_without_psutil(monkeypatch, tmp_path):
+    from mordecai import watchdog as watchdog_module
+
+    monkeypatch.setattr(watchdog_module, "psutil", None)
+    settings = Settings(workspace_dir=tmp_path)
+
+    watchdog = Watchdog(settings)
+    snapshot = watchdog.snapshot()
+
+    assert snapshot.cpu_percent >= 0.0
+    assert snapshot.memory_mb >= 0.0
+    assert snapshot.reason in {"within limits", "resource threshold exceeded"}
