@@ -149,11 +149,13 @@ The output APK is written under `android-shell/build/outputs/apk/debug/`.
 
 Phase 1 is the portable Mode A backend contract for Termux-based Android installs.
 
-On Android and Termux, the installer now prepares the runtime inside a `proot-distro` Ubuntu layer instead of relying on Android-native Python packaging. The runtime also falls back to a standard-library resource watchdog when `psutil` is unavailable.
+On Android and Termux, the installer now prepares the runtime inside a pinned `ubuntu-24.04` `proot-distro` layer instead of relying on Android-native Python packaging or the moving upstream `ubuntu` alias. The runtime also falls back to a standard-library resource watchdog when `psutil` is unavailable.
 
 If a previous failed Termux-native install already created `$HOME/mordecai/env`, rerunning the installer now detects that Android-native virtual environment and rebuilds it inside the Linux `proot-distro` layer automatically.
 
-If the default `proot-distro` rootfs download host fails, the installer reads the distro plug-in URL directly, downloads the rootfs itself with `curl --http1.1`, verifies the plug-in SHA-256, and retries `proot-distro` from that local archive.
+The pinned `ubuntu-24.04` profile is generated locally by the installer and targets Ubuntu Base 24.04 LTS tarballs instead of the current upstream `ubuntu` alias, which now tracks Ubuntu 25.10.
+
+If the configured `proot-distro` rootfs download host fails, the installer reads the distro plug-in URL directly, downloads the rootfs itself with `curl --http1.1`, verifies the plug-in SHA-256 when one is present, and retries `proot-distro` from that local archive.
 The fallback still exports an empty `PD_OVERRIDE_TARBALL_SHA256`, which is required by `proot-distro` when overriding the tarball URL.
 
 Install from Termux with one command:
@@ -176,6 +178,8 @@ This install flow creates:
 - `$HOME/mordecai/scripts`
 
 The virtual environment is created and used inside the Linux `proot-distro` layer, while the checked-out files and runtime state stay under `$HOME/mordecai`.
+
+If you need a different distro alias, set `MORDECAI_PROOT_DISTRO` before running the installer. If you need to retarget the pinned Ubuntu profile to a different Ubuntu Base point release or mirror, set `MORDECAI_UBUNTU_24_04_RELEASE` and optionally `MORDECAI_UBUNTU_24_04_BASE_URL` before running `proot-setup.sh`.
 
 Phase 1 runs only on `127.0.0.1` by default and does not expose Android automation, daemon mode, or other Mode B-only behavior.
 

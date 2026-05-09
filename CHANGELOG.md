@@ -12,6 +12,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Phase 1 installer now retries `proot-distro` rootfs installs from a locally downloaded rootfs archive when the default host fails.
 - Phase 1 installer now sets `PD_OVERRIDE_TARBALL_SHA256` during tarball URL overrides so `proot-distro` fallback installs do not abort under `set -u`.
 - Phase 1 installer now falls back by downloading the rootfs archive itself with `curl --http1.1`, verifying the plugin SHA-256, and handing `proot-distro` a local `file://` tarball when the default host fails.
+- Phase 1 installer now generates and defaults to a pinned `ubuntu-24.04` `proot-distro` profile so phone installs do not follow the moving upstream Ubuntu alias.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.
@@ -32,6 +33,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 
 - Packaging now installs `psutil` only on supported non-Android platforms, allowing the Termux Phase 1 backend install to complete on Android.
 - Phase 1 Termux lifecycle scripts now launch and update the backend through the Linux `proot-distro` layer instead of Android-native Python.
+- Phase 1 Termux lifecycle scripts now default to the pinned `ubuntu-24.04` profile, while still allowing `MORDECAI_PROOT_DISTRO` overrides for other distros.
 - README now documents automatic replacement of a previously created Android-native virtual environment during Phase 1 reinstalls.
 
 - Avatar profile wiring now discovers every SVG under `assets/avatar/`, keeps a stable preferred display order, and exposes the full asset set through `/api/avatar` instead of a fixed seven-frame list.

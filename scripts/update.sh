@@ -15,7 +15,7 @@ fi
 BACKEND_DIR="${MORDECAI_WORKSPACE_DIR:-${INSTALL_ROOT}/backend}"
 ENV_DIR="${INSTALL_ROOT}/env"
 SCRIPT_DIR="${INSTALL_ROOT}/scripts"
-PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu}"
+PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu-24.04}"
 
 run_in_distro() {
   local command="$1"
