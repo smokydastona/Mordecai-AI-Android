@@ -9,6 +9,10 @@ from typing import Any
 from mordecai.models import ConversationEntry, GoalRecord, ImprovementBackupRecord, ImprovementCandidate, ProxyRequestRecord, RoutineRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord
 
 
+class StateStoreError(RuntimeError):
+    pass
+
+
 class StateStore:
     def __init__(self, state_dir: Path, max_log_entries: int) -> None:
         self.state_dir = state_dir
@@ -39,8 +43,10 @@ class StateStore:
     def _load(self, path: Path) -> list[dict[str, Any]]:
         try:
             return json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, FileNotFoundError):
-            return []
+        except json.JSONDecodeError as exc:
+            raise StateStoreError(f"State file '{path.name}' is corrupt: {exc}") from exc
+        except FileNotFoundError as exc:
+            raise StateStoreError(f"State file '{path.name}' is missing.") from exc
 
     def _save(self, path: Path, value: list[dict[str, Any]]) -> None:
         try:
@@ -50,8 +56,7 @@ class StateStore:
             temp_path.write_text(content, encoding="utf-8")
             temp_path.replace(path)
         except Exception as exc:
-            import sys
-            print(f"Warning: Failed to save {path.name}: {exc}", file=sys.stderr)
+            raise StateStoreError(f"Failed to save state file '{path.name}': {exc}") from exc
 
     def append_conversation(self, entry: ConversationEntry) -> None:
         with self._lock:

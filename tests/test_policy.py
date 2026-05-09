@@ -45,3 +45,25 @@ def test_policy_blocks_avatar_asset_changes(tmp_path):
     ])
 
     assert not decision.allowed
+
+
+def test_policy_blocks_core_runtime_changes(tmp_path):
+    settings = Settings(workspace_dir=tmp_path / "backend")
+    policy = PolicyEngine(settings)
+
+    decision = policy.validate_file_changes([
+        ImprovementFileChange(path="mordecai_core/tool_registry.py", content="SAFE = False\n")
+    ])
+
+    assert not decision.allowed
+
+
+def test_policy_blocks_provider_surface_changes(tmp_path):
+    settings = Settings(workspace_dir=tmp_path / "backend")
+    policy = PolicyEngine(settings)
+
+    decision = policy.validate_file_changes([
+        ImprovementFileChange(path="providers/cloud_llm.py", content="value = 1\n")
+    ])
+
+    assert not decision.allowed

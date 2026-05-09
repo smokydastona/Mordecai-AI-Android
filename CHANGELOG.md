@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- enforce self-improvement test gating on every apply path, including manual promotion of sandbox candidates
+- expand self-improvement protected-path coverage to core execution and provider surfaces
+- surface state store corruption and save failures as explicit runtime errors instead of silent fallbacks
+- decouple runtime composition from the FastAPI entrypoint through a dedicated bootstrap module
+- compile all shipped Python packages and build wheel plus sdist artifacts in CI
+
 All notable changes to Mordecai-AI-Android are documented in this file.
 
 ## 2026-05-08 (Continued)

@@ -119,6 +119,28 @@ def test_improvement_candidate_blocks_protected_paths(tmp_path, monkeypatch):
     assert protected in payload["protected_paths_blocked"]
 
 
+def test_improvement_apply_rejects_untested_candidate(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    propose_response = client.post(
+        "/api/improvement/propose",
+        json={
+            "description": "Untested candidate",
+            "changes": [{"path": "src/demo.py", "content": "VALUE = 2\n"}],
+            "run_tests": False,
+        },
+    )
+
+    candidate_id = propose_response.json()["candidate_id"]
+    apply_response = client.post(f"/api/improvement/apply/{candidate_id}")
+
+    assert propose_response.status_code == 200
+    assert apply_response.status_code == 400
+    error = apply_response.json()["detail"]["error"]
+    assert error["code"] == "ExecutionFailed"
+    assert "must pass before apply" in error["message"]
+
+
 def test_openai_compatible_provider_requires_allowlisted_host(tmp_path, monkeypatch):
     client = build_test_client(tmp_path, monkeypatch)
     monkeypatch.setenv("MORDECAI_OPENAI_BASE_URL", "https://example.com/v1")

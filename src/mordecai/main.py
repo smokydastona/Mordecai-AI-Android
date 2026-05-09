@@ -1,46 +1,14 @@
-from functools import lru_cache
-
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
-from mordecai.agent import MordecaiRuntime
-from mordecai.android_control import AndroidController
 from mordecai.config import ensure_state_dirs, get_settings
+from mordecai.bootstrap import build_runtime
 from mordecai.dashboard import render_dashboard
-from mordecai.git_tools import GitService
 from mordecai.local_models import LocalModelService
 from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
-from mordecai.policy import PolicyEngine
-from mordecai.providers import ProviderRouter
-from mordecai.proxy import SafeHttpClient
-from mordecai.self_improvement import SelfImprovementManager
-from mordecai.store import StateStore
-from mordecai.watchdog import Watchdog
+from mordecai.store import StateStoreError
 from mordecai_core.tool_registry import RuntimeContext
-
-
-@lru_cache(maxsize=1)
-def build_runtime() -> tuple[MordecaiRuntime, SafeHttpClient, GitService, SelfImprovementManager, AndroidController, PolicyEngine, StateStore]:
-    settings = get_settings()
-    ensure_state_dirs(settings)
-    store = StateStore(settings.state_dir, settings.max_log_entries)
-    policy = PolicyEngine(settings)
-    proxy = SafeHttpClient(settings, policy, store)
-    git_service = GitService(settings.workspace_dir)
-    improvement_manager = SelfImprovementManager(settings, policy, store)
-    runtime = MordecaiRuntime(
-        settings=settings,
-        store=store,
-        policy=policy,
-        proxy=proxy,
-        git_service=git_service,
-        provider_router=ProviderRouter(settings, proxy),
-        improvement_manager=improvement_manager,
-        watchdog=Watchdog(settings),
-    )
-    android = AndroidController(settings, policy)
-    return runtime, proxy, git_service, improvement_manager, android, policy, store
 
 
 def create_app() -> FastAPI:
@@ -66,6 +34,8 @@ def create_app() -> FastAPI:
     def raise_mapped_exception(exc: Exception) -> None:
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):
             raise
+        if isinstance(exc, StateStoreError):
+            raise_api_error(500, "StateStoreFailure", str(exc))
         if isinstance(exc, PermissionError):
             raise_api_error(403, "PermissionDenied", str(exc))
         if isinstance(exc, FileNotFoundError):

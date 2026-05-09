@@ -5,8 +5,8 @@ from functools import lru_cache
 
 from mordecai.agent import MordecaiRuntime
 from mordecai.android_control import AndroidController
+from mordecai.bootstrap import build_runtime
 from mordecai.git_tools import GitService
-from mordecai.main import build_runtime
 from mordecai.policy import PolicyEngine
 from mordecai.proxy import SafeHttpClient
 from mordecai.self_improvement import SelfImprovementManager

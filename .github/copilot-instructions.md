@@ -103,6 +103,7 @@ Non-negotiables:
 - Treat GitHub Actions as the authoritative clean build.
 - If CI fails, inspect logs, reproduce locally when possible, and fix the root cause before moving on.
 - Preserve debugging artifacts on failure when workflows support uploads.
+- Keep CI compile and package validation aligned with the full shipped Python package surface, not just `src/` and `tests/`.
 - Prefer first-party or current major-version GitHub Actions when they remove fragile shell glue, especially around Android SDK setup and license handling.
 - For cross-platform wrapper scripts, preserve executable bits in git and add defensive CI bootstrap steps when Windows-authored commits can strip them.
 - Keep workflow actions on supported major versions before deprecation windows force upgrades under incident conditions.

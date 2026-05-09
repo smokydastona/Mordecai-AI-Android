@@ -72,6 +72,34 @@ def test_apply_candidate_promotes_sandbox_file_to_live_workspace(tmp_path):
     assert (workspace / "src" / "demo" / "calc.py").read_text(encoding="utf-8") == "def value():\n    return 3\n"
 
 
+def test_apply_candidate_rejects_untested_candidate(tmp_path):
+    workspace = tmp_path / "workspace"
+    state_dir = tmp_path / ".mordecai"
+    src_dir = workspace / "src"
+    src_dir.mkdir(parents=True)
+    (src_dir / "demo.py").write_text("VALUE = 1\n", encoding="utf-8")
+
+    settings = Settings(workspace_dir=workspace, state_dir=state_dir)
+    policy = PolicyEngine(settings)
+    store = StateStore(state_dir, settings.max_log_entries)
+    manager = SelfImprovementManager(settings, policy, store)
+
+    candidate = manager.create_candidate(
+        ImprovementRequest(
+            description="Untested candidate",
+            changes=[{"path": "src/demo.py", "content": "VALUE = 2\n"}],
+            run_tests=False,
+        )
+    )
+
+    try:
+        manager.apply_candidate(candidate.candidate_id)
+    except RuntimeError as exc:
+        assert "must pass before apply" in str(exc)
+    else:
+        raise AssertionError("Expected untested candidate apply to fail")
+
+
 def test_rollback_candidate_restores_previous_file_contents(tmp_path):
     workspace = tmp_path / "workspace"
     state_dir = tmp_path / ".mordecai"

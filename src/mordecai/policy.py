@@ -51,15 +51,28 @@ class PolicyEngine:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.protected_paths = frozenset({
+            "src/mordecai/agent.py",
+            "src/mordecai/android_control.py",
+            "src/mordecai/config.py",
+            "src/mordecai/dashboard.py",
+            "src/mordecai/git_tools.py",
+            "src/mordecai/local_models.py",
+            "src/mordecai/main.py",
+            "src/mordecai/models.py",
             "src/mordecai/policy.py",
+            "src/mordecai/providers.py",
             "src/mordecai/proxy.py",
             "src/mordecai/self_improvement.py",
-            "src/mordecai/config.py",
             "src/mordecai/avatar.py",
+            "src/mordecai/store.py",
+            "src/mordecai/voice.py",
+            "src/mordecai/watchdog.py",
             "prompts/system_prompt.txt",
         })
         self.protected_prefixes = (
             "assets/avatar/",
+            "mordecai_core/",
+            "providers/",
         )
 
     def validate_url(self, url: str) -> PolicyDecision:

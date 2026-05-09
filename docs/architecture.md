@@ -92,6 +92,7 @@ Workflow actions should stay on supported major versions so runner-runtime chang
 ## Architectural boundaries that must hold
 
 - `src/mordecai/policy.py`, `src/mordecai/proxy.py`, `src/mordecai/self_improvement.py`, `src/mordecai/config.py`, and `prompts/system_prompt.txt` remain protected from self-modification.
+- Core runtime composition and execution surfaces under `mordecai_core/`, `providers/`, and the runtime wiring modules in `src/mordecai/` remain protected from self-modification.
 - Outbound networking flows through the safe proxy and allowlist model.
 - Runtime failures surface with structured codes instead of free-form exception leakage.
 - Tool execution happens through manifests, contexts, and permission checks rather than direct service reach-through.
@@ -105,4 +106,4 @@ Workflow actions should stay on supported major versions so runner-runtime chang
 - keep the provider capability matrix honest as more local and cloud backends arrive
 - extend trace surfaces into a real operational cockpit
 - expand Android-native tool providers without weakening the permission model
-- keep self-modification test-gated and rollback-first
+- keep self-modification test-gated on every promotion path and rollback-first

@@ -69,7 +69,28 @@ with self._lock:
 
 ## High-Priority Issues Fixed
 
-### 5. Exception Masking in FastAPI Endpoints
+### 5. Untested Candidate Promotion Gap
+
+**Issue**: Manual candidate promotion accepted `tests_passed=None`, which allowed untested self-improvement candidates to reach the live workspace.
+
+**Fix**:
+- Require `tests_passed is True` before any apply path can promote a candidate
+- Added regression coverage for manual apply through the runtime API and manager layer
+
+**Impact**: Self-improvement is now test-gated on both auto-apply and manual promotion paths.
+
+### 6. Incomplete Protected Runtime Perimeter
+
+**Issue**: Self-improvement path protection covered only a narrow subset of runtime files and left core execution surfaces writable.
+
+**Fix**:
+- Expanded protected runtime files in `src/mordecai/`
+- Protected all `mordecai_core/` and `providers/` execution surfaces from self-modification
+- Added tests that assert core and provider changes are blocked
+
+**Impact**: Runtime wiring, tool execution, and provider surfaces now stay behind the policy boundary.
+
+### 7. Exception Masking in FastAPI Endpoints
 
 **Issue**: Broad `except Exception` clauses caught system exceptions like `KeyboardInterrupt`, preventing graceful shutdown.
 
@@ -77,7 +98,7 @@ with self._lock:
 
 **Impact**: Graceful shutdown now works correctly, server can be interrupted cleanly.
 
-### 6. Mutable Policy Protected Paths
+### 8. Mutable Policy Protected Paths
 
 **Issue**: Policy engine's `protected_paths` was a mutable `set()`, allowing runtime modification.
 
@@ -85,7 +106,7 @@ with self._lock:
 
 **Impact**: Policy enforcement cannot be bypassed at runtime through attribute modification.
 
-### 7. Silent OpenAI Configuration Fallback
+### 9. Silent OpenAI Configuration Fallback
 
 **Issue**: Incomplete OpenAI configuration silently fell back to rule-based provider without notifying operator.
 
@@ -93,7 +114,7 @@ with self._lock:
 
 **Impact**: Operators now get clear feedback when OpenAI is unavailable due to incomplete config.
 
-### 8. Git Binary Output Handling
+### 10. Git Binary Output Handling
 
 **Issue**: Git subprocess calls would crash on non-UTF8 output (e.g., binary diffs).
 
@@ -103,7 +124,17 @@ with self._lock:
 
 ## Medium-Priority Issues Fixed
 
-### 9. Type Inconsistency in LocalModelService
+### 11. State Store Silent Failure Handling
+
+**Issue**: Persistence and state read failures were reduced to silent fallbacks or stderr warnings, which hid broken audit and rollback state.
+
+**Fix**:
+- Added explicit `StateStoreError` exceptions for corrupt, missing, and failed-save state files
+- Propagate those failures to runtime callers instead of silently returning empty state or warning-only output
+
+**Impact**: Persistence failures are now visible to operators and API clients.
+
+### 12. Type Inconsistency in LocalModelService
 
 **Issue**: `model_available` field could return `bool | None`, violating type contract.
 
@@ -116,6 +147,10 @@ with self._lock:
 ### Atomic File Operations
 
 The StateStore now uses proper atomic file operations with temporary files and rename semantics, following best practices for safe concurrent file I/O.
+
+### Runtime Composition Boundary
+
+Runtime composition now lives in a dedicated bootstrap module so the core execution layer can compose runtime services without importing the FastAPI entrypoint module.
 
 ### Defensive Error Handling
 

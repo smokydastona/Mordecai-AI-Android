@@ -16,10 +16,10 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 
 - FastAPI dashboard and API surface for chat, status, policy, memory, git state, outbound fetches, web search, GitHub search, runtime events, proxy logs, and self-improvement candidates
 - Formal Mordecai identity with wake words and personality modes
-- Policy engine that protects core safety files, blocks destructive shell patterns, and enforces an outbound domain allowlist
+- Policy engine that protects core safety files and execution surfaces, blocks destructive shell patterns, and enforces an outbound domain allowlist
 - Safe HTTP client with per-minute request throttling and request logging
 - Git integration for local backups and optional pushes
-- Self-improvement manager that stages file changes in a sandbox workspace, runs tests there, supports rollback, previews diffs, and only applies approved candidates
+- Self-improvement manager that stages file changes in a sandbox workspace, runs tests there, supports rollback, previews diffs, and only applies candidates whose tests passed
 - Self-improvement perimeter with protected-path enforcement, hidden-persistence diff filters, sandboxed test gating, and rollback snapshots
 - Resource watchdog that reports CPU and memory usage
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
@@ -42,11 +42,12 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 ## Reliability and Security
 
 - Self-improvement test execution now includes comprehensive error handling, timeouts, and detailed failure reporting
-- State store uses atomic file operations to prevent data loss under concurrent access
+- State store uses atomic file operations and now raises explicit failures when persistence or state reads break
 - Policy engine uses immutable collections to prevent runtime tampering
 - Configuration validation detects incomplete optional configs and logs warnings
 - Exception handling preserves system interrupts for graceful shutdown
 - Git operations handle binary output and encoding errors gracefully
+- Runtime composition now resolves through a dedicated bootstrap module so the core execution layer no longer depends on the FastAPI entrypoint for wiring
 
 ## Strategic direction
 
@@ -225,6 +226,7 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 ## CI and debugging
 
 - GitHub Actions now runs cross-platform install, compile, test, and app-smoke checks through `.github/workflows/ci.yml`.
+- GitHub Actions now compiles every shipped Python package surface and builds wheel plus sdist artifacts during CI.
 - GitHub Actions now also builds the native Android shell debug APK through the checked-in Gradle wrapper and uploads the APK artifact.
 - Android SDK provisioning in CI now uses `android-actions/setup-android@v4` package installation directly, which avoids the fragile manual `sdkmanager --licenses` pipe.
 - Linux CI jobs now also force `chmod +x ./gradlew`, and the repository tracks `gradlew` as executable so wrapper-based Android builds survive Windows-authored commits.

@@ -90,6 +90,8 @@ class SelfImprovementManager:
             raise PermissionError("Candidate diff blocked by policy filters")
         if candidate.tests_passed is False:
             raise RuntimeError("Candidate tests failed")
+        if candidate.tests_passed is not True:
+            raise RuntimeError("Candidate tests must pass before apply")
         candidate_root = self.settings.state_dir / "candidates" / candidate_id
         candidate_workspace = candidate_root / "workspace"
         backup_root = self.settings.state_dir / "backups" / candidate_id
@@ -143,7 +145,21 @@ class SelfImprovementManager:
 
     def _prepare_candidate_workspace(self, candidate_root: Path) -> Path:
         workspace_copy = candidate_root / "workspace"
-        ignore = shutil.ignore_patterns(*self.IGNORE_NAMES)
+        ignore_names = set(self.IGNORE_NAMES)
+        workspace_root = self.settings.workspace_dir.resolve()
+        for runtime_path in (
+            self.settings.data_dir,
+            self.settings.state_dir,
+            self.settings.log_dir,
+            self.settings.cache_dir,
+            self.settings.models_dir,
+        ):
+            try:
+                relative_path = runtime_path.resolve().relative_to(workspace_root)
+            except ValueError:
+                continue
+            ignore_names.add(relative_path.parts[0])
+        ignore = shutil.ignore_patterns(*sorted(ignore_names))
         shutil.copytree(self.settings.workspace_dir, workspace_copy, dirs_exist_ok=True, ignore=ignore)
         return workspace_copy
 
