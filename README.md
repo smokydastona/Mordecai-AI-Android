@@ -225,9 +225,9 @@ You can install that bundle explicitly from the runtime environment with:
 python -m mordecai.local_models --install-root "$HOME/mordecai" --install-bundle phone-starter
 ```
 
-On phone installs, set `MORDECAI_INSTALL_DEFAULT_MODELS=true` before running `scripts/proot-setup.sh` if you want the installer to download that bundle automatically.
+The phone installer now downloads that bundle automatically by default. Set `MORDECAI_INSTALL_DEFAULT_MODELS=false` before running `scripts/proot-setup.sh` if you want to skip the model download.
 
-On a phone install, Mordecai creates the models directory under `$HOME/mordecai/data/models`, but it does not populate that directory automatically.
+On a phone install, Mordecai creates the models directory under `$HOME/mordecai/data/models` and now populates it with the default bundle unless you disable that step.
 
 ## Cloud model configuration
 
@@ -251,11 +251,14 @@ Notes:
 
 This codebase is designed to run inside the sandboxed Linux layer described in the blueprint, such as Termux plus proot Ubuntu on the target phone. `scripts/proot-setup.sh` is now the canonical public installer entry point for the portable Phase 1 backend, while `sandbox/proot-setup.sh` remains a compatibility wrapper for older references. The native shell app in `android-shell/` supervises that localhost backend from Android.
 
+The Phase 1 installer now also downloads the latest published Android shell APK release asset by default. On rooted devices it attempts a silent `pm install -r`; otherwise it launches the normal Android package installer through `termux-open` so the shell app can be installed from the same Termux flow.
+
 ## CI and debugging
 
 - GitHub Actions now runs cross-platform install, compile, test, and app-smoke checks through `.github/workflows/ci.yml`.
 - GitHub Actions now compiles every shipped Python package surface and builds wheel plus sdist artifacts during CI.
 - GitHub Actions now also builds the native Android shell debug APK through the checked-in Gradle wrapper and uploads the APK artifact.
+- GitHub Actions now also republishes a rolling `android-shell-latest` release asset on pushes to `main`, giving the phone installer a stable APK download URL.
 - Android SDK provisioning in CI now uses `android-actions/setup-android@v4` package installation directly, which avoids the fragile manual `sdkmanager --licenses` pipe.
 - Linux CI jobs now also force `chmod +x ./gradlew`, and the repository tracks `gradlew` as executable so wrapper-based Android builds survive Windows-authored commits.
 - The Android shell module now declares the AndroidX lifecycle service dependency required by the foreground supervision service.

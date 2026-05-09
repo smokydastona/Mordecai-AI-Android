@@ -68,6 +68,7 @@ Non-negotiables:
 - Every completed pushed change that affects runtime behavior, tooling, workflows, setup, or architecture must update `README.md` and at least one relevant file under `docs/`.
 - Workflow or repository process changes must also update `.github/copilot-instructions.md`.
 - CI enforces this through `scripts/check_docs_sync.py` and the `Documentation Sync Gate` job in `.github/workflows/ci.yml`.
+- The CI workflow also republishes a rolling `android-shell-latest` GitHub release asset from `main` so Termux installs have a stable APK URL; keep the release step aligned with the shell artifact name if the Android module output changes.
 
 ## Impact Radius Checklists
 

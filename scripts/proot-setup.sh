@@ -25,7 +25,12 @@ UBUNTU_24_04_ALIAS="ubuntu-24.04"
 UBUNTU_24_04_CODE_NAME="noble"
 UBUNTU_24_04_RELEASE="${MORDECAI_UBUNTU_24_04_RELEASE:-20260323}"
 UBUNTU_24_04_BASE_URL="${MORDECAI_UBUNTU_24_04_BASE_URL:-https://cloud-images.ubuntu.com/${UBUNTU_24_04_CODE_NAME}/${UBUNTU_24_04_RELEASE}}"
-INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-false}"
+INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-true}"
+INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"
+APK_RELEASE_TAG="${MORDECAI_APK_RELEASE_TAG:-android-shell-latest}"
+APK_ASSET_NAME="${MORDECAI_APK_ASSET_NAME:-android-shell-debug.apk}"
+APK_DOWNLOAD_URL="${MORDECAI_APK_DOWNLOAD_URL:-https://github.com/smokydastona/Mordecai-AI-Android/releases/download/${APK_RELEASE_TAG}/${APK_ASSET_NAME}}"
+APK_DOWNLOAD_PATH="${CACHE_DIR}/${APK_ASSET_NAME}"
 
 run_in_distro() {
   local command="$1"
@@ -204,6 +209,38 @@ sync_runtime_scripts() {
   done
 }
 
+download_shell_apk() {
+  printf 'Downloading Mordecai shell APK from %s\n' "${APK_DOWNLOAD_URL}"
+  "${TERMUX_PREFIX}/bin/curl" --fail --retry 5 --retry-connrefused --retry-delay 5 --location \
+    --output "${APK_DOWNLOAD_PATH}.tmp" "${APK_DOWNLOAD_URL}"
+  mv -f "${APK_DOWNLOAD_PATH}.tmp" "${APK_DOWNLOAD_PATH}"
+}
+
+install_shell_apk() {
+  if [ "${INSTALL_SHELL_APK}" != "true" ]; then
+    return
+  fi
+
+  download_shell_apk
+
+  if command -v su >/dev/null 2>&1 && su -c true >/dev/null 2>&1; then
+    if su -c "pm install -r '${APK_DOWNLOAD_PATH}'"; then
+      printf '%s\n' 'Installed Mordecai shell APK silently through root package manager access.'
+      return
+    fi
+    printf '%s\n' 'Root package install failed; falling back to the interactive Android package installer.' >&2
+  fi
+
+  if command -v termux-open >/dev/null 2>&1; then
+    termux-open --content-type application/vnd.android.package-archive "${APK_DOWNLOAD_PATH}"
+    printf '%s\n' 'Launched the Android package installer for the Mordecai shell APK. Confirm the install prompt on the device if Android requests it.'
+    return
+  fi
+
+  printf '%s\n' 'Unable to launch the Android package installer automatically because termux-open is unavailable.' >&2
+  return 1
+}
+
 write_env_file() {
   if [ -f "${ENV_FILE}" ]; then
     return
@@ -218,6 +255,10 @@ MORDECAI_CACHE_DIR=${CACHE_DIR}
 MORDECAI_MODELS_DIR=${MODELS_DIR}
 MORDECAI_PROOT_DISTRO=${PROOT_DISTRO}
 MORDECAI_INSTALL_DEFAULT_MODELS=${INSTALL_DEFAULT_MODELS}
+MORDECAI_INSTALL_SHELL_APK=${INSTALL_SHELL_APK}
+MORDECAI_APK_RELEASE_TAG=${APK_RELEASE_TAG}
+MORDECAI_APK_ASSET_NAME=${APK_ASSET_NAME}
+MORDECAI_APK_DOWNLOAD_URL=${APK_DOWNLOAD_URL}
 MORDECAI_MODE=mode-a
 MORDECAI_SERVICE_HOST=127.0.0.1
 MORDECAI_SERVICE_PORT=8000
@@ -270,6 +311,10 @@ run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
 if [ "${INSTALL_DEFAULT_MODELS}" = "true" ]; then
   printf '%s\n' 'Installing the default local model bundle into Mordecai data/models...'
   run_in_distro "'${ENV_DIR}/bin/python' -m mordecai.local_models --install-root '${INSTALL_ROOT}' --install-bundle phone-starter"
+fi
+
+if [ "${INSTALL_SHELL_APK}" = "true" ]; then
+  install_shell_apk
 fi
 
 write_env_file

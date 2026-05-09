@@ -38,6 +38,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - The pinned `ubuntu-24.04` profile now follows Canonical `cloud-images.ubuntu.com/noble/<serial>` root tarballs with known arm64 and armhf checksums instead of a generic Ubuntu Base URL pattern.
 - Local model registry now includes default `llama.cpp` and `llamafile` chat profiles, and docs now clarify that Mordecai does not bundle model weights onto the phone by default.
 - Mordecai now ships a policy-gated managed local model asset layer, including a `phone-starter` bundle for Qwen2.5 3B GGUF plus Piper voice files, dashboard/API installation controls, and an opt-in Termux installer hook via `MORDECAI_INSTALL_DEFAULT_MODELS=true`.
+- The Termux installer now downloads the default local model bundle automatically, downloads the rolling `android-shell-latest` APK release asset automatically, and installs the shell app through silent root install or the Android package installer when running on standard phones.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.

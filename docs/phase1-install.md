@@ -24,6 +24,8 @@ The installer will:
 - install the backend package into that Linux-hosted environment
 - create `$HOME/mordecai/data` and `$HOME/mordecai/scripts`
 - write a local `$HOME/mordecai/.env` scaffold if one does not already exist
+- download and install the recommended phone-sized local model bundle by default
+- download the latest published Mordecai Android shell APK and install it automatically when Android permits it
 
 On Android, the install no longer depends on Android-native Python wheels for `psutil` or `pydantic-core`. The backend is installed inside the Linux `proot-distro` environment, and Mordecai still uses a standard-library watchdog fallback when `psutil` is unavailable.
 
@@ -36,7 +38,9 @@ That retry intentionally sets an empty `PD_OVERRIDE_TARBALL_SHA256` because `pro
 
 If you want to override the pinned profile, set `MORDECAI_PROOT_DISTRO` before running the installer. For the bundled Ubuntu 24.04 profile, you can also override `MORDECAI_UBUNTU_24_04_RELEASE` and `MORDECAI_UBUNTU_24_04_BASE_URL` before running `proot-setup.sh`.
 
-If you also want the installer to prefetch Mordecai's recommended on-device model bundle, set `MORDECAI_INSTALL_DEFAULT_MODELS=true` before running `proot-setup.sh`. That opt-in bundle installs the `Qwen2.5 3B` GGUF chat model and the recommended Piper English voice files into `$HOME/mordecai/data/models`.
+The installer now prefetches Mordecai's recommended on-device model bundle by default. Set `MORDECAI_INSTALL_DEFAULT_MODELS=false` before running `proot-setup.sh` if you need to skip that download. The default bundle installs the `Qwen2.5 3B` GGUF chat model and the recommended Piper English voice files into `$HOME/mordecai/data/models`.
+
+The installer also downloads the latest published `android-shell-latest` APK release asset by default. On rooted phones it attempts a silent `pm install -r`. On standard phones it launches the normal Android package installer so you can approve the install prompt. Set `MORDECAI_INSTALL_SHELL_APK=false` before running `proot-setup.sh` if you want to skip the shell app install step.
 
 ## 3. Start Mordecai
 

@@ -56,3 +56,19 @@ def test_file_tools_refuses_workspace_escape(tmp_path):
         pass
     else:
         raise AssertionError("Expected workspace escape to be blocked")
+
+
+def test_phase1_installer_defaults_to_models_and_shell_apk():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-true}"' in installer
+    assert 'INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"' in installer
+    assert 'android-shell-latest' in installer
+    assert 'termux-open --content-type application/vnd.android.package-archive' in installer
+
+
+def test_ci_workflow_publishes_android_shell_release_asset():
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert 'name: Publish Android Shell Release Asset' in workflow
+    assert 'gh release create android-shell-latest' in workflow
