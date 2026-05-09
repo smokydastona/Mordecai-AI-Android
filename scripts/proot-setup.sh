@@ -27,6 +27,7 @@ UBUNTU_24_04_RELEASE="${MORDECAI_UBUNTU_24_04_RELEASE:-20260323}"
 UBUNTU_24_04_BASE_URL="${MORDECAI_UBUNTU_24_04_BASE_URL:-https://cloud-images.ubuntu.com/${UBUNTU_24_04_CODE_NAME}/${UBUNTU_24_04_RELEASE}}"
 INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-true}"
 INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"
+INSTALL_DEBUG_TOOLKIT="${MORDECAI_INSTALL_DEBUG_TOOLKIT:-false}"
 APK_RELEASE_TAG="${MORDECAI_APK_RELEASE_TAG:-android-shell-latest}"
 APK_ASSET_NAME="${MORDECAI_APK_ASSET_NAME:-android-shell-debug.apk}"
 APK_DOWNLOAD_URL="${MORDECAI_APK_DOWNLOAD_URL:-https://github.com/smokydastona/Mordecai-AI-Android/releases/download/${APK_RELEASE_TAG}/${APK_ASSET_NAME}}"
@@ -241,6 +242,36 @@ install_shell_apk() {
   return 1
 }
 
+install_debug_toolkit() {
+  if [ "${INSTALL_DEBUG_TOOLKIT}" != "true" ]; then
+    return
+  fi
+
+  printf '%s\n' 'Installing optional Mordecai debugging toolkit inside the Linux runtime...'
+  run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y procps lsof strace iproute2 net-tools'
+  run_in_distro "'${ENV_DIR}/bin/python' -m pip install py-spy viztracer mitmproxy"
+
+  mkdir -p "${TOOLS_DIR}"
+  cat > "${TOOLS_DIR}/debug-toolkit.txt" <<EOF
+Installed Mordecai debugging toolkit
+
+Python tools:
+- py-spy
+- viztracer
+- mitmproxy
+
+Linux tools:
+- procps
+- lsof
+- strace
+- iproute2
+- net-tools
+
+Guide:
+- ${BACKEND_DIR}/docs/debugging-guide.md
+EOF
+}
+
 write_env_file() {
   if [ -f "${ENV_FILE}" ]; then
     return
@@ -256,6 +287,7 @@ MORDECAI_MODELS_DIR=${MODELS_DIR}
 MORDECAI_PROOT_DISTRO=${PROOT_DISTRO}
 MORDECAI_INSTALL_DEFAULT_MODELS=${INSTALL_DEFAULT_MODELS}
 MORDECAI_INSTALL_SHELL_APK=${INSTALL_SHELL_APK}
+MORDECAI_INSTALL_DEBUG_TOOLKIT=${INSTALL_DEBUG_TOOLKIT}
 MORDECAI_APK_RELEASE_TAG=${APK_RELEASE_TAG}
 MORDECAI_APK_ASSET_NAME=${APK_ASSET_NAME}
 MORDECAI_APK_DOWNLOAD_URL=${APK_DOWNLOAD_URL}
@@ -313,6 +345,10 @@ if [ "${INSTALL_DEFAULT_MODELS}" = "true" ]; then
   run_in_distro "'${ENV_DIR}/bin/python' -m mordecai.local_models --install-root '${INSTALL_ROOT}' --install-bundle phone-starter"
 fi
 
+if [ "${INSTALL_DEBUG_TOOLKIT}" = "true" ]; then
+  install_debug_toolkit
+fi
+
 if [ "${INSTALL_SHELL_APK}" = "true" ]; then
   install_shell_apk
 fi
@@ -325,5 +361,6 @@ printf 'Install root: %s\n' "${INSTALL_ROOT}"
 printf 'Backend: %s\n' "${BACKEND_DIR}"
 printf 'Data: %s\n' "${DATA_DIR}"
 printf 'Runtime layer: %s (%s)\n' 'proot-distro' "${PROOT_DISTRO}"
+printf 'Debug toolkit: %s\n' "${INSTALL_DEBUG_TOOLKIT}"
 printf 'Start command: %s\n' "${SCRIPT_DIR}/start.sh"
 printf 'Dashboard URL: %s\n' 'http://127.0.0.1:8000'

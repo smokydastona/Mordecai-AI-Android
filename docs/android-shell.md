@@ -47,6 +47,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - build command on Unix-like shells: `./gradlew :android-shell:assembleDebug`
 - CI now runs the wrapper-backed Android build and uploads the debug APK as an artifact
 - pushes to `main` now also republish a rolling `android-shell-latest` GitHub release asset so the Termux installer has a stable APK download target, with the workflow staging the built APK to a deterministic filename before release publication
+- the release-publication job now resolves the downloaded APK with `find` under the artifact directory before calling `gh release create`, which avoids path mismatches caused by retained upload directory structure
 - CI provisions Android SDK packages through `android-actions/setup-android@v4` instead of a manual `sdkmanager --licenses` pipe, which avoids broken-pipe failures under `bash -o pipefail`
 - the repository tracks `gradlew` with the executable bit, and Linux CI still applies `chmod +x ./gradlew` defensively before invoking it
 - the app module depends on `androidx.lifecycle:lifecycle-service` because the foreground supervisor is implemented as a `LifecycleService`
@@ -57,3 +58,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - Android automation remains bound by the backend policy layer and only becomes available when advanced mode is explicitly enabled
 - local APK validation still depends on a configured Android SDK; without `ANDROID_HOME` or `local.properties`, `assembleDebug` cannot run on this machine
 - accessibility service metadata now uses `android:accessibilityFlags` in `mordecai_accessibility_config.xml`, matching Android resource-link requirements in CI
+
+## Debugging
+
+For phone-specific service, overlay, battery, and APK-install debugging, use `docs/debugging-guide.md` as the primary operations guide. Perfetto is the highest-value Android-side tool for shell startup latency, overlay churn, and battery analysis, while the optional installer debug toolkit focuses on backend and network debugging inside the Linux runtime.

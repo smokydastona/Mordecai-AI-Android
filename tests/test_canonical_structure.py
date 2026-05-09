@@ -67,11 +67,30 @@ def test_phase1_installer_defaults_to_models_and_shell_apk():
     assert 'termux-open --content-type application/vnd.android.package-archive' in installer
 
 
+def test_phase1_installer_supports_optional_debug_toolkit():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'INSTALL_DEBUG_TOOLKIT="${MORDECAI_INSTALL_DEBUG_TOOLKIT:-false}"' in installer
+    assert 'install_debug_toolkit()' in installer
+    assert "pip install py-spy viztracer mitmproxy" in installer
+
+
+def test_debugging_guide_exists_with_scenario_matrix():
+    guide = Path("docs/debugging-guide.md").read_text(encoding="utf-8")
+
+    assert "# Mordecai Debugging Guide" in guide
+    assert "## Scenario Matrix" in guide
+    assert "Battery drain or Android shell churn" in guide
+    assert "Model download fails or stalls" in guide
+
+
 def test_ci_workflow_publishes_android_shell_release_asset():
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
     assert 'name: Publish Android Shell Release Asset' in workflow
     assert 'name: Stage Android shell release asset' in workflow
     assert 'artifacts/android-shell-debug.apk' in workflow
+    assert 'name: Resolve Android shell release asset path' in workflow
+    assert "find artifacts/release -type f -name 'android-shell-debug.apk'" in workflow
     assert 'GH_REPO: ${{ github.repository }}' in workflow
     assert 'gh release create android-shell-latest' in workflow

@@ -42,6 +42,8 @@ The installer now prefetches Mordecai's recommended on-device model bundle by de
 
 The installer also downloads the latest published `android-shell-latest` APK release asset by default. On rooted phones it attempts a silent `pm install -r`. On standard phones it launches the normal Android package installer so you can approve the install prompt. Set `MORDECAI_INSTALL_SHELL_APK=false` before running `proot-setup.sh` if you want to skip the shell app install step.
 
+If you want the installer to provision the optional Mordecai debugging toolkit inside the Linux runtime, set `MORDECAI_INSTALL_DEBUG_TOOLKIT=true` before running `proot-setup.sh`. That toolkit installs `py-spy`, `viztracer`, `mitmproxy`, and core Linux debugging utilities such as `strace`, `lsof`, and `procps`.
+
 ## 3. Start Mordecai
 
 ```bash

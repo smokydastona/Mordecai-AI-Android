@@ -34,6 +34,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Accessibility overlay now supports a restricted local action set for back, home, notifications, quick settings, recents, and a center-screen tap without bypassing the backend policy surface
 - Accessibility overlay now renders as a compact top-corner card so lock-screen feedback stays visible without covering a large part of the phone screen
 - Android shell accessibility resource config now uses the platform-correct `android:accessibilityFlags` attribute so CI Android resource linking succeeds
+- Android shell release publication now resolves the downloaded artifact path dynamically before invoking `gh release create`, so the rolling `android-shell-latest` asset survives artifact-directory nesting in GitHub Actions
 - Permanent avatar system with immutable old-man emotion frames, asset-driven SVG discovery, backend emotion selection, and dashboard rendering
 - Local dashboard memory browser for recent conversation inspection
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels
@@ -253,12 +254,15 @@ This codebase is designed to run inside the sandboxed Linux layer described in t
 
 The Phase 1 installer now also downloads the latest published Android shell APK release asset by default. On rooted devices it attempts a silent `pm install -r`; otherwise it launches the normal Android package installer through `termux-open` so the shell app can be installed from the same Termux flow.
 
+The installer can also add an optional debugging toolkit when you set `MORDECAI_INSTALL_DEBUG_TOOLKIT=true` before running `scripts/proot-setup.sh`. That toolkit installs `py-spy`, `viztracer`, and `mitmproxy` into the Linux runtime plus core Linux debugging utilities such as `strace`, `lsof`, and `procps`.
+
 ## CI and debugging
 
 - GitHub Actions now runs cross-platform install, compile, test, and app-smoke checks through `.github/workflows/ci.yml`.
 - GitHub Actions now compiles every shipped Python package surface and builds wheel plus sdist artifacts during CI.
 - GitHub Actions now also builds the native Android shell debug APK through the checked-in Gradle wrapper and uploads the APK artifact.
 - GitHub Actions now also republishes a rolling `android-shell-latest` release asset on pushes to `main`, staging the built APK to a stable `android-shell-debug.apk` filename before publication so the phone installer has a fixed download URL.
+- A Mordecai-specific debugging guide now lives in `docs/debugging-guide.md`, including a top-5-by-scenario matrix for startup issues, battery drain, slow replies, APK install failures, and model download failures.
 - Android SDK provisioning in CI now uses `android-actions/setup-android@v4` package installation directly, which avoids the fragile manual `sdkmanager --licenses` pipe.
 - Linux CI jobs now also force `chmod +x ./gradlew`, and the repository tracks `gradlew` as executable so wrapper-based Android builds survive Windows-authored commits.
 - The Android shell module now declares the AndroidX lifecycle service dependency required by the foreground supervision service.
@@ -274,6 +278,7 @@ The Phase 1 installer now also downloads the latest published Android shell APK 
 - `docs/architecture.md`
 - `docs/android_setup.md`
 - `docs/android-shell.md`
+- `docs/debugging-guide.md`
 - `docs/phase1-contract.md`
 - `docs/phase1-install.md`
 - `docs/modeA-vs-modeB.md`

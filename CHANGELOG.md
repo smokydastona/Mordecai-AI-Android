@@ -40,6 +40,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Local model registry now includes default `llama.cpp` and `llamafile` chat profiles, and docs now clarify that Mordecai does not bundle model weights onto the phone by default.
 - Mordecai now ships a policy-gated managed local model asset layer, including a `phone-starter` bundle for Qwen2.5 3B GGUF plus Piper voice files, dashboard/API installation controls, and an opt-in Termux installer hook via `MORDECAI_INSTALL_DEFAULT_MODELS=true`.
 - The Termux installer now downloads the default local model bundle automatically, downloads the rolling `android-shell-latest` APK release asset automatically, and installs the shell app through silent root install or the Android package installer when running on standard phones.
+- Mordecai now includes a dedicated debugging guide with a top-5-by-scenario matrix for phone, backend, and network failures, and the Termux installer now supports an optional `MORDECAI_INSTALL_DEBUG_TOOLKIT=true` path that installs backend and network debugging tools into the Linux runtime.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.
@@ -49,6 +50,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Android accessibility service, lock-screen accessibility overlay, setup actions, and overlay-backed voice command delegation in the shell app.
 - Restricted accessibility action set for overlay buttons and local voice commands, covering back, home, recents, notifications, quick settings, and center-screen tap.
 - Fixed Android shell accessibility resource linking by replacing `android:flags` with `android:accessibilityFlags` in the accessibility service config.
+- Fixed Android shell rolling release publication by resolving the downloaded APK path dynamically before calling `gh release create`.
 - Accessibility overlay is now rendered as a compact top-corner card with constrained width and shorter content so it no longer blocks a large part of the phone screen.
 - Policy-enforced self-improvement diff filters for hidden persistence and boot-time autostart patterns.
 - Generic Android setup guidance in `docs/android_setup.md` and proxy configuration guidance in `net_proxy/config.md`.
