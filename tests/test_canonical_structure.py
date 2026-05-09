@@ -62,9 +62,22 @@ def test_phase1_installer_defaults_to_models_and_shell_apk():
     installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
 
     assert 'INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-true}"' in installer
+    assert 'INSTALL_LOCAL_MODEL_BINARIES="${MORDECAI_INSTALL_LOCAL_MODEL_BINARIES:-true}"' in installer
     assert 'INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"' in installer
     assert 'android-shell-latest' in installer
     assert 'termux-open --content-type application/vnd.android.package-archive' in installer
+
+
+def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'install_local_model_binaries()' in installer
+    assert 'pip install openai-whisper piper-tts' in installer
+    assert 'ggml-org/llama.cpp' in installer
+    assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli" in installer
+    assert "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'" in installer
+    assert "ln -sf '${ENV_DIR}/bin/piper' '${TOOLS_BIN_DIR}/piper'" in installer
+    assert "ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'" in installer
 
 
 def test_phase1_installer_supports_optional_debug_toolkit():
@@ -73,6 +86,13 @@ def test_phase1_installer_supports_optional_debug_toolkit():
     assert 'INSTALL_DEBUG_TOOLKIT="${MORDECAI_INSTALL_DEBUG_TOOLKIT:-false}"' in installer
     assert 'install_debug_toolkit()' in installer
     assert "pip install py-spy viztracer mitmproxy" in installer
+
+
+def test_start_script_exports_local_runtime_bin_path():
+    start_script = Path("scripts/start.sh").read_text(encoding="utf-8")
+
+    assert 'TOOLS_BIN_DIR="${TOOLS_DIR}/bin"' in start_script
+    assert 'export PATH="${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' in start_script
 
 
 def test_debugging_guide_exists_with_scenario_matrix():

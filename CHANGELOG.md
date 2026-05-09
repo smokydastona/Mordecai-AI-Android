@@ -42,6 +42,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Mordecai now ships a policy-gated managed local model asset layer, including a `phone-starter` bundle for Qwen2.5 3B GGUF plus Piper voice files, dashboard/API installation controls, and an opt-in Termux installer hook via `MORDECAI_INSTALL_DEFAULT_MODELS=true`.
 - The Termux installer now downloads the default local model bundle automatically, downloads the rolling `android-shell-latest` APK release asset automatically, and installs the shell app through silent root install or the Android package installer when running on standard phones.
 - Mordecai now includes a dedicated debugging guide with a top-5-by-scenario matrix for phone, backend, and network failures, and the Termux installer now supports an optional `MORDECAI_INSTALL_DEBUG_TOOLKIT=true` path that installs backend and network debugging tools into the Linux runtime.
+- The one-command Termux installer now provisions the default phone-supported local model runtime binaries by default, building `llama.cpp` and installing `openai-whisper` plus `piper-tts` so the bundled phone-starter assets are actually runnable after install.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.

@@ -135,6 +135,7 @@ Then open the resulting trace in `speedscope` or another compatible viewer.
 ### Model download fails or stalls
 
 1. Confirm free space under `$HOME/mordecai/data/models` and `$HOME/mordecai/data/cache`.
+2. Confirm the matching runtime binaries exist in `$HOME/mordecai/tools/bin` for `llama-cli`, `whisper`, and `piper`.
 2. Check the latest proxy log entries for a blocked redirect or rate-limited host.
 3. Re-run the model installer explicitly:
 
@@ -143,6 +144,12 @@ proot-distro login ubuntu-24.04 --shared-tmp -- /bin/bash -lc "$HOME/mordecai/en
 ```
 
 4. If the failure is intermittent, use `mitmproxy` or the runtime proxy logs to capture the exact redirect chain.
+
+If the asset files exist but the commands themselves are missing, rerun the installer with:
+
+```bash
+MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=true bash proot-setup.sh
+```
 
 ## Quick Command Set
 

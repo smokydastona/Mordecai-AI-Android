@@ -18,6 +18,8 @@ ENV_DIR="${INSTALL_ROOT}/env"
 DATA_DIR="${MORDECAI_DATA_DIR:-${INSTALL_ROOT}/data}"
 STATE_DIR="${MORDECAI_STATE_DIR:-${DATA_DIR}/state}"
 LOG_DIR="${MORDECAI_LOG_DIR:-${DATA_DIR}/logs}"
+TOOLS_DIR="${INSTALL_ROOT}/tools"
+TOOLS_BIN_DIR="${TOOLS_DIR}/bin"
 PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu-24.04}"
 PID_FILE="${LOG_DIR}/backend.pid"
 LOG_FILE="${LOG_DIR}/backend.log"
@@ -76,6 +78,7 @@ export MORDECAI_ENABLE_ADVANCED_SELF_IMPROVEMENT="${MORDECAI_ENABLE_ADVANCED_SEL
 export MORDECAI_ENABLE_DAEMON_MODE="${MORDECAI_ENABLE_DAEMON_MODE:-false}"
 export MORDECAI_ALLOW_GIT_PUSH="${MORDECAI_ALLOW_GIT_PUSH:-false}"
 export MORDECAI_PROOT_DISTRO="${PROOT_DISTRO}"
+export PATH="${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 cd "${BACKEND_DIR}"
 nohup proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /usr/bin/env \
@@ -91,6 +94,7 @@ nohup proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /usr/bin/env \
   MORDECAI_ENABLE_ADVANCED_SELF_IMPROVEMENT="${MORDECAI_ENABLE_ADVANCED_SELF_IMPROVEMENT}" \
   MORDECAI_ENABLE_DAEMON_MODE="${MORDECAI_ENABLE_DAEMON_MODE}" \
   MORDECAI_ALLOW_GIT_PUSH="${MORDECAI_ALLOW_GIT_PUSH}" \
+  PATH="${PATH}" \
   /bin/bash -lc "cd '${BACKEND_DIR}' && '${ENV_DIR}/bin/python' -m mordecai.main" >> "${LOG_FILE}" 2>&1 &
 echo "$!" > "${PID_FILE}"
 

@@ -26,12 +26,16 @@ UBUNTU_24_04_CODE_NAME="noble"
 UBUNTU_24_04_RELEASE="${MORDECAI_UBUNTU_24_04_RELEASE:-20260323}"
 UBUNTU_24_04_BASE_URL="${MORDECAI_UBUNTU_24_04_BASE_URL:-https://cloud-images.ubuntu.com/${UBUNTU_24_04_CODE_NAME}/${UBUNTU_24_04_RELEASE}}"
 INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-true}"
+INSTALL_LOCAL_MODEL_BINARIES="${MORDECAI_INSTALL_LOCAL_MODEL_BINARIES:-true}"
 INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"
 INSTALL_DEBUG_TOOLKIT="${MORDECAI_INSTALL_DEBUG_TOOLKIT:-false}"
 APK_RELEASE_TAG="${MORDECAI_APK_RELEASE_TAG:-android-shell-latest}"
 APK_ASSET_NAME="${MORDECAI_APK_ASSET_NAME:-android-shell-debug.apk}"
 APK_DOWNLOAD_URL="${MORDECAI_APK_DOWNLOAD_URL:-https://github.com/smokydastona/Mordecai-AI-Android/releases/download/${APK_RELEASE_TAG}/${APK_ASSET_NAME}}"
 APK_DOWNLOAD_PATH="${CACHE_DIR}/${APK_ASSET_NAME}"
+TOOLS_BIN_DIR="${TOOLS_DIR}/bin"
+LLAMA_CPP_DIR="${TOOLS_DIR}/llama.cpp"
+LLAMA_CPP_BUILD_DIR="${LLAMA_CPP_DIR}/build"
 
 run_in_distro() {
   local command="$1"
@@ -210,6 +214,45 @@ sync_runtime_scripts() {
   done
 }
 
+install_local_model_binaries() {
+  if [ "${INSTALL_LOCAL_MODEL_BINARIES}" != "true" ]; then
+    return
+  fi
+
+  printf '%s\n' 'Installing phone-supported local model runtime binaries inside the Linux runtime...'
+  run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ffmpeg cmake ninja-build pkg-config python3-dev git build-essential'
+  run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
+  run_in_distro "'${ENV_DIR}/bin/python' -m pip install openai-whisper piper-tts"
+
+  run_in_distro "mkdir -p '${TOOLS_BIN_DIR}'"
+  run_in_distro "if [ ! -d '${LLAMA_CPP_DIR}/.git' ]; then git clone --depth 1 https://github.com/ggml-org/llama.cpp '${LLAMA_CPP_DIR}'; else git -C '${LLAMA_CPP_DIR}' pull --ff-only; fi"
+  run_in_distro "cmake -S '${LLAMA_CPP_DIR}' -B '${LLAMA_CPP_BUILD_DIR}' -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=OFF -DLLAMA_CURL=OFF"
+  run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli -j\$(nproc)"
+
+  run_in_distro "test -x '${ENV_DIR}/bin/whisper'"
+  run_in_distro "test -x '${ENV_DIR}/bin/piper'"
+  run_in_distro "test -x '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli'"
+
+  run_in_distro "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'"
+  run_in_distro "ln -sf '${ENV_DIR}/bin/piper' '${TOOLS_BIN_DIR}/piper'"
+  run_in_distro "ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'"
+
+  mkdir -p "${TOOLS_DIR}"
+  cat > "${TOOLS_DIR}/local-model-runtime.txt" <<EOF
+Installed phone-supported local model runtime binaries
+
+Commands:
+- ${TOOLS_BIN_DIR}/llama-cli
+- ${TOOLS_BIN_DIR}/whisper
+- ${TOOLS_BIN_DIR}/piper
+
+Backed by:
+- ${LLAMA_CPP_BUILD_DIR}/bin/llama-cli
+- ${ENV_DIR}/bin/whisper
+- ${ENV_DIR}/bin/piper
+EOF
+}
+
 download_shell_apk() {
   printf 'Downloading Mordecai shell APK from %s\n' "${APK_DOWNLOAD_URL}"
   "${TERMUX_PREFIX}/bin/curl" --fail --retry 5 --retry-connrefused --retry-delay 5 --location \
@@ -286,6 +329,7 @@ MORDECAI_CACHE_DIR=${CACHE_DIR}
 MORDECAI_MODELS_DIR=${MODELS_DIR}
 MORDECAI_PROOT_DISTRO=${PROOT_DISTRO}
 MORDECAI_INSTALL_DEFAULT_MODELS=${INSTALL_DEFAULT_MODELS}
+MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=${INSTALL_LOCAL_MODEL_BINARIES}
 MORDECAI_INSTALL_SHELL_APK=${INSTALL_SHELL_APK}
 MORDECAI_INSTALL_DEBUG_TOOLKIT=${INSTALL_DEBUG_TOOLKIT}
 MORDECAI_APK_RELEASE_TAG=${APK_RELEASE_TAG}
@@ -340,6 +384,10 @@ fi
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
 
+if [ "${INSTALL_LOCAL_MODEL_BINARIES}" = "true" ]; then
+  install_local_model_binaries
+fi
+
 if [ "${INSTALL_DEFAULT_MODELS}" = "true" ]; then
   printf '%s\n' 'Installing the default local model bundle into Mordecai data/models...'
   run_in_distro "'${ENV_DIR}/bin/python' -m mordecai.local_models --install-root '${INSTALL_ROOT}' --install-bundle phone-starter"
@@ -361,6 +409,7 @@ printf 'Install root: %s\n' "${INSTALL_ROOT}"
 printf 'Backend: %s\n' "${BACKEND_DIR}"
 printf 'Data: %s\n' "${DATA_DIR}"
 printf 'Runtime layer: %s (%s)\n' 'proot-distro' "${PROOT_DISTRO}"
+printf 'Local model runtimes: %s\n' "${INSTALL_LOCAL_MODEL_BINARIES}"
 printf 'Debug toolkit: %s\n' "${INSTALL_DEBUG_TOOLKIT}"
 printf 'Start command: %s\n' "${SCRIPT_DIR}/start.sh"
 printf 'Dashboard URL: %s\n' 'http://127.0.0.1:8000'

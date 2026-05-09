@@ -24,6 +24,7 @@ The installer will:
 - install the backend package into that Linux-hosted environment
 - create `$HOME/mordecai/data` and `$HOME/mordecai/scripts`
 - write a local `$HOME/mordecai/.env` scaffold if one does not already exist
+- build and install the default phone-supported local runtime binaries (`llama-cli`, `whisper`, and `piper`) by default
 - download and install the recommended phone-sized local model bundle by default
 - download the latest published Mordecai Android shell APK and install it automatically when Android permits it
 
@@ -39,6 +40,8 @@ That retry intentionally sets an empty `PD_OVERRIDE_TARBALL_SHA256` because `pro
 If you want to override the pinned profile, set `MORDECAI_PROOT_DISTRO` before running the installer. For the bundled Ubuntu 24.04 profile, you can also override `MORDECAI_UBUNTU_24_04_RELEASE` and `MORDECAI_UBUNTU_24_04_BASE_URL` before running `proot-setup.sh`.
 
 The installer now prefetches Mordecai's recommended on-device model bundle by default. Set `MORDECAI_INSTALL_DEFAULT_MODELS=false` before running `proot-setup.sh` if you need to skip that download. The default bundle installs the `Qwen2.5 3B` GGUF chat model and the recommended Piper English voice files into `$HOME/mordecai/data/models`.
+
+The installer now also provisions the default phone-supported local runtime binaries by default. Set `MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=false` before running `proot-setup.sh` if you need to skip that step. This default runtime path installs `openai-whisper`, `piper-tts`, and builds `llama.cpp` so the bundled Qwen and Piper assets are actually runnable from the one-command flow.
 
 The installer also downloads the latest published `android-shell-latest` APK release asset by default. On rooted phones it attempts a silent `pm install -r`. On standard phones it launches the normal Android package installer so you can approve the install prompt. Set `MORDECAI_INSTALL_SHELL_APK=false` before running `proot-setup.sh` if you want to skip the shell app install step.
 
@@ -94,5 +97,6 @@ $HOME/mordecai/scripts/update.sh
 - if `start.sh` says the backend is already running, inspect `data/logs/backend.pid` and `data/logs/backend.log`
 - if the install fails during package setup, run `pkg update -y` and retry the installer
 - if `pip` reports Android-native build failures such as `psutil` or `pydantic-core`, update the backend checkout and rerun the installer so the `proot-distro` install path is picked up
+- if the default local models were downloaded but `whisper`, `piper`, or `llama-cli` still appear missing, rerun the installer with `MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=true` and inspect `$HOME/mordecai/tools/local-model-runtime.txt`
 - if `proot-distro` fails to fetch a rootfs archive for the pinned `ubuntu-24.04` profile, confirm `cloud-images.ubuntu.com` is reachable or override `MORDECAI_UBUNTU_24_04_BASE_URL` before rerunning the installer
 - if the dashboard does not load, confirm the service is bound to `127.0.0.1` and that the port in `.env` matches the URL you opened

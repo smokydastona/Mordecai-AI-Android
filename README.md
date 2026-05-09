@@ -231,6 +231,14 @@ The phone installer now downloads that bundle automatically by default. Set `MOR
 
 On a phone install, Mordecai creates the models directory under `$HOME/mordecai/data/models` and now populates it with the default bundle unless you disable that step.
 
+The one-command phone installer now also provisions the default phone-supported local runtime binaries by default:
+
+- `llama.cpp` built locally to provide `llama-cli`
+- `openai-whisper` to provide the `whisper` CLI
+- `piper-tts` to provide the `piper` CLI
+
+Set `MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=false` before running `scripts/proot-setup.sh` if you want to skip that provisioning step. The optional `ollama-local` and `llamafile-gemma-3-1b` profiles remain external integrations and are not part of the one-command phone bootstrap.
+
 ## Cloud model configuration
 
 Mordecai supports OpenAI-compatible chat providers through the same safe proxy used for other outbound traffic.
