@@ -63,13 +63,21 @@ jobs:
       - name: Assemble Android shell debug APK
         run: ./gradlew :android-shell:assembleDebug
 
+      - name: Stage Android shell release asset
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          apk_path="$(find android-shell/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | head -n 1)"
+          test -n "$apk_path"
+          cp "$apk_path" artifacts/android-shell-debug.apk
+
       - name: Upload Android shell artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: android-shell-debug-apk
           path: |
-            android-shell/build/outputs/apk/debug/*.apk
+            artifacts/android-shell-debug.apk
             android-shell/build/reports/**
           if-no-files-found: warn
 
@@ -82,18 +90,22 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Download Android shell artifact
         uses: actions/download-artifact@v5
         with:
           name: android-shell-debug-apk
-          path: artifacts/android-shell
+          path: artifacts/release
 
       - name: Publish rolling Android shell release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release delete android-shell-latest --yes --cleanup-tag || true
-          gh release create android-shell-latest artifacts/android-shell/android-shell-debug.apk \
+          gh release create android-shell-latest artifacts/release/android-shell-debug.apk \
             --title "Android Shell Latest" \
             --notes "Rolling Android shell debug APK for automated phone installs.\n\nCommit: ${{ github.sha }}" \
             --target "${{ github.sha }}"

@@ -71,4 +71,7 @@ def test_ci_workflow_publishes_android_shell_release_asset():
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
     assert 'name: Publish Android Shell Release Asset' in workflow
+    assert 'name: Stage Android shell release asset' in workflow
+    assert 'artifacts/android-shell-debug.apk' in workflow
+    assert 'GH_REPO: ${{ github.repository }}' in workflow
     assert 'gh release create android-shell-latest' in workflow

@@ -258,7 +258,7 @@ The Phase 1 installer now also downloads the latest published Android shell APK 
 - GitHub Actions now runs cross-platform install, compile, test, and app-smoke checks through `.github/workflows/ci.yml`.
 - GitHub Actions now compiles every shipped Python package surface and builds wheel plus sdist artifacts during CI.
 - GitHub Actions now also builds the native Android shell debug APK through the checked-in Gradle wrapper and uploads the APK artifact.
-- GitHub Actions now also republishes a rolling `android-shell-latest` release asset on pushes to `main`, giving the phone installer a stable APK download URL.
+- GitHub Actions now also republishes a rolling `android-shell-latest` release asset on pushes to `main`, staging the built APK to a stable `android-shell-debug.apk` filename before publication so the phone installer has a fixed download URL.
 - Android SDK provisioning in CI now uses `android-actions/setup-android@v4` package installation directly, which avoids the fragile manual `sdkmanager --licenses` pipe.
 - Linux CI jobs now also force `chmod +x ./gradlew`, and the repository tracks `gradlew` as executable so wrapper-based Android builds survive Windows-authored commits.
 - The Android shell module now declares the AndroidX lifecycle service dependency required by the foreground supervision service.

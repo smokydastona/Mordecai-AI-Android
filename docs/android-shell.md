@@ -46,7 +46,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - build command on Windows: `./gradlew.bat :android-shell:assembleDebug`
 - build command on Unix-like shells: `./gradlew :android-shell:assembleDebug`
 - CI now runs the wrapper-backed Android build and uploads the debug APK as an artifact
-- pushes to `main` now also republish a rolling `android-shell-latest` GitHub release asset so the Termux installer has a stable APK download target
+- pushes to `main` now also republish a rolling `android-shell-latest` GitHub release asset so the Termux installer has a stable APK download target, with the workflow staging the built APK to a deterministic filename before release publication
 - CI provisions Android SDK packages through `android-actions/setup-android@v4` instead of a manual `sdkmanager --licenses` pipe, which avoids broken-pipe failures under `bash -o pipefail`
 - the repository tracks `gradlew` with the executable bit, and Linux CI still applies `chmod +x ./gradlew` defensively before invoking it
 - the app module depends on `androidx.lifecycle:lifecycle-service` because the foreground supervisor is implemented as a `LifecycleService`
