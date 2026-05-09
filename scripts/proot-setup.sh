@@ -19,10 +19,21 @@ ENV_FILE="${INSTALL_ROOT}/.env"
 REPO_URL="${MORDECAI_REPO_URL:-https://github.com/smokydastona/Mordecai-AI-Android.git}"
 PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu}"
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+TOOLS_DIR="${INSTALL_ROOT}/tools"
 
 run_in_distro() {
   local command="$1"
   proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /bin/bash -lc "${command}"
+}
+
+install_with_http1_wrapper() {
+  mkdir -p "${TOOLS_DIR}"
+  cat > "${TOOLS_DIR}/curl" <<EOF
+#!/data/data/com.termux/files/usr/bin/bash
+exec "${TERMUX_PREFIX}/bin/curl" --http1.1 "\$@"
+EOF
+  chmod 755 "${TOOLS_DIR}/curl"
+  PATH="${TOOLS_DIR}:${PATH}" proot-distro install "${PROOT_DISTRO}"
 }
 
 termux_arch() {
@@ -81,7 +92,7 @@ ensure_proot_distro() {
   fi
 
   printf 'Installing proot distro: %s\n' "${PROOT_DISTRO}"
-  if proot-distro install "${PROOT_DISTRO}"; then
+  if install_with_http1_wrapper; then
     return
   fi
 
@@ -92,7 +103,7 @@ ensure_proot_distro() {
   fi
 
   printf 'Retrying %s install from GitHub release: %s\n' "${PROOT_DISTRO}" "${fallback_url}"
-  PD_OVERRIDE_TARBALL_URL="${fallback_url}" PD_OVERRIDE_TARBALL_SHA256="" proot-distro install "${PROOT_DISTRO}"
+  PATH="${TOOLS_DIR}:${PATH}" PD_OVERRIDE_TARBALL_URL="${fallback_url}" PD_OVERRIDE_TARBALL_SHA256="" proot-distro install "${PROOT_DISTRO}"
 }
 
 runtime_python_platform() {
