@@ -30,6 +30,7 @@ On Android, the install no longer depends on Android-native Python wheels for `p
 If an earlier failed install already created `$HOME/mordecai/env` from Termux Python, the installer now detects that Android-native virtual environment and rebuilds it inside `proot-distro` automatically.
 
 If the default `proot-distro` rootfs host fails with a TLS error, the installer automatically retries the distro download from the matching GitHub release tarball.
+That retry intentionally sets an empty `PD_OVERRIDE_TARBALL_SHA256` because `proot-distro` requires the override variable to exist when a custom tarball URL is supplied.
 
 ## 3. Start Mordecai
 

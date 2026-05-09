@@ -10,6 +10,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Phase 1 installer now provisions and uses a `proot-distro` Ubuntu runtime layer for backend dependency installation and execution on Android.
 - Phase 1 installer now replaces a previously created Android-native virtual environment with a `proot-distro` Linux virtual environment automatically.
 - Phase 1 installer now retries `proot-distro` rootfs downloads from GitHub releases when the default host fails.
+- Phase 1 installer now sets `PD_OVERRIDE_TARBALL_SHA256` during tarball URL overrides so `proot-distro` fallback installs do not abort under `set -u`.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.

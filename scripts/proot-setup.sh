@@ -92,7 +92,7 @@ ensure_proot_distro() {
   fi
 
   printf 'Retrying %s install from GitHub release: %s\n' "${PROOT_DISTRO}" "${fallback_url}"
-  PD_OVERRIDE_TARBALL_URL="${fallback_url}" proot-distro install "${PROOT_DISTRO}"
+  PD_OVERRIDE_TARBALL_URL="${fallback_url}" PD_OVERRIDE_TARBALL_SHA256="" proot-distro install "${PROOT_DISTRO}"
 }
 
 runtime_python_platform() {
