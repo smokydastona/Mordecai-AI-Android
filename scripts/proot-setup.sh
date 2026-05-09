@@ -20,20 +20,11 @@ REPO_URL="${MORDECAI_REPO_URL:-https://github.com/smokydastona/Mordecai-AI-Andro
 PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu}"
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 TOOLS_DIR="${INSTALL_ROOT}/tools"
+ROOTFS_CACHE_DIR="${CACHE_DIR}/rootfs"
 
 run_in_distro() {
   local command="$1"
   proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /bin/bash -lc "${command}"
-}
-
-install_with_http1_wrapper() {
-  mkdir -p "${TOOLS_DIR}"
-  cat > "${TOOLS_DIR}/curl" <<EOF
-#!/data/data/com.termux/files/usr/bin/bash
-exec "${TERMUX_PREFIX}/bin/curl" --http1.1 "\$@"
-EOF
-  chmod 755 "${TOOLS_DIR}/curl"
-  PATH="${TOOLS_DIR}:${PATH}" proot-distro install "${PROOT_DISTRO}"
 }
 
 termux_arch() {
@@ -59,51 +50,78 @@ termux_arch() {
   esac
 }
 
-github_release_tarball_url() {
+plugin_tarball_field() {
   local plugin_file="${TERMUX_PREFIX}/etc/proot-distro/${PROOT_DISTRO}.sh"
-  local distro_arch
-  local source_url
-  local tarball_name
-  local release_tag
-
-  distro_arch="$(termux_arch)" || return 1
+  local distro_arch="$1"
+  local field_name="$2"
 
   if [ ! -f "${plugin_file}" ]; then
     return 1
   fi
 
-  source_url="$(awk -F'"' -v arch="${distro_arch}" '$0 ~ ("TARBALL_URL\\[\\x27" arch "\\x27\\]=") { print $2; exit }' "${plugin_file}")"
+  awk -F'"' -v arch="${distro_arch}" -v field_name="${field_name}" '$0 ~ (field_name "\\[\\x27" arch "\\x27\\]=") { print $2; exit }' "${plugin_file}"
+}
+
+download_rootfs_archive() {
+  local distro_arch
+  local source_url
+  local expected_sha256
+  local tarball_name
+  local archive_path
+  local actual_sha256
+
+  distro_arch="$(termux_arch)" || return 1
+  source_url="$(plugin_tarball_field "${distro_arch}" 'TARBALL_URL')"
+  expected_sha256="$(plugin_tarball_field "${distro_arch}" 'TARBALL_SHA256')"
+
   if [ -z "${source_url}" ]; then
+    printf '%s\n' "Unable to read the ${PROOT_DISTRO} rootfs URL from ${TERMUX_PREFIX}/etc/proot-distro/${PROOT_DISTRO}.sh." >&2
     return 1
   fi
 
   tarball_name="${source_url##*/}"
-  release_tag="$(printf '%s' "${tarball_name}" | sed -n 's/.*-pd-\(v[0-9][0-9.]*\)\.tar\.xz$/\1/p')"
-  if [ -z "${release_tag}" ]; then
-    return 1
+  archive_path="${ROOTFS_CACHE_DIR}/${tarball_name}"
+  mkdir -p "${ROOTFS_CACHE_DIR}"
+
+  if [ ! -f "${archive_path}" ]; then
+    printf 'Downloading %s rootfs archive with curl --http1.1...\n' "${PROOT_DISTRO}"
+    "${TERMUX_PREFIX}/bin/curl" --http1.1 --fail --retry 5 --retry-connrefused --retry-delay 5 --location \
+      --output "${archive_path}.tmp" "${source_url}"
+    mv -f "${archive_path}.tmp" "${archive_path}"
   fi
 
-  printf 'https://github.com/termux/proot-distro/releases/download/%s/%s\n' "${release_tag}" "${tarball_name}"
+  if [ -n "${expected_sha256}" ]; then
+    actual_sha256="$(sha256sum "${archive_path}" | awk '{ print $1 }')"
+    if [ "${actual_sha256}" != "${expected_sha256}" ]; then
+      rm -f "${archive_path}"
+      printf '%s\n' "Downloaded ${PROOT_DISTRO} rootfs checksum did not match the plugin SHA-256; removed the cached archive." >&2
+      return 1
+    fi
+  fi
+
+  printf 'file://%s\n' "${archive_path}"
 }
 
 ensure_proot_distro() {
+  local fallback_url
+
   if proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /usr/bin/env true >/dev/null 2>&1; then
     return
   fi
 
   printf 'Installing proot distro: %s\n' "${PROOT_DISTRO}"
-  if install_with_http1_wrapper; then
+  if proot-distro install "${PROOT_DISTRO}"; then
     return
   fi
 
-  fallback_url="$(github_release_tarball_url || true)"
+  fallback_url="$(download_rootfs_archive || true)"
   if [ -z "${fallback_url}" ]; then
-    printf '%s\n' "Unable to derive a GitHub release fallback URL for ${PROOT_DISTRO}." >&2
+    printf '%s\n' "Unable to prepare a local ${PROOT_DISTRO} rootfs archive for fallback installation." >&2
     return 1
   fi
 
-  printf 'Retrying %s install from GitHub release: %s\n' "${PROOT_DISTRO}" "${fallback_url}"
-  PATH="${TOOLS_DIR}:${PATH}" PD_OVERRIDE_TARBALL_URL="${fallback_url}" PD_OVERRIDE_TARBALL_SHA256="" proot-distro install "${PROOT_DISTRO}"
+  printf 'Retrying %s install from local rootfs archive: %s\n' "${PROOT_DISTRO}" "${fallback_url}"
+  PD_OVERRIDE_TARBALL_URL="${fallback_url}" PD_OVERRIDE_TARBALL_SHA256="" proot-distro install "${PROOT_DISTRO}"
 }
 
 runtime_python_platform() {
@@ -149,7 +167,7 @@ pkg update -y
 pkg upgrade -y
 pkg install -y git curl proot-distro
 
-mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}"
+mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}" "${ROOTFS_CACHE_DIR}"
 
 ensure_proot_distro
 

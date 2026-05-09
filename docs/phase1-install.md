@@ -29,9 +29,7 @@ On Android, the install no longer depends on Android-native Python wheels for `p
 
 If an earlier failed install already created `$HOME/mordecai/env` from Termux Python, the installer now detects that Android-native virtual environment and rebuilds it inside `proot-distro` automatically.
 
-The installer forces `curl` to HTTP/1.1 for `proot-distro` rootfs downloads, which avoids the TLS negotiation failure some Termux environments hit against the default rootfs host.
-
-If the default `proot-distro` rootfs host still fails after the HTTP/1.1 retry, the installer automatically retries the distro download from the matching GitHub release tarball.
+If the default `proot-distro` rootfs host still fails, the installer downloads the rootfs itself with `curl --http1.1`, verifies the checksum from the distro plug-in, and retries `proot-distro` from that local file.
 That retry intentionally sets an empty `PD_OVERRIDE_TARBALL_SHA256` because `proot-distro` requires the override variable to exist when a custom tarball URL is supplied.
 
 ## 3. Start Mordecai
@@ -84,5 +82,5 @@ $HOME/mordecai/scripts/update.sh
 - if `start.sh` says the backend is already running, inspect `data/logs/backend.pid` and `data/logs/backend.log`
 - if the install fails during package setup, run `pkg update -y` and retry the installer
 - if `pip` reports Android-native build failures such as `psutil` or `pydantic-core`, update the backend checkout and rerun the installer so the `proot-distro` install path is picked up
-- if `proot-distro` fails to fetch a rootfs archive from `easycli.sh`, update the backend checkout and rerun the installer so the HTTP/1.1 and fallback download paths are picked up
+- if `proot-distro` fails to fetch a rootfs archive from `easycli.sh`, update the backend checkout and rerun the installer so the local HTTP/1.1 predownload fallback is picked up
 - if the dashboard does not load, confirm the service is bound to `127.0.0.1` and that the port in `.env` matches the URL you opened
