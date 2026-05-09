@@ -230,8 +230,46 @@ class LocalModelProfileSnapshot(BaseModel):
     model_available: bool | None = None
 
 
+class LocalModelAssetSnapshot(BaseModel):
+    asset_id: str
+    display_name: str
+    profile_name: str | None = None
+    modality: str
+    filename: str
+    destination: str
+    source_url: str
+    description: str
+    executable: bool = False
+    installed: bool = False
+    size_mb: float | None = None
+    sha256: str | None = None
+
+
+class LocalModelBundleSnapshot(BaseModel):
+    bundle_id: str
+    display_name: str
+    description: str
+    asset_ids: list[str] = Field(default_factory=list)
+    installed_assets: int = 0
+    total_assets: int = 0
+
+
 class LocalModelCatalogSnapshot(BaseModel):
     models_dir: str
     available_profiles: int
     configured_profiles: int
     profiles: list[LocalModelProfileSnapshot] = Field(default_factory=list)
+    assets: list[LocalModelAssetSnapshot] = Field(default_factory=list)
+    bundles: list[LocalModelBundleSnapshot] = Field(default_factory=list)
+
+
+class LocalModelInstallRequest(BaseModel):
+    bundle_id: str | None = None
+    asset_ids: list[str] = Field(default_factory=list)
+    overwrite: bool = False
+
+
+class LocalModelInstallResult(BaseModel):
+    bundle_id: str | None = None
+    installed_assets: list[LocalModelAssetSnapshot] = Field(default_factory=list)
+    skipped_assets: list[LocalModelAssetSnapshot] = Field(default_factory=list)

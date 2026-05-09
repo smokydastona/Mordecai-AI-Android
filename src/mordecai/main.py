@@ -6,7 +6,7 @@ from mordecai.config import ensure_state_dirs, get_settings
 from mordecai.bootstrap import build_runtime
 from mordecai.dashboard import render_dashboard
 from mordecai.local_models import LocalModelService
-from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
+from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
 from mordecai.store import StateStoreError
 from mordecai_core.tool_registry import RuntimeContext
 
@@ -23,7 +23,8 @@ def create_app() -> FastAPI:
     improvement_manager = components.improvement_manager
     android = components.android_controller
     policy = components.policy
-    local_models = LocalModelService(settings)
+    local_models = LocalModelService(settings, proxy=proxy, store=components.store)
+    app.state.local_models = local_models
 
     def raise_api_error(status_code: int, code: str, message: str, details: dict[str, object] | None = None) -> None:
         raise HTTPException(
@@ -132,7 +133,15 @@ def create_app() -> FastAPI:
 
     @app.get("/api/local-models")
     async def local_models_catalog() -> dict[str, object]:
-        return local_models.catalog_snapshot().model_dump(mode="json")
+        return app.state.local_models.catalog_snapshot().model_dump(mode="json")
+
+    @app.post("/api/local-models/install")
+    async def local_models_install(request: LocalModelInstallRequest) -> dict[str, object]:
+        try:
+            result = await app.state.local_models.install(request)
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+        return result.model_dump(mode="json")
 
     @app.post("/api/chat")
     async def chat(request: ChatRequest) -> dict[str, object]:

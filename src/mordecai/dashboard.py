@@ -254,6 +254,24 @@ def render_dashboard() -> str:
         <pre id="local-models"></pre>
       </div>
       <div class="card">
+        <h2>Model Provisioning</h2>
+        <div class="control-stack">
+          <div class="field">
+            <label for="model-bundle">Bundle</label>
+            <select id="model-bundle"></select>
+          </div>
+          <div class="field">
+            <label for="model-overwrite">Overwrite Existing Files</label>
+            <select id="model-overwrite">
+              <option value="false" selected>Keep existing assets</option>
+              <option value="true">Replace existing assets</option>
+            </select>
+          </div>
+          <button id="install-model-bundle">Install Bundle</button>
+          <pre id="model-install-response"></pre>
+        </div>
+      </div>
+      <div class="card">
         <h2>Runtime Trace</h2>
         <div id="trace" class="trace-list"></div>
       </div>
@@ -351,6 +369,18 @@ def render_dashboard() -> str:
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);
       document.getElementById('proxy').textContent = JSON.stringify(proxyLogs.slice(-10), null, 2);
       document.getElementById('local-models').textContent = JSON.stringify(localModels, null, 2);
+      const bundleSelect = document.getElementById('model-bundle');
+      const currentBundle = bundleSelect.value;
+      bundleSelect.innerHTML = (localModels.bundles || []).map(bundle => {
+        const status = `${bundle.installed_assets}/${bundle.total_assets}`;
+        return `<option value="${bundle.bundle_id}">${bundle.display_name} (${status})</option>`;
+      }).join('');
+      if (currentBundle && (localModels.bundles || []).some(bundle => bundle.bundle_id === currentBundle)) {
+        bundleSelect.value = currentBundle;
+      }
+      if (!bundleSelect.value && bundleSelect.options.length > 0) {
+        bundleSelect.selectedIndex = 0;
+      }
       document.getElementById('trace').innerHTML = trace.events.slice(-8).reverse().map(event => `
         <div class="trace-item">
           <div class="trace-head"><strong>${event.name}</strong><span>${new Date(event.created_at).toLocaleTimeString()}</span></div>
@@ -426,6 +456,23 @@ def render_dashboard() -> str:
     });
 
     document.getElementById('tool-name').addEventListener('change', updateToolDefaults);
+
+    document.getElementById('install-model-bundle').addEventListener('click', async () => {
+      const bundleId = document.getElementById('model-bundle').value;
+      const overwrite = document.getElementById('model-overwrite').value === 'true';
+      if (!bundleId) {
+        document.getElementById('model-install-response').textContent = JSON.stringify({ error: 'No bundle is available.' }, null, 2);
+        return;
+      }
+      const response = await fetch('/api/local-models/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bundle_id: bundleId, overwrite }),
+      });
+      const payload = await response.json();
+      document.getElementById('model-install-response').textContent = JSON.stringify(payload, null, 2);
+      await load();
+    });
 
     document.getElementById('run-tool').addEventListener('click', async () => {
       let argumentsPayload = {};

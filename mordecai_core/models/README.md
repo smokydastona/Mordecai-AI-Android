@@ -18,3 +18,5 @@ The current runtime registry seeds a small set of default local model profiles f
 - Piper-class text-to-speech
 
 These profiles describe expected commands and model file locations, but Mordecai does not download the corresponding weights automatically.
+
+Mordecai now includes an explicit managed `phone-starter` asset bundle that operators can install through the API, dashboard, or `python -m mordecai.local_models --install-bundle phone-starter`. Managed asset downloads remain opt-in and policy-gated.

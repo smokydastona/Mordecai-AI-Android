@@ -1,10 +1,12 @@
 from pathlib import Path
 
+import httpx
 from fastapi.testclient import TestClient
 
 from mordecai.config import get_settings
 from mordecai.main import build_runtime, create_app
 from mordecai.avatar import list_avatar_emotions
+from mordecai.local_models import LocalModelService
 from mordecai_core.runtime import get_runtime_components
 
 
@@ -99,6 +101,43 @@ def test_local_models_endpoint_returns_catalog(tmp_path, monkeypatch):
     payload = response.json()
     assert payload["configured_profiles"] >= 4
     assert any(profile["name"] == "whisper-cli" for profile in payload["profiles"])
+    assert any(bundle["bundle_id"] == "phone-starter" for bundle in payload["bundles"])
+
+
+def test_local_model_install_endpoint_downloads_bundle_assets(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    settings = get_settings()
+    components = get_runtime_components()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("Qwen2.5-3B-Instruct-Q4_K_M.gguf"):
+            return httpx.Response(200, content=b"qwen-bytes", request=request)
+        if path.endswith("en_US-lessac-medium.onnx"):
+            return httpx.Response(200, content=b"voice-bytes", request=request)
+        if path.endswith("en_US-lessac-medium.onnx.json"):
+            return httpx.Response(200, content=b'{"voice": true}', request=request)
+        raise AssertionError(f"Unexpected request to {request.url}")
+
+    client.app.state.local_models = LocalModelService(
+        settings,
+        proxy=type(components.proxy)(
+            settings,
+            components.policy,
+            components.store,
+            client_factory=lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False),
+        ),
+        store=components.store,
+    )
+
+    response = client.post("/api/local-models/install", json={"bundle_id": "phone-starter"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["installed_assets"]) == 3
+    assert (settings.models_dir / "Qwen2.5-3B-Instruct-Q4_K_M.gguf").exists()
+    assert (settings.models_dir / "en_US-lessac-medium.onnx").exists()
+    assert (settings.models_dir / "en_US-lessac-medium.onnx.json").exists()
 
 
 def test_improvement_candidate_blocks_protected_paths(tmp_path, monkeypatch):

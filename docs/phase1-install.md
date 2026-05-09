@@ -36,6 +36,8 @@ That retry intentionally sets an empty `PD_OVERRIDE_TARBALL_SHA256` because `pro
 
 If you want to override the pinned profile, set `MORDECAI_PROOT_DISTRO` before running the installer. For the bundled Ubuntu 24.04 profile, you can also override `MORDECAI_UBUNTU_24_04_RELEASE` and `MORDECAI_UBUNTU_24_04_BASE_URL` before running `proot-setup.sh`.
 
+If you also want the installer to prefetch Mordecai's recommended on-device model bundle, set `MORDECAI_INSTALL_DEFAULT_MODELS=true` before running `proot-setup.sh`. That opt-in bundle installs the `Qwen2.5 3B` GGUF chat model and the recommended Piper English voice files into `$HOME/mordecai/data/models`.
+
 ## 3. Start Mordecai
 
 ```bash

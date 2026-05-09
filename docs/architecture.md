@@ -74,6 +74,8 @@ The runtime also persists long-term goals and routine triggers as operator-visib
 
 Local model profiles are also surfaced as first-class runtime state so operators can inspect configured chat, STT, and TTS backends through the same dashboard and API used for the live system. These profiles are declarative integration targets, not proof that the corresponding model weights are already present on-device.
 
+The runtime also exposes managed local model assets and bundles. Model downloads remain explicit and opt-in, and every redirect target is validated against the outbound allowlist before bytes are written into the models directory.
+
 ## Repository mapping
 
 - `src/mordecai/` holds the working runtime implementation and HTTP/dashboard surface.

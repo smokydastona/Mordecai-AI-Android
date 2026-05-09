@@ -25,6 +25,7 @@ UBUNTU_24_04_ALIAS="ubuntu-24.04"
 UBUNTU_24_04_CODE_NAME="noble"
 UBUNTU_24_04_RELEASE="${MORDECAI_UBUNTU_24_04_RELEASE:-20260323}"
 UBUNTU_24_04_BASE_URL="${MORDECAI_UBUNTU_24_04_BASE_URL:-https://cloud-images.ubuntu.com/${UBUNTU_24_04_CODE_NAME}/${UBUNTU_24_04_RELEASE}}"
+INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-false}"
 
 run_in_distro() {
   local command="$1"
@@ -216,6 +217,7 @@ MORDECAI_LOG_DIR=${LOG_DIR}
 MORDECAI_CACHE_DIR=${CACHE_DIR}
 MORDECAI_MODELS_DIR=${MODELS_DIR}
 MORDECAI_PROOT_DISTRO=${PROOT_DISTRO}
+MORDECAI_INSTALL_DEFAULT_MODELS=${INSTALL_DEFAULT_MODELS}
 MORDECAI_MODE=mode-a
 MORDECAI_SERVICE_HOST=127.0.0.1
 MORDECAI_SERVICE_PORT=8000
@@ -264,6 +266,11 @@ fi
 
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
+
+if [ "${INSTALL_DEFAULT_MODELS}" = "true" ]; then
+  printf '%s\n' 'Installing the default local model bundle into Mordecai data/models...'
+  run_in_distro "'${ENV_DIR}/bin/python' -m mordecai.local_models --install-root '${INSTALL_ROOT}' --install-bundle phone-starter"
+fi
 
 write_env_file
 sync_runtime_scripts

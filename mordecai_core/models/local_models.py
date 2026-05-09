@@ -66,9 +66,9 @@ class LocalModelRegistry:
                 name="llama.cpp-qwen2.5-3b",
                 provider="llama.cpp",
                 modality="chat",
-                command="llama-cli -m qwen2.5-3b-instruct-q4_k_m.gguf -c 8192",
+                command="llama-cli -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 8192",
                 context_window=8192,
-                model_path="qwen2.5-3b-instruct-q4_k_m.gguf",
+                model_path="Qwen2.5-3B-Instruct-Q4_K_M.gguf",
                 prompt_format="chatml",
             ),
             ModelProfile(
@@ -91,7 +91,8 @@ class LocalModelRegistry:
                 name="piper-tts",
                 provider="piper",
                 modality="tts",
-                command="piper --model voice.onnx --output_file speech.wav",
+                command="piper --model en_US-lessac-medium.onnx --output_file speech.wav",
                 context_window=0,
+                model_path="en_US-lessac-medium.onnx",
             ),
         ]

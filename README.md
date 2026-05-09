@@ -203,16 +203,29 @@ Phase 1 runs only on `127.0.0.1` by default and does not expose Android automati
 
 ## On-device models
 
-Mordecai does not ship a bundled LLM, Whisper checkpoint, Piper voice, or wake-word neural model onto the phone by default.
+Mordecai does not silently ship a bundled LLM, Whisper checkpoint, Piper voice, or wake-word neural model onto the phone by default.
 
 What exists in the repository today is a local model registry and integration surface:
 
 - `mordecai-cloud` uses the configured OpenAI-compatible backend and downloads nothing onto the phone by itself
 - `ollama-local` expects an Ollama-managed local chat model if you install Ollama separately
-- `llama.cpp-qwen2.5-3b` expects a `qwen2.5-3b-instruct-q4_k_m.gguf` file under Mordecai's models directory and a `llama.cpp` CLI such as `llama-cli`
+- `llama.cpp-qwen2.5-3b` expects a `Qwen2.5-3B-Instruct-Q4_K_M.gguf` file under Mordecai's models directory and a `llama.cpp` CLI such as `llama-cli`
 - `llamafile-gemma-3-1b` expects a `gemma-3-1b-it-Q4_K_M.llamafile` executable model under Mordecai's models directory
 - `whisper-cli` expects the Whisper CLI and whatever Whisper checkpoint you choose to download separately
 - `piper-tts` expects a Piper voice model and config that you place under the models directory or reference directly
+
+The runtime now includes a managed `phone-starter` local model bundle that installs:
+
+- `Qwen2.5-3B-Instruct-Q4_K_M.gguf` for the `llama.cpp-qwen2.5-3b` profile
+- `en_US-lessac-medium.onnx` and `en_US-lessac-medium.onnx.json` for the `piper-tts` profile
+
+You can install that bundle explicitly from the runtime environment with:
+
+```bash
+python -m mordecai.local_models --install-root "$HOME/mordecai" --install-bundle phone-starter
+```
+
+On phone installs, set `MORDECAI_INSTALL_DEFAULT_MODELS=true` before running `scripts/proot-setup.sh` if you want the installer to download that bundle automatically.
 
 On a phone install, Mordecai creates the models directory under `$HOME/mordecai/data/models`, but it does not populate that directory automatically.
 
