@@ -149,7 +149,7 @@ The output APK is written under `android-shell/build/outputs/apk/debug/`.
 
 Phase 1 is the portable Mode A backend contract for Termux-based Android installs.
 
-On Android and Termux, the runtime now falls back to a standard-library resource watchdog when `psutil` is unavailable, so the portable install path does not depend on building `psutil` on-device.
+On Android and Termux, the installer now prepares the runtime inside a `proot-distro` Ubuntu layer instead of relying on Android-native Python packaging. The runtime also falls back to a standard-library resource watchdog when `psutil` is unavailable.
 
 Install from Termux with one command:
 
@@ -169,6 +169,8 @@ This install flow creates:
 - `$HOME/mordecai/env`
 - `$HOME/mordecai/data`
 - `$HOME/mordecai/scripts`
+
+The virtual environment is created and used inside the Linux `proot-distro` layer, while the checked-out files and runtime state stay under `$HOME/mordecai`.
 
 Phase 1 runs only on `127.0.0.1` by default and does not expose Android automation, daemon mode, or other Mode B-only behavior.
 

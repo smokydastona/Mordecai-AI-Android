@@ -17,6 +17,21 @@ MODELS_DIR="${DATA_DIR}/models"
 SCRIPT_DIR="${INSTALL_ROOT}/scripts"
 ENV_FILE="${INSTALL_ROOT}/.env"
 REPO_URL="${MORDECAI_REPO_URL:-https://github.com/smokydastona/Mordecai-AI-Android.git}"
+PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu}"
+
+run_in_distro() {
+  local command="$1"
+  proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /bin/bash -lc "${command}"
+}
+
+ensure_proot_distro() {
+  if proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /usr/bin/env true >/dev/null 2>&1; then
+    return
+  fi
+
+  printf 'Installing proot distro: %s\n' "${PROOT_DISTRO}"
+  proot-distro install "${PROOT_DISTRO}"
+}
 
 sync_runtime_scripts() {
   local source_dir="${BACKEND_DIR}/scripts"
@@ -41,6 +56,7 @@ MORDECAI_STATE_DIR=${STATE_DIR}
 MORDECAI_LOG_DIR=${LOG_DIR}
 MORDECAI_CACHE_DIR=${CACHE_DIR}
 MORDECAI_MODELS_DIR=${MODELS_DIR}
+MORDECAI_PROOT_DISTRO=${PROOT_DISTRO}
 MORDECAI_MODE=mode-a
 MORDECAI_SERVICE_HOST=127.0.0.1
 MORDECAI_SERVICE_PORT=8000
@@ -54,9 +70,11 @@ EOF
 printf '%s\n' 'Updating Termux packages and installing Mordecai prerequisites...'
 pkg update -y
 pkg upgrade -y
-pkg install -y git python curl proot-distro
+pkg install -y git curl proot-distro
 
 mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}"
+
+ensure_proot_distro
 
 if [ -d "${BACKEND_DIR}/.git" ]; then
   printf '%s\n' 'Updating existing Mordecai checkout...'
@@ -69,15 +87,16 @@ else
   git clone "${REPO_URL}" "${BACKEND_DIR}"
 fi
 
-if [ ! -d "${ENV_DIR}" ]; then
-  printf '%s\n' 'Creating Python environment...'
-  python -m venv "${ENV_DIR}"
+printf '%s\n' 'Preparing Linux runtime inside proot...'
+run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y git python3 python3-venv python3-pip build-essential'
+
+if ! run_in_distro "test -x '${ENV_DIR}/bin/python'"; then
+  printf '%s\n' 'Creating Python environment inside proot...'
+  run_in_distro "python3 -m venv '${ENV_DIR}'"
 fi
 
-# shellcheck disable=SC1090
-. "${ENV_DIR}/bin/activate"
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -e "${BACKEND_DIR}"
+run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
+run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
 
 write_env_file
 sync_runtime_scripts
@@ -86,5 +105,6 @@ printf '\n%s\n' 'Mordecai Phase 1 install complete.'
 printf 'Install root: %s\n' "${INSTALL_ROOT}"
 printf 'Backend: %s\n' "${BACKEND_DIR}"
 printf 'Data: %s\n' "${DATA_DIR}"
+printf 'Runtime layer: %s (%s)\n' 'proot-distro' "${PROOT_DISTRO}"
 printf 'Start command: %s\n' "${SCRIPT_DIR}/start.sh"
 printf 'Dashboard URL: %s\n' 'http://127.0.0.1:8000'

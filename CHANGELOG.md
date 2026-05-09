@@ -7,6 +7,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 ### Added
 
 - Android-safe watchdog fallback that uses the standard library for resource reporting when `psutil` is unavailable.
+- Phase 1 installer now provisions and uses a `proot-distro` Ubuntu runtime layer for backend dependency installation and execution on Android.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.
@@ -26,6 +27,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 ### Changed
 
 - Packaging now installs `psutil` only on supported non-Android platforms, allowing the Termux Phase 1 backend install to complete on Android.
+- Phase 1 Termux lifecycle scripts now launch and update the backend through the Linux `proot-distro` layer instead of Android-native Python.
 
 - Avatar profile wiring now discovers every SVG under `assets/avatar/`, keeps a stable preferred display order, and exposes the full asset set through `/api/avatar` instead of a fixed seven-frame list.
 - Project positioning now frames Mordecai as a multi-phone Android runtime, with the Galaxy S10e retained as an advanced reference device instead of the implied default target.

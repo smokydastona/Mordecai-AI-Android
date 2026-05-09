@@ -17,14 +17,15 @@ bash <(curl -fsSL https://raw.githubusercontent.com/smokydastona/Mordecai-AI-And
 
 The installer will:
 
-- install `git`, `python`, `curl`, and `proot-distro`
+- install `git`, `curl`, and `proot-distro` in Termux
+- install or reuse the `ubuntu` `proot-distro` runtime layer
 - clone or update Mordecai into `$HOME/mordecai/backend`
-- create a Python environment in `$HOME/mordecai/env`
-- install the backend package into that environment
+- create a Python environment in `$HOME/mordecai/env` from inside the Linux layer
+- install the backend package into that Linux-hosted environment
 - create `$HOME/mordecai/data` and `$HOME/mordecai/scripts`
 - write a local `$HOME/mordecai/.env` scaffold if one does not already exist
 
-On Android, the install no longer depends on `psutil` building successfully. When `psutil` is unavailable, Mordecai uses a standard-library watchdog fallback for CPU and memory reporting.
+On Android, the install no longer depends on Android-native Python wheels for `psutil` or `pydantic-core`. The backend is installed inside the Linux `proot-distro` environment, and Mordecai still uses a standard-library watchdog fallback when `psutil` is unavailable.
 
 ## 3. Start Mordecai
 
@@ -36,7 +37,7 @@ What this does:
 
 - loads the local `.env`
 - exports the Phase 1 Mode A settings
-- starts `python -m mordecai.main` in the background
+- starts the backend from inside the configured `proot-distro` in the background
 - writes the PID file to `data/logs/backend.pid`
 - writes runtime output to `data/logs/backend.log`
 
@@ -75,5 +76,5 @@ $HOME/mordecai/scripts/update.sh
 
 - if `start.sh` says the backend is already running, inspect `data/logs/backend.pid` and `data/logs/backend.log`
 - if the install fails during package setup, run `pkg update -y` and retry the installer
-- if `pip` reports that `psutil` is unsupported on Android, update the backend checkout and rerun the installer so the conditional dependency and fallback watchdog code are picked up
+- if `pip` reports Android-native build failures such as `psutil` or `pydantic-core`, update the backend checkout and rerun the installer so the `proot-distro` install path is picked up
 - if the dashboard does not load, confirm the service is bound to `127.0.0.1` and that the port in `.env` matches the URL you opened
