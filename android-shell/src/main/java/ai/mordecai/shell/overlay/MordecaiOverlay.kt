@@ -3,6 +3,7 @@ package ai.mordecai.shell.overlay
 import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.WindowManager
 import android.webkit.WebView
@@ -10,6 +11,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import ai.mordecai.shell.R
+import kotlin.math.max
+import kotlin.math.min
 
 class MordecaiOverlay(
     private val context: Context,
@@ -24,18 +27,21 @@ class MordecaiOverlay(
     private val actionButton: Button = Button(context)
     private val actionsRow: LinearLayout = LinearLayout(context)
     private var attached = false
+    private val overlayWidth = max(dp(220), min(dp(320), context.resources.displayMetrics.widthPixels - dp(24)))
 
     private val layoutParams = WindowManager.LayoutParams(
-        WindowManager.LayoutParams.MATCH_PARENT,
+        overlayWidth,
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
         PixelFormat.TRANSLUCENT,
     ).apply {
-        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        y = dp(32)
+        gravity = Gravity.TOP or Gravity.END
+        x = dp(12)
+        y = dp(12)
     }
 
     init {
@@ -44,33 +50,63 @@ class MordecaiOverlay(
         rootView.setPadding(dp(16), dp(16), dp(16), dp(16))
 
         avatarView.setBackgroundColor(0x00000000)
-        avatarView.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(180))
+        avatarView.isVerticalScrollBarEnabled = false
+        avatarView.isHorizontalScrollBarEnabled = false
+        avatarView.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(96)).apply {
+            bottomMargin = dp(8)
+        }
 
         statusTitle.setTextColor(0xFFFFFFFF.toInt())
         statusTitle.textSize = 20f
         statusTitle.setTypeface(Typeface.DEFAULT_BOLD)
+        statusTitle.maxLines = 1
+        statusTitle.ellipsize = TextUtils.TruncateAt.END
 
         statusBody.setTextColor(0xFFD2D7E0.toInt())
         statusBody.textSize = 15f
         statusBody.setLineSpacing(0f, 1.1f)
+        statusBody.maxLines = 3
+        statusBody.ellipsize = TextUtils.TruncateAt.END
 
         actionButton.text = context.getString(R.string.action_voice_command)
+        actionButton.isAllCaps = false
+        actionButton.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(8)
+        }
         actionButton.setOnClickListener { onListenRequested() }
 
-        actionsRow.orientation = LinearLayout.HORIZONTAL
-        actionsRow.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        actionsRow.orientation = LinearLayout.VERTICAL
+        actionsRow.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(8)
+        }
         listOf(
             R.string.overlay_action_back to "BACK",
             R.string.overlay_action_home to "HOME",
             R.string.overlay_action_notifications to "NOTIFICATIONS",
             R.string.overlay_action_center to "TAP_CENTER",
-        ).forEach { (labelId, action) ->
-            val button = Button(context).apply {
-                text = context.getString(labelId)
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                setOnClickListener { onActionRequested(action) }
+        ).chunked(2).forEachIndexed { rowIndex, actions ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    if (rowIndex > 0) {
+                        topMargin = dp(6)
+                    }
+                }
             }
-            actionsRow.addView(button)
+            actions.forEachIndexed { index, (labelId, action) ->
+                val button = Button(context).apply {
+                    text = context.getString(labelId)
+                    isAllCaps = false
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        if (index > 0) {
+                            marginStart = dp(6)
+                        }
+                    }
+                    setOnClickListener { onActionRequested(action) }
+                }
+                row.addView(button)
+            }
+            actionsRow.addView(row)
         }
 
         rootView.addView(avatarView)
