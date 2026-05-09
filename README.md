@@ -153,6 +153,8 @@ On Android and Termux, the installer now prepares the runtime inside a `proot-di
 
 If a previous failed Termux-native install already created `$HOME/mordecai/env`, rerunning the installer now detects that Android-native virtual environment and rebuilds it inside the Linux `proot-distro` layer automatically.
 
+If the default `proot-distro` rootfs download host fails, the installer retries the distro fetch from the corresponding GitHub release tarball automatically.
+
 Install from Termux with one command:
 
 ```bash

@@ -18,10 +18,61 @@ SCRIPT_DIR="${INSTALL_ROOT}/scripts"
 ENV_FILE="${INSTALL_ROOT}/.env"
 REPO_URL="${MORDECAI_REPO_URL:-https://github.com/smokydastona/Mordecai-AI-Android.git}"
 PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu}"
+TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 
 run_in_distro() {
   local command="$1"
   proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /bin/bash -lc "${command}"
+}
+
+termux_arch() {
+  case "$(uname -m)" in
+    aarch64|arm64)
+      printf '%s\n' 'aarch64'
+      ;;
+    arm|armv7l|armv8l)
+      printf '%s\n' 'arm'
+      ;;
+    i686|i386|x86)
+      printf '%s\n' 'i686'
+      ;;
+    x86_64|amd64)
+      printf '%s\n' 'x86_64'
+      ;;
+    riscv64)
+      printf '%s\n' 'riscv64'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+github_release_tarball_url() {
+  local plugin_file="${TERMUX_PREFIX}/etc/proot-distro/${PROOT_DISTRO}.sh"
+  local distro_arch
+  local source_url
+  local tarball_name
+  local release_tag
+
+  distro_arch="$(termux_arch)" || return 1
+
+  if [ ! -f "${plugin_file}" ]; then
+    return 1
+  fi
+
+  source_url="$(awk -F'"' -v arch="${distro_arch}" '$0 ~ ("TARBALL_URL\\[\\x27" arch "\\x27\\]=") { print $2; exit }' "${plugin_file}")"
+  if [ -z "${source_url}" ]; then
+    return 1
+  fi
+
+  tarball_name="${source_url##*/}"
+  release_tag="$(printf '%s' "${tarball_name}" | sed -n 's/.*-pd-\(v[0-9][0-9.]*\)\.tar\.xz$/\1/p')"
+  if [ -z "${release_tag}" ]; then
+    return 1
+  fi
+
+  printf 'https://github.com/termux/proot-distro/releases/download/%s/%s\n' "${release_tag}" "${tarball_name}"
 }
 
 ensure_proot_distro() {
@@ -30,7 +81,18 @@ ensure_proot_distro() {
   fi
 
   printf 'Installing proot distro: %s\n' "${PROOT_DISTRO}"
-  proot-distro install "${PROOT_DISTRO}"
+  if proot-distro install "${PROOT_DISTRO}"; then
+    return
+  fi
+
+  fallback_url="$(github_release_tarball_url || true)"
+  if [ -z "${fallback_url}" ]; then
+    printf '%s\n' "Unable to derive a GitHub release fallback URL for ${PROOT_DISTRO}." >&2
+    return 1
+  fi
+
+  printf 'Retrying %s install from GitHub release: %s\n' "${PROOT_DISTRO}" "${fallback_url}"
+  PD_OVERRIDE_TARBALL_URL="${fallback_url}" proot-distro install "${PROOT_DISTRO}"
 }
 
 runtime_python_platform() {

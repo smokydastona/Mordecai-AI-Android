@@ -29,6 +29,8 @@ On Android, the install no longer depends on Android-native Python wheels for `p
 
 If an earlier failed install already created `$HOME/mordecai/env` from Termux Python, the installer now detects that Android-native virtual environment and rebuilds it inside `proot-distro` automatically.
 
+If the default `proot-distro` rootfs host fails with a TLS error, the installer automatically retries the distro download from the matching GitHub release tarball.
+
 ## 3. Start Mordecai
 
 ```bash
@@ -79,4 +81,5 @@ $HOME/mordecai/scripts/update.sh
 - if `start.sh` says the backend is already running, inspect `data/logs/backend.pid` and `data/logs/backend.log`
 - if the install fails during package setup, run `pkg update -y` and retry the installer
 - if `pip` reports Android-native build failures such as `psutil` or `pydantic-core`, update the backend checkout and rerun the installer so the `proot-distro` install path is picked up
+- if `proot-distro` fails to fetch a rootfs archive from `easycli.sh`, rerun the installer after updating the backend checkout so the GitHub release fallback path is picked up
 - if the dashboard does not load, confirm the service is bound to `127.0.0.1` and that the port in `.env` matches the URL you opened
