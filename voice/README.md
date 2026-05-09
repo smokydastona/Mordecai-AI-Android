@@ -4,16 +4,30 @@ This directory is the canonical home for wake-word detection, speech-to-text, an
 
 ## Current Implementation
 
-The current runtime only ships voice identity metadata:
+The current runtime ships concrete voice execution and discovery surfaces:
 
 - `src/mordecai/voice.py`
+- `GET /api/voice/engines`
+- `GET /api/voice/catalog`
+- `POST /api/voice/synthesize`
+- `POST /api/voice/transcribe`
 - `prompts/system_prompt.txt`
+
+Today this means:
+
+- Piper-backed local TTS remains the explicit baseline runtime.
+- Whisper CLI remains the explicit baseline ASR runtime.
+- whisper.cpp is now an additional explicit ASR runtime path when its binary and managed model bundle are installed.
+- sherpa-onnx is now an additional explicit ASR runtime path when its offline binary is installed and the managed archive bundle has been extracted.
+- The dashboard now exposes a structured ecosystem catalog of open-source voice repositories for operator-visible evaluation.
+- The dashboard catalog supports filtering by query, category, runtime fit, and runtime-supported status.
+- Cloning-capable repositories are cataloged, but they are not implicitly safe or auto-enabled.
 
 ## Intended Expansion
 
-- Wake-word detection for `Mordecai`
-- STT integration, likely Whisper-class tooling
-- TTS integration, likely Piper-class tooling
+- Wake-word routing for `Mordecai`
+- Additional explicit ASR backends beyond Whisper
+- Additional explicit TTS backends beyond Piper
 - Explicit routing between voice input, runtime policy, and spoken output
 
 Voice features must remain subordinate to the same safety and policy constraints as text interactions.
@@ -21,6 +35,17 @@ Voice features must remain subordinate to the same safety and policy constraints
 ## Open-Source Voice Model Index
 
 This is a curated, high-signal list of open-source projects for TTS, voice cloning, speech synthesis, and audio-generation exploration in Mordecai.
+
+The runtime catalog now groups repositories into these categories:
+
+- Text-to-Speech
+- Voice Cloning
+- Speech Recognition
+- Audio / Voice Pipelines
+- Training Frameworks
+- Audio Enhancement / Restoration
+- Multimodal / Experimental Audio
+- Curated Master Lists
 
 ### Curated Index
 
@@ -62,3 +87,6 @@ This is a curated, high-signal list of open-source projects for TTS, voice cloni
 - Route all downloads through the existing outbound allowlist and proxy controls.
 - Keep voice runtime selection visible in API/dashboard capability surfaces.
 - Do not treat cloning-capable models as implicitly safe; require explicit operator approval.
+- Treat the catalog as a decision surface, not as permission to silently install or execute upstream model stacks.
+- Use explicit install manifests for promoted phone-safe integrations like `whisper.cpp` and `sherpa-onnx`; some bundles require an acknowledgement gate before download.
+- Archive-backed bundles now extract into managed setup directories, emit a sherpa manifest, and include helper notes so they can be wired into live runtimes without manual archive inspection.

@@ -41,6 +41,10 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels
 - Local model registry is now exposed through the runtime API and capabilities dashboard, including Whisper, Piper, cloud, Ollama, `llama.cpp`, and `llamafile` chat profiles
 - Voice runtime APIs now support local engine discovery, Piper-based speech synthesis, and Whisper CLI transcription with explicit error reporting when binaries or model files are missing
+- Voice ecosystem discovery is now exposed through `GET /api/voice/catalog` and the dashboard, with categorized open-source repositories spanning TTS, cloning, ASR, pipelines, training toolkits, enhancement, and multimodal audio research
+- Voice catalog discovery now supports filtering by query, category, runtime fit, and runtime-supported status so operators can narrow the ecosystem view to phone-safe or currently integrated stacks
+- The dashboard model installer now shows bundle metadata and supports explicit approval acknowledgement for gated voice bundles before install
+- The dashboard now includes operator-facing transcription controls so local audio files can be run through `whisper`, `whisper.cpp`, or `sherpa-onnx` directly from the console
 - Mode B rooted shell automation for Galaxy S10e reference device, with two-tier control: Magisk-based input injection and settings queries, plus custom TWRP recovery tree integration for boot-time state capture and device verification
 - Mode B API endpoints for rooted actions: input tap/swipe, property queries, settings get, dumpsys battery/display, and process queries, all gated behind `enable_mode_b=True` configuration and policy enforcement
 - Mode B recovery state API queries boot-time device state including bootloader status, ROM fingerprint, system-as-root detection, and Magisk presence
@@ -241,6 +245,12 @@ The one-command phone installer now also provisions the default phone-supported 
 - `llama.cpp` built locally to provide `llama-cli`
 - `openai-whisper` to provide the `whisper` CLI
 - `piper-tts` to provide the `piper` CLI
+
+The runtime also exposes a policy-aware voice ecosystem catalog at `GET /api/voice/catalog`. That catalog does not auto-install or auto-enable upstream projects; it exists to make operator-visible routing, evaluation, and future explicit integrations possible without hiding model choices behind prompt state.
+
+The local model registry now also promotes additional explicit voice integrations beyond the Piper and Whisper CLI defaults, including `whisper.cpp` and `sherpa-onnx` profiles plus phone-oriented install bundles. Some bundles are policy-gated and require explicit operator acknowledgement before download. Archive-based bundles now extract into a managed helper directory, emit a machine-readable sherpa manifest, and write a setup note so they become runnable preparation paths instead of download-only blobs.
+
+`POST /api/voice/transcribe` now supports an explicit `provider` selection. The default remains `whisper`, `whisper.cpp` is available as a second offline transcription path when the `whisper-cli` binary and managed ggml model are present, and `sherpa-onnx` is available as a third offline path when the managed archive has been extracted and the `sherpa-onnx-offline` binary is present.
 
 Set `MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=false` before running `scripts/proot-setup.sh` if you want to skip that provisioning step. The optional `ollama-local` and `llamafile-gemma-3-1b` profiles remain external integrations and are not part of the one-command phone bootstrap.
 

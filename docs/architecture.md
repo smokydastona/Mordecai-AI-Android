@@ -67,10 +67,17 @@ Cloud and local model routing, future STT/TTS systems, wake-word handling, and p
 The runtime now includes local voice execution APIs for:
 
 - engine discovery (`GET /api/voice/engines`)
+- ecosystem discovery (`GET /api/voice/catalog`)
 - text-to-speech synthesis through Piper (`POST /api/voice/synthesize`)
 - speech-to-text transcription through Whisper CLI (`POST /api/voice/transcribe`)
 
 These voice operations remain explicit and fail loudly when required binaries or model assets are missing.
+
+The voice layer now also carries a structured catalog of open-source speech repositories grouped by TTS, voice cloning, ASR, pipelines, training frameworks, enhancement, multimodal audio, and master indexes. This keeps model discovery operator-visible and policy-aware: cloning-capable repos can be marked as approval-gated, and only explicitly supported runtimes such as Piper and Whisper are treated as active integrations.
+
+That discovery layer now feeds the local model registry directly for selected phone-safe stacks. The runtime exposes explicit install manifests for `whisper.cpp` and `sherpa-onnx` model packages, policy-sensitive bundles require an operator acknowledgement before the proxy is allowed to download them, and archive-backed manifests now expand into managed setup directories with a machine-readable sherpa manifest instead of remaining opaque downloads.
+
+The voice execution layer now has three explicit offline ASR paths: the existing Whisper CLI route, a `whisper.cpp` route that uses managed ggml model assets plus optional local VAD, and a `sherpa-onnx` route that uses the extracted whisper encoder/decoder/tokens manifest from the managed archive. This keeps execution explicit and inspectable while allowing multiple phone-targeted transcription paths.
 
 The permanent avatar also anchors here as a policy-protected identity surface whose assets and behavior are not mutable through the self-improvement path. The runtime derives its available expressions directly from the protected SVG set in `assets/avatar/`, so identity updates require explicit asset changes rather than silent prompt-only drift.
 

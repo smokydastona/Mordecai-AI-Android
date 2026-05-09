@@ -77,6 +77,7 @@ class VoiceSynthesizeRequest(BaseModel):
 class VoiceTranscribeRequest(BaseModel):
     audio_path: str = Field(min_length=1)
     model: str = "base"
+    provider: str = "whisper"
 
 
 class GitBackupRequest(BaseModel):
@@ -238,6 +239,10 @@ class LocalModelProfileSnapshot(BaseModel):
     model_path: str | None = None
     binary_available: bool = False
     model_available: bool | None = None
+    catalog_slug: str | None = None
+    runtime_fit: str | None = None
+    integration_tier: str | None = None
+    install_asset_ids: list[str] = Field(default_factory=list)
 
 
 class LocalModelAssetSnapshot(BaseModel):
@@ -253,6 +258,12 @@ class LocalModelAssetSnapshot(BaseModel):
     installed: bool = False
     size_mb: float | None = None
     sha256: str | None = None
+    catalog_slug: str | None = None
+    runtime_fit: str | None = None
+    integration_tier: str | None = None
+    requires_operator_approval: bool = False
+    install_notes: str | None = None
+    archive_format: str | None = None
 
 
 class LocalModelBundleSnapshot(BaseModel):
@@ -262,6 +273,11 @@ class LocalModelBundleSnapshot(BaseModel):
     asset_ids: list[str] = Field(default_factory=list)
     installed_assets: int = 0
     total_assets: int = 0
+    runtime_fit: str | None = None
+    integration_tier: str | None = None
+    requires_operator_approval: bool = False
+    install_notes: str | None = None
+    catalog_slugs: list[str] = Field(default_factory=list)
 
 
 class LocalModelCatalogSnapshot(BaseModel):
@@ -277,9 +293,12 @@ class LocalModelInstallRequest(BaseModel):
     bundle_id: str | None = None
     asset_ids: list[str] = Field(default_factory=list)
     overwrite: bool = False
+    acknowledge_operator_approval: bool = False
 
 
 class LocalModelInstallResult(BaseModel):
     bundle_id: str | None = None
     installed_assets: list[LocalModelAssetSnapshot] = Field(default_factory=list)
     skipped_assets: list[LocalModelAssetSnapshot] = Field(default_factory=list)
+    approval_acknowledged: bool = False
+    extracted_paths: list[str] = Field(default_factory=list)

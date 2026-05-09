@@ -17,6 +17,10 @@ class ModelProfile:
     enabled: bool = True
     model_path: str | None = None
     prompt_format: str | None = None
+    catalog_slug: str | None = None
+    runtime_fit: str | None = None
+    integration_tier: str | None = None
+    install_asset_ids: list[str] | None = None
 
 
 class LocalModelRegistry:
@@ -86,6 +90,9 @@ class LocalModelRegistry:
                 modality="stt",
                 command="whisper audio.wav --model base --output_format txt",
                 context_window=0,
+                catalog_slug="whisper",
+                runtime_fit="phone",
+                integration_tier="managed",
             ),
             ModelProfile(
                 name="piper-tts",
@@ -94,5 +101,45 @@ class LocalModelRegistry:
                 command="piper --model en_US-lessac-medium.onnx --output_file speech.wav",
                 context_window=0,
                 model_path="en_US-lessac-medium.onnx",
+                catalog_slug="piper",
+                runtime_fit="phone",
+                integration_tier="managed",
+                install_asset_ids=["piper-en-us-lessac-medium-onnx", "piper-en-us-lessac-medium-config"],
+            ),
+            ModelProfile(
+                name="whisper.cpp-base-en",
+                provider="whisper.cpp",
+                modality="stt",
+                command="whisper-cli -m ggml-base.en.bin -f audio.wav",
+                context_window=0,
+                model_path="ggml-base.en.bin",
+                catalog_slug="whisper-cpp",
+                runtime_fit="phone",
+                integration_tier="managed",
+                install_asset_ids=["whispercpp-ggml-base-en"],
+            ),
+            ModelProfile(
+                name="whisper.cpp-base-en-vad",
+                provider="whisper.cpp",
+                modality="stt",
+                command="whisper-cli --vad --vad-model ggml-silero-v6.2.0.bin -m ggml-base.en.bin -f audio.wav",
+                context_window=0,
+                model_path="ggml-base.en.bin",
+                catalog_slug="whisper-cpp",
+                runtime_fit="phone",
+                integration_tier="managed",
+                install_asset_ids=["whispercpp-ggml-base-en", "whispercpp-silero-vad-v6"],
+            ),
+            ModelProfile(
+                name="sherpa-onnx-whisper-tiny-en",
+                provider="sherpa-onnx",
+                modality="stt",
+                command="sherpa-onnx-offline --whisper-encoder tiny.en-encoder.int8.onnx --whisper-decoder tiny.en-decoder.int8.onnx --tokens tiny.en-tokens.txt audio.wav",
+                context_window=0,
+                model_path="sherpa-onnx-whisper-tiny.en/mordecai-sherpa-manifest.json",
+                catalog_slug="sherpa-onnx",
+                runtime_fit="phone",
+                integration_tier="managed",
+                install_asset_ids=["sherpa-onnx-whisper-tiny-en-archive", "sherpa-onnx-silero-vad"],
             ),
         ]

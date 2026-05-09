@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
 from mordecai.config import ensure_state_dirs, get_settings
@@ -134,6 +134,26 @@ def create_app() -> FastAPI:
     async def voice_engines() -> dict[str, object]:
         return app.state.voice_service.engines()
 
+    @app.get("/api/voice/catalog")
+    async def voice_catalog(
+        query: str | None = Query(default=None),
+        category: str | None = Query(default=None),
+        runtime_fit: str | None = Query(default=None),
+        integration_tier: str | None = Query(default=None),
+        supported_only: bool = Query(default=False),
+        approval_required: bool | None = Query(default=None),
+        limit: int | None = Query(default=None, ge=1, le=500),
+    ) -> dict[str, object]:
+        return app.state.voice_service.catalog(
+            query=query,
+            category=category,
+            runtime_fit=runtime_fit,
+            integration_tier=integration_tier,
+            supported_only=supported_only,
+            approval_required=approval_required,
+            limit=limit,
+        )
+
     @app.post("/api/voice/synthesize")
     async def voice_synthesize(request: VoiceSynthesizeRequest) -> dict[str, object]:
         try:
@@ -144,7 +164,7 @@ def create_app() -> FastAPI:
     @app.post("/api/voice/transcribe")
     async def voice_transcribe(request: VoiceTranscribeRequest) -> dict[str, object]:
         try:
-            return app.state.voice_service.transcribe(request.audio_path, model=request.model)
+            return app.state.voice_service.transcribe(request.audio_path, model=request.model, provider=request.provider)
         except Exception as exc:  # pragma: no cover - surfaced for API clients
             raise_mapped_exception(exc)
 

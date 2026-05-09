@@ -254,11 +254,60 @@ def render_dashboard() -> str:
         <pre id="local-models"></pre>
       </div>
       <div class="card">
+        <h2>Voice Catalog</h2>
+        <div class="control-stack">
+          <div class="row">
+            <div class="field">
+              <label for="voice-query">Search</label>
+              <input id="voice-query" placeholder="whisper, piper, cloning" />
+            </div>
+            <div class="field">
+              <label for="voice-category">Category</label>
+              <select id="voice-category">
+                <option value="">All</option>
+                <option value="text-to-speech">Text-to-Speech</option>
+                <option value="voice-cloning">Voice Cloning</option>
+                <option value="speech-recognition">Speech Recognition</option>
+                <option value="audio-pipeline">Audio / Voice Pipelines</option>
+                <option value="training-framework">Training Frameworks</option>
+                <option value="enhancement-restoration">Enhancement / Restoration</option>
+                <option value="multimodal-experimental">Multimodal / Experimental</option>
+                <option value="master-index">Master Lists</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="voice-runtime-fit">Runtime Fit</label>
+              <select id="voice-runtime-fit">
+                <option value="">All</option>
+                <option value="phone">Phone</option>
+                <option value="server">Server</option>
+                <option value="research">Research</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="voice-supported-only">Runtime Supported</label>
+              <select id="voice-supported-only">
+                <option value="false" selected>All repos</option>
+                <option value="true">Only supported</option>
+              </select>
+            </div>
+          </div>
+          <button id="apply-voice-filters">Apply Voice Filters</button>
+        </div>
+        <pre id="voice-catalog"></pre>
+      </div>
+      <div class="card">
         <h2>Model Provisioning</h2>
         <div class="control-stack">
           <div class="field">
             <label for="model-bundle">Bundle</label>
             <select id="model-bundle"></select>
+          </div>
+          <div class="field">
+            <label for="model-bundle-details">Bundle Details</label>
+            <pre id="model-bundle-details"></pre>
           </div>
           <div class="field">
             <label for="model-overwrite">Overwrite Existing Files</label>
@@ -267,8 +316,40 @@ def render_dashboard() -> str:
               <option value="true">Replace existing assets</option>
             </select>
           </div>
+          <div class="field">
+            <label for="model-acknowledge-approval">Operator Approval</label>
+            <select id="model-acknowledge-approval">
+              <option value="false" selected>Not acknowledged</option>
+              <option value="true">Acknowledged for gated bundle</option>
+            </select>
+          </div>
           <button id="install-model-bundle">Install Bundle</button>
           <pre id="model-install-response"></pre>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Voice Transcription</h2>
+        <div class="control-stack">
+          <div class="field">
+            <label for="voice-transcribe-audio-path">Audio Path</label>
+            <input id="voice-transcribe-audio-path" placeholder="C:/path/to/audio.wav" />
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="voice-transcribe-provider">Provider</label>
+              <select id="voice-transcribe-provider">
+                <option value="whisper">whisper</option>
+                <option value="whisper.cpp">whisper.cpp</option>
+                <option value="sherpa-onnx">sherpa-onnx</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="voice-transcribe-model">Model</label>
+              <input id="voice-transcribe-model" value="base" placeholder="base" />
+            </div>
+          </div>
+          <button id="voice-transcribe-run">Run Transcription</button>
+          <pre id="voice-transcribe-response"></pre>
         </div>
       </div>
       <div class="card">
@@ -329,9 +410,30 @@ def render_dashboard() -> str:
   </div>
   <script>
     let latestCapabilities = null;
+    let latestVoiceFilter = {};
+
+    function readVoiceFilter() {
+      return {
+        query: document.getElementById('voice-query').value.trim(),
+        category: document.getElementById('voice-category').value,
+        runtime_fit: document.getElementById('voice-runtime-fit').value,
+        supported_only: document.getElementById('voice-supported-only').value,
+      };
+    }
+
+    function buildVoiceCatalogUrl() {
+      const params = new URLSearchParams();
+      const filter = latestVoiceFilter;
+      if (filter.query) params.set('query', filter.query);
+      if (filter.category) params.set('category', filter.category);
+      if (filter.runtime_fit) params.set('runtime_fit', filter.runtime_fit);
+      if (filter.supported_only === 'true') params.set('supported_only', 'true');
+      const queryString = params.toString();
+      return queryString ? `/api/voice/catalog?${queryString}` : '/api/voice/catalog';
+    }
 
     async function load() {
-      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, localModels, trace, capabilities, avatar] = await Promise.all([
+      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, localModels, voiceCatalog, trace, capabilities, avatar] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
         fetch('/api/memory').then(r => r.json()),
@@ -342,6 +444,7 @@ def render_dashboard() -> str:
         fetch('/api/events').then(r => r.json()),
         fetch('/api/proxy/logs').then(r => r.json()),
         fetch('/api/local-models').then(r => r.json()),
+        fetch(buildVoiceCatalogUrl()).then(r => r.json()),
         fetch('/api/runtime/trace').then(r => r.json()),
         fetch('/api/runtime/capabilities').then(r => r.json()),
         fetch('/api/avatar').then(r => r.json()),
@@ -369,6 +472,23 @@ def render_dashboard() -> str:
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);
       document.getElementById('proxy').textContent = JSON.stringify(proxyLogs.slice(-10), null, 2);
       document.getElementById('local-models').textContent = JSON.stringify(localModels, null, 2);
+      document.getElementById('voice-catalog').textContent = JSON.stringify({
+        summary: voiceCatalog.summary,
+        filters: voiceCatalog.filters,
+        recommended_stack: voiceCatalog.recommended_stack,
+        category_preview: (voiceCatalog.categories || []).map(category => ({
+          id: category.id,
+          label: category.label,
+          count: category.count,
+        })),
+        repo_preview: (voiceCatalog.repos || []).slice(0, 12).map(repo => ({
+          slug: repo.slug,
+          name: repo.name,
+          runtime_fit: repo.runtime_fit,
+          integration_tier: repo.integration_tier,
+          supported_by_runtime: repo.supported_by_runtime,
+        })),
+      }, null, 2);
       const bundleSelect = document.getElementById('model-bundle');
       const currentBundle = bundleSelect.value;
       bundleSelect.innerHTML = (localModels.bundles || []).map(bundle => {
@@ -380,6 +500,15 @@ def render_dashboard() -> str:
       }
       if (!bundleSelect.value && bundleSelect.options.length > 0) {
         bundleSelect.selectedIndex = 0;
+      }
+      const selectedBundle = (localModels.bundles || []).find(bundle => bundle.bundle_id === bundleSelect.value) || null;
+      document.getElementById('model-bundle-details').textContent = JSON.stringify(selectedBundle, null, 2);
+      const approvalSelect = document.getElementById('model-acknowledge-approval');
+      if (selectedBundle && selectedBundle.requires_operator_approval) {
+        approvalSelect.disabled = false;
+      } else {
+        approvalSelect.value = 'false';
+        approvalSelect.disabled = true;
       }
       document.getElementById('trace').innerHTML = trace.events.slice(-8).reverse().map(event => `
         <div class="trace-item">
@@ -457,9 +586,19 @@ def render_dashboard() -> str:
 
     document.getElementById('tool-name').addEventListener('change', updateToolDefaults);
 
+    document.getElementById('apply-voice-filters').addEventListener('click', async () => {
+      latestVoiceFilter = readVoiceFilter();
+      await load();
+    });
+
+    document.getElementById('model-bundle').addEventListener('change', async () => {
+      await load();
+    });
+
     document.getElementById('install-model-bundle').addEventListener('click', async () => {
       const bundleId = document.getElementById('model-bundle').value;
       const overwrite = document.getElementById('model-overwrite').value === 'true';
+      const acknowledgeOperatorApproval = document.getElementById('model-acknowledge-approval').value === 'true';
       if (!bundleId) {
         document.getElementById('model-install-response').textContent = JSON.stringify({ error: 'No bundle is available.' }, null, 2);
         return;
@@ -467,10 +606,28 @@ def render_dashboard() -> str:
       const response = await fetch('/api/local-models/install', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bundle_id: bundleId, overwrite }),
+        body: JSON.stringify({ bundle_id: bundleId, overwrite, acknowledge_operator_approval: acknowledgeOperatorApproval }),
       });
       const payload = await response.json();
       document.getElementById('model-install-response').textContent = JSON.stringify(payload, null, 2);
+      await load();
+    });
+
+    document.getElementById('voice-transcribe-run').addEventListener('click', async () => {
+      const audioPath = document.getElementById('voice-transcribe-audio-path').value.trim();
+      const provider = document.getElementById('voice-transcribe-provider').value;
+      const model = document.getElementById('voice-transcribe-model').value.trim() || 'base';
+      if (!audioPath) {
+        document.getElementById('voice-transcribe-response').textContent = JSON.stringify({ error: 'Audio path is required.' }, null, 2);
+        return;
+      }
+      const response = await fetch('/api/voice/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio_path: audioPath, provider, model }),
+      });
+      const payload = await response.json();
+      document.getElementById('voice-transcribe-response').textContent = JSON.stringify(payload, null, 2);
       await load();
     });
 

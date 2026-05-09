@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+import tarfile
 
 import httpx
 from fastapi.testclient import TestClient
@@ -38,6 +39,20 @@ def test_dashboard_alias_endpoint(tmp_path, monkeypatch):
 
     assert response.status_code == 200
     assert "Mordecai Console" in response.text
+
+
+def test_dashboard_renders_bundle_details_and_approval_toggle(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert 'id="model-bundle-details"' in response.text
+    assert 'id="model-acknowledge-approval"' in response.text
+    assert "selectedBundle.requires_operator_approval" in response.text
+    assert "approvalSelect.disabled = true;" in response.text
+    assert 'id="voice-transcribe-provider"' in response.text
+    assert "fetch('/api/voice/transcribe'" in response.text
 
 
 def test_chat_and_status_endpoints(tmp_path, monkeypatch):
@@ -103,6 +118,8 @@ def test_local_models_endpoint_returns_catalog(tmp_path, monkeypatch):
     assert payload["configured_profiles"] >= 4
     assert any(profile["name"] == "whisper-cli" for profile in payload["profiles"])
     assert any(bundle["bundle_id"] == "phone-starter" for bundle in payload["bundles"])
+    assert any(profile["name"] == "whisper.cpp-base-en" for profile in payload["profiles"])
+    assert any(bundle["bundle_id"] == "voice-asr-whispercpp-phone" for bundle in payload["bundles"])
 
 
 def test_local_model_install_endpoint_downloads_bundle_assets(tmp_path, monkeypatch):
@@ -141,6 +158,189 @@ def test_local_model_install_endpoint_downloads_bundle_assets(tmp_path, monkeypa
     assert (settings.models_dir / "en_US-lessac-medium.onnx.json").exists()
 
 
+def test_local_model_install_endpoint_supports_whispercpp_voice_bundle(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    settings = get_settings()
+    components = get_runtime_components()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("ggml-base.en.bin"):
+            return httpx.Response(200, content=b"whispercpp-model", request=request)
+        if path.endswith("ggml-silero-v6.2.0.bin"):
+            return httpx.Response(200, content=b"vad-model", request=request)
+        raise AssertionError(f"Unexpected request to {request.url}")
+
+    client.app.state.local_models = LocalModelService(
+        settings,
+        proxy=type(components.proxy)(
+            settings,
+            components.policy,
+            components.store,
+            client_factory=lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False),
+        ),
+        store=components.store,
+    )
+
+    response = client.post("/api/local-models/install", json={"bundle_id": "voice-asr-whispercpp-phone"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["installed_assets"]) == 2
+    assert any(path.endswith("ggml-base.en.bin") for path in payload["extracted_paths"]) is False
+    assert (settings.models_dir / "ggml-base.en.bin").exists()
+    assert (settings.models_dir / "ggml-silero-v6.2.0.bin").exists()
+
+
+def test_local_model_install_endpoint_requires_acknowledgement_for_gated_bundle(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.post("/api/local-models/install", json={"bundle_id": "voice-asr-sherpa-phone"})
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"]["code"] == "PermissionDenied"
+
+
+def test_local_model_install_endpoint_extracts_sherpa_archive(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    settings = get_settings()
+    components = get_runtime_components()
+
+    def build_archive_bytes() -> bytes:
+        import io
+
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w:bz2") as archive:
+            files = {
+                "sherpa-onnx-whisper-tiny.en/tiny.en-encoder.int8.onnx": b"fake-encoder",
+                "sherpa-onnx-whisper-tiny.en/tiny.en-decoder.int8.onnx": b"fake-decoder",
+                "sherpa-onnx-whisper-tiny.en/tiny.en-tokens.txt": b"one\ntwo\n",
+            }
+            for name, content in files.items():
+                info = tarfile.TarInfo(name=name)
+                info.size = len(content)
+                archive.addfile(info, io.BytesIO(content))
+        return buffer.getvalue()
+
+    archive_bytes = build_archive_bytes()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("sherpa-onnx-whisper-tiny.en.tar.bz2"):
+            return httpx.Response(200, content=archive_bytes, request=request)
+        if path.endswith("silero_vad.onnx"):
+            return httpx.Response(200, content=b"vad-onnx", request=request)
+        raise AssertionError(f"Unexpected request to {request.url}")
+
+    client.app.state.local_models = LocalModelService(
+        settings,
+        proxy=type(components.proxy)(
+            settings,
+            components.policy,
+            components.store,
+            client_factory=lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False),
+        ),
+        store=components.store,
+    )
+
+    response = client.post(
+        "/api/local-models/install",
+        json={"bundle_id": "voice-asr-sherpa-phone", "acknowledge_operator_approval": True},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["approval_acknowledged"] is True
+    assert any(path.endswith("tiny.en-encoder.int8.onnx") for path in payload["extracted_paths"])
+    assert any(path.endswith("mordecai-sherpa-manifest.json") for path in payload["extracted_paths"])
+    assert any(path.endswith("mordecai-sherpa-setup.txt") for path in payload["extracted_paths"])
+
+
+def test_voice_transcribe_endpoint_supports_whisper_cpp_provider(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    settings = get_settings()
+    audio_path = settings.data_dir / "voice" / "sample.wav"
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"WAVE")
+    (settings.models_dir).mkdir(parents=True, exist_ok=True)
+    (settings.models_dir / "ggml-base.en.bin").write_bytes(b"model")
+    (settings.models_dir / "ggml-silero-v6.2.0.bin").write_bytes(b"vad")
+
+    def fake_which(binary: str) -> str | None:
+        if binary == "whisper-cli":
+            return "C:/tools/whisper-cli.exe"
+        return None
+
+    def fake_run(command, *args, **kwargs):
+        prefix = Path(command[command.index("-of") + 1])
+        transcript = prefix.with_suffix(".txt")
+        transcript.parent.mkdir(parents=True, exist_ok=True)
+        transcript.write_text("whisper cpp text", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("mordecai.voice.shutil.which", fake_which)
+    monkeypatch.setattr("mordecai.voice.subprocess.run", fake_run)
+
+    response = client.post(
+        "/api/voice/transcribe",
+        json={"audio_path": audio_path.as_posix(), "provider": "whisper.cpp"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["engine"] == "whisper.cpp"
+    assert payload["provider"] == "whisper.cpp"
+    assert payload["text"] == "whisper cpp text"
+
+
+def test_voice_transcribe_endpoint_supports_sherpa_onnx_provider(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    settings = get_settings()
+    audio_path = settings.data_dir / "voice" / "sample.wav"
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"WAVE")
+    sherpa_root = settings.models_dir / "sherpa-onnx-whisper-tiny.en"
+    sherpa_root.mkdir(parents=True, exist_ok=True)
+    encoder = sherpa_root / "tiny.en-encoder.int8.onnx"
+    decoder = sherpa_root / "tiny.en-decoder.int8.onnx"
+    tokens = sherpa_root / "tiny.en-tokens.txt"
+    encoder.write_bytes(b"encoder")
+    decoder.write_bytes(b"decoder")
+    tokens.write_text("one\ntwo\n", encoding="utf-8")
+    (sherpa_root / "mordecai-sherpa-manifest.json").write_text(
+        """{
+  "whisper_encoder": "%s",
+  "whisper_decoder": "%s",
+  "tokens": "%s"
+}""" % (encoder.as_posix(), decoder.as_posix(), tokens.as_posix()),
+        encoding="utf-8",
+    )
+
+    def fake_which(binary: str) -> str | None:
+        if binary == "sherpa-onnx-offline":
+            return "C:/tools/sherpa-onnx-offline.exe"
+        return None
+
+    def fake_run(command, *args, **kwargs):
+        stdout = '{"text":"sherpa text"}\nElapsed seconds: 0.01\n'
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr("mordecai.voice.shutil.which", fake_which)
+    monkeypatch.setattr("mordecai.voice.subprocess.run", fake_run)
+
+    response = client.post(
+        "/api/voice/transcribe",
+        json={"audio_path": audio_path.as_posix(), "provider": "sherpa-onnx"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["engine"] == "sherpa-onnx"
+    assert payload["provider"] == "sherpa-onnx"
+    assert payload["text"] == "sherpa text"
+    assert payload["transcript_path"].endswith("sample.sherpa-onnx.txt")
+
+
 def test_voice_engines_endpoint_reports_binary_availability(tmp_path, monkeypatch):
     client = build_test_client(tmp_path, monkeypatch)
 
@@ -158,6 +358,37 @@ def test_voice_engines_endpoint_reports_binary_availability(tmp_path, monkeypatc
     payload = response.json()
     assert payload["piper"]["available"] is True
     assert payload["whisper"]["available"] is False
+    assert payload["catalog_summary"]["unique_repositories"] >= 100
+    assert payload["recommended_stack"]["baseline_tts"] == "piper"
+
+
+def test_voice_catalog_endpoint_returns_categorized_repository_index(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.get("/api/voice/catalog")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"]["unique_repositories"] >= 100
+    assert payload["summary"]["runtime_supported"] >= 2
+    assert payload["summary"]["approval_required"] >= 10
+    assert any(category["id"] == "text-to-speech" for category in payload["categories"])
+    assert any(repo["slug"] == "piper" and repo["supported_by_runtime"] for repo in payload["repos"])
+    assert any(repo["slug"] == "whisper" and repo["supported_by_runtime"] for repo in payload["repos"])
+
+
+def test_voice_catalog_endpoint_supports_filtering(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.get("/api/voice/catalog", params={"query": "whisper", "runtime_fit": "phone", "limit": 10})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["filters"]["query"] == "whisper"
+    assert payload["summary"]["unique_repositories"] <= 10
+    assert payload["repos"]
+    assert all(repo["runtime_fit"] == "phone" for repo in payload["repos"])
+    assert all("whisper" in " ".join([repo["slug"], repo["name"], repo["notes"]]).lower() for repo in payload["repos"])
 
 
 def test_voice_synthesize_endpoint_generates_wav(tmp_path, monkeypatch):
