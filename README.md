@@ -33,7 +33,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Android shell accessibility service with lock-screen overlay feedback, accessibility onboarding actions, and overlay-backed voice command delegation
 - Accessibility overlay now supports a restricted local action set for back, home, notifications, quick settings, recents, and a center-screen tap without bypassing the backend policy surface
 - Android shell accessibility resource config now uses the platform-correct `android:accessibilityFlags` attribute so CI Android resource linking succeeds
-- Permanent avatar system with immutable old-man emotion frames, backend emotion selection, and dashboard rendering
+- Permanent avatar system with immutable old-man emotion frames, asset-driven SVG discovery, backend emotion selection, and dashboard rendering
 - Local dashboard memory browser for recent conversation inspection
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels
 - Local model registry is now exposed through the runtime API and capabilities dashboard, including Whisper, Piper, cloud, and local chat profiles

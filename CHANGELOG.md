@@ -23,6 +23,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 
 ### Changed
 
+- Avatar profile wiring now discovers every SVG under `assets/avatar/`, keeps a stable preferred display order, and exposes the full asset set through `/api/avatar` instead of a fixed seven-frame list.
 - Project positioning now frames Mordecai as a multi-phone Android runtime, with the Galaxy S10e retained as an advanced reference device instead of the implied default target.
 - Documentation sync rules now treat the Android shell module and root Gradle files as first-class implementation surface.
 - CI and debug-smoke workflows now build the Android shell debug APK through the Gradle wrapper and publish Android build artifacts.

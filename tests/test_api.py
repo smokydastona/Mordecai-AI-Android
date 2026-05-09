@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from mordecai.config import get_settings
 from mordecai.main import build_runtime, create_app
+from mordecai.avatar import list_avatar_emotions
 from mordecai_core.runtime import get_runtime_components
 
 
@@ -80,11 +81,13 @@ def test_avatar_endpoint_returns_immutable_frames(tmp_path, monkeypatch):
 
     assert response.status_code == 200
     payload = response.json()
+    settings = get_settings()
     assert payload["immutable_assets"] is True
     assert payload["immutable_behavior"] is True
     assert payload["immutable_style"] is True
-    assert len(payload["frames"]) == 7
+    assert len(payload["frames"]) == len(list_avatar_emotions(settings.avatar_assets_dir))
     assert any(frame["emotion"] == "wise-smirk" for frame in payload["frames"])
+    assert any(frame["emotion"] == "unimpressed" for frame in payload["frames"])
 
 
 def test_local_models_endpoint_returns_catalog(tmp_path, monkeypatch):

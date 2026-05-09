@@ -48,3 +48,5 @@ The active runtime persona is currently enforced by:
 - `src/mordecai/agent.py`
 - `src/mordecai/avatar.py`
 - `assets/avatar/`
+
+The avatar expression catalog is derived from every SVG currently present in `assets/avatar/`, with the runtime keeping a stable preferred order for dashboard presentation and API consumers.

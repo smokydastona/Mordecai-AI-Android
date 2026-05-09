@@ -64,7 +64,7 @@ Protected paths, command guards, outbound allowlists, rate limits, and permissio
 
 Cloud and local model routing, future STT/TTS systems, wake-word handling, and persona enforcement.
 
-The permanent avatar also anchors here as a policy-protected identity surface whose assets and behavior are not mutable through the self-improvement path.
+The permanent avatar also anchors here as a policy-protected identity surface whose assets and behavior are not mutable through the self-improvement path. The runtime derives its available expressions directly from the protected SVG set in `assets/avatar/`, so identity updates require explicit asset changes rather than silent prompt-only drift.
 
 ### 9. Self-modification and operator layer
 
