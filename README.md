@@ -151,6 +151,8 @@ Phase 1 is the portable Mode A backend contract for Termux-based Android install
 
 On Android and Termux, the installer now prepares the runtime inside a `proot-distro` Ubuntu layer instead of relying on Android-native Python packaging. The runtime also falls back to a standard-library resource watchdog when `psutil` is unavailable.
 
+If a previous failed Termux-native install already created `$HOME/mordecai/env`, rerunning the installer now detects that Android-native virtual environment and rebuilds it inside the Linux `proot-distro` layer automatically.
+
 Install from Termux with one command:
 
 ```bash
