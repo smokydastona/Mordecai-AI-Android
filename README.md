@@ -37,7 +37,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Permanent avatar system with immutable old-man emotion frames, asset-driven SVG discovery, backend emotion selection, and dashboard rendering
 - Local dashboard memory browser for recent conversation inspection
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels
-- Local model registry is now exposed through the runtime API and capabilities dashboard, including Whisper, Piper, cloud, and local chat profiles
+- Local model registry is now exposed through the runtime API and capabilities dashboard, including Whisper, Piper, cloud, Ollama, `llama.cpp`, and `llamafile` chat profiles
 
 ## Reliability and Security
 
@@ -200,6 +200,21 @@ Phase 1 runs only on `127.0.0.1` by default and does not expose Android automati
 - Git pushes are disabled unless `MORDECAI_ALLOW_GIT_PUSH=true`.
 - Android control is disabled unless `MORDECAI_ENABLE_ANDROID_CONTROL=true`.
 - Outbound networking is restricted to the configured allowlist in `config.py` or environment overrides.
+
+## On-device models
+
+Mordecai does not ship a bundled LLM, Whisper checkpoint, Piper voice, or wake-word neural model onto the phone by default.
+
+What exists in the repository today is a local model registry and integration surface:
+
+- `mordecai-cloud` uses the configured OpenAI-compatible backend and downloads nothing onto the phone by itself
+- `ollama-local` expects an Ollama-managed local chat model if you install Ollama separately
+- `llama.cpp-qwen2.5-3b` expects a `qwen2.5-3b-instruct-q4_k_m.gguf` file under Mordecai's models directory and a `llama.cpp` CLI such as `llama-cli`
+- `llamafile-gemma-3-1b` expects a `gemma-3-1b-it-Q4_K_M.llamafile` executable model under Mordecai's models directory
+- `whisper-cli` expects the Whisper CLI and whatever Whisper checkpoint you choose to download separately
+- `piper-tts` expects a Piper voice model and config that you place under the models directory or reference directly
+
+On a phone install, Mordecai creates the models directory under `$HOME/mordecai/data/models`, but it does not populate that directory automatically.
 
 ## Cloud model configuration
 
