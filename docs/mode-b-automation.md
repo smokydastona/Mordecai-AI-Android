@@ -341,6 +341,135 @@ Before enabling Mode B automation, operators must:
 - **TWRP Build Guide:** https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp
 - **TeamWin S10e Tree:** https://github.com/TeamWin/android_device_samsung_beyond0lte (reference for comparison)
 
+## Ecosystem Resources: Complete GitHub Index
+
+This section catalogs the complete ecosystem of tools, device trees, kernels, and recovery systems relevant to Mode B rooting and automation on Samsung Exynos 9820 devices (S10e reference).
+
+### 🔹 Device Trees & Platform Support
+
+**Critical (Direct S10e Support)**
+- **TeamWin/android_device_samsung_beyond0lte** (https://github.com/TeamWin/android_device_samsung_beyond0lte)
+  - TWRP device tree for S10e (beyond0lte) — reference for custom recovery builds
+  - Branch: android-9.0 (older) or consider updating to 12.1+ via ExtremeXT fork
+
+- **ExtremeXT/android_device_samsung_exynos9820** (https://github.com/ExtremeXT/android_device_samsung_exynos9820)
+  - **Recommended base for Mode B custom tree**
+  - Exynos 9820/9825 unified device tree covering S10/S10+/S10e/Note10 variants
+  - Branch: android-12.1 (latest tested, actively maintained)
+  - Built against minimal-manifest-twrp; full build instructions provided
+
+**Alternative Implementations**
+- **exynos9820-dev/android_device_samsung_beyond0lte** (https://github.com/exynos9820-dev/android_device_samsung_beyond0lte)
+  - Community-maintained alternative S10e device tree
+  - May have different init hooks or partition layouts; verify against ExtremeXT
+
+### 🔹 Kernel & Vendor Platform
+
+**Core Platform (Required for Custom Device Trees)**
+- **exynos9820-dev/android_kernel_samsung_exynos9820** (https://github.com/exynos9820-dev/android_kernel_samsung_exynos9820)
+  - Kernel source for Exynos 9820 (S10 family)
+  - Required if building custom device tree with kernel modifications
+  - Mode B integration points: boot arguments, ramdisk hooks, partition discovery
+
+- **exynos9820-dev/android_vendor_samsung_exynos9820** (https://github.com/exynos9820-dev/android_vendor_samsung_exynos9820)
+  - Vendor blobs and HAL implementations for Exynos 9820
+  - Required for full TWRP recovery build with hardware-specific drivers
+
+### 🔹 Recovery Builders & Boot Systems
+
+**TWRP (Recommended for Mode B)**
+- **TeamWin/android_bootable_recovery** (https://github.com/TeamWin/android_bootable_recovery)
+  - TWRP recovery source (base binary and lifecycle)
+  - Used in conjunction with device tree to build recovery.img
+  - **Preferred for Mode B:** Mature, well-documented, stable init.rc ecosystem
+
+- **TeamWin/android_device_samsung_exynos9820** (https://github.com/TeamWin/android_device_samsung_exynos9820)
+  - TWRP device tree for Exynos 9820 family (same as base ExtremeXT)
+
+**Alternative Recovery Systems**
+- **SHRP/SHRP-device-tree-samsung_beyond0lte** (https://github.com/SHRP/SHRP-device-tree-samsung_beyond0lte)
+  - SHRP (Skyhawk Recovery Project) — lightweight alternative to TWRP
+  - Smaller image footprint; suitable if recovery partition is space-constrained
+  - Less mature ecosystem; TWRP is recommended for Mode B stability
+
+### 🔹 Root Frameworks & Magisk
+
+**Primary (Magisk - Recommended for Mode B)**
+- **topjohnwu/Magisk** (https://github.com/topjohnwu/Magisk)
+  - **Industry-standard rooting framework**
+  - System-as-root compatible (required for S10e)
+  - Zygisk hooks for app-specific root access control
+  - SafetyNet/Play Integrity bypass modules available
+  - **Mode B uses this:** Magisk + patched firmware = rooted shell access
+
+- **topjohnwu/libsu** (https://github.com/topjohnwu/libsu)
+  - Magisk library for native apps to request root via Magisk's IPC
+  - Optional: Use if building native utilities that require root context
+  - Not required for basic Mode B ADB shell access
+
+**Alternative: Kernel-Level Root**
+- **tiann/KernelSU** (https://github.com/tiann/KernelSU)
+  - Kernel-level root alternative (newer, less mature)
+  - **Pros:** No bootloader unlock required (on supported kernels), kernel-integrated permission model
+  - **Cons:** Not compatible with Magisk; requires custom kernel build
+  - **Not recommended for Mode B Phase 1:** Stick with Magisk + standard firmware
+
+### 🔹 Flashing Tools & Firmware Utilities
+
+**Primary (Samsung Odin - Proprietary)**
+- Samsung Odin v3.14.1 (patched) — download from XDA forums via rooting guide
+  - **Required for initial root installation** (flashing patched AP firmware)
+  - No open-source equivalent; closed-source Samsung tool
+
+**Open-Source Alternatives**
+- **Benjamin-Dobell/Heimdall** (https://github.com/Benjamin-Dobell/Heimdall)
+  - **Open-source alternative to Odin**
+  - Supports Samsung Exynos devices; cross-platform (Windows/Linux/Mac)
+  - Compatible with S10e; can replace Odin for firmware flashing
+  - **Advantage:** Transparent, scriptable, GPL-licensed
+  - **Caution:** Less tested than Odin on Samsung; use at own risk
+
+**Firmware Downloader**
+- **zxz0O0/SamFirm_Reborn** (https://github.com/zxz0O0/SamFirm_Reborn)
+  - Modern Samsung firmware downloader (replaces deprecated Samloader)
+  - Fetches official firmware from Samsung servers without requiring device-specific serial
+  - Used in rooting workflow as **Step 2** (download official firmware)
+
+### 🔹 Security & Exploit Research (Context & Reference)
+
+These repos provide educational context on Samsung bootloader, TrustZone, and exploit research — useful for understanding attack surfaces but not required for Mode B operator workflows.
+
+- **alephsecurity/samsung-mobicore** (https://github.com/alephsecurity/samsung-mobicore)
+  - TrustZone (Secure Monitor Call) research for Samsung devices
+  - Reference: Bootloader security model and Knox architecture
+
+- **Comsecuris/qsee_research** (https://github.com/Comsecuris/qsee_research)
+  - Qualcomm Secure Execution Environment (QSEE) research
+  - Not directly applicable to Exynos 9820 (Qualcomm variant), but educational for understanding ARM TrustZone patterns
+
+### 🔹 Minimal TWRP Manifest (Build System)
+
+- **minimal-manifest-twrp/platform_manifest_twrp_aosp** (https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp)
+  - **Required for building custom TWRP recovery**
+  - Repo manifest that fetches TWRP sources, device tree, and build system
+  - ExtremeXT device tree is tested against this manifest (branch: android-12.1)
+
+### Recommended Implementation Path for Mode B Custom Recovery
+
+1. **Base:** Clone minimal-manifest-twrp (android-12.1 branch)
+2. **Device Tree:** Clone ExtremeXT/android_device_samsung_exynos9820 (android-12.1 branch)
+3. **Kernel (Optional):** exynos9820-dev/android_kernel_samsung_exynos9820 if custom boot hooks needed
+4. **Vendor:** exynos9820-dev/android_vendor_samsung_exynos9820 (optional, for full HAL)
+5. **Build:** Follow ExtremeXT README for build environment setup and mka recoveryimage
+6. **Flash:** Use Odin (proprietary) or Heimdall (open-source) to flash the recovery.img
+
+### Known Ecosystem Gaps & Caveats
+
+- **Odin is proprietary:** No full open-source replacement for Samsung Odin exists; Heimdall is the best alternative but has less testing coverage
+- **S10e specific:** beyond0lte is one of several Exynos 9820 variants; device tree unification (ExtremeXT) helps but vendor-specific blobs may differ
+- **Knox is permanent:** Once tripped by Magisk/rooting, Knox cannot be restored; system-level security features degrade
+- **QSEE vs Knox:** S10e uses ARM TrustZone + Samsung Knox (not Qualcomm QSEE); research repos for QSEE are educational but not directly applicable
+
 ## Future Directions
 
 - HID/gamepad event injection for controller-class input
