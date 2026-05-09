@@ -22,6 +22,10 @@ run_in_distro() {
   proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /bin/bash -lc "${command}"
 }
 
+runtime_python_platform() {
+  run_in_distro "'${ENV_DIR}/bin/python' -c 'import sysconfig; print(sysconfig.get_platform())'"
+}
+
 if [ ! -d "${BACKEND_DIR}/.git" ]; then
   printf '%s\n' "Backend checkout not found at ${BACKEND_DIR}. Run scripts/proot-setup.sh first." >&2
   exit 1
@@ -35,6 +39,11 @@ if ! proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /usr/bin/env true >/de
 fi
 
 run_in_distro "test -x '${ENV_DIR}/bin/python'"
+runtime_platform="$(runtime_python_platform)"
+if printf '%s' "${runtime_platform}" | grep -qi 'android'; then
+  printf '%s\n' "Python environment at ${ENV_DIR} is Android-native (${runtime_platform}). Rerun scripts/proot-setup.sh so it can rebuild the environment inside ${PROOT_DISTRO}." >&2
+  exit 1
+fi
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
 

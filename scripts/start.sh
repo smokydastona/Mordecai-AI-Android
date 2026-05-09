@@ -27,6 +27,10 @@ run_in_distro() {
   proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /bin/bash -lc "${command}"
 }
 
+runtime_python_platform() {
+  run_in_distro "'${ENV_DIR}/bin/python' -c 'import sysconfig; print(sysconfig.get_platform())'"
+}
+
 mkdir -p "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}"
 
 if [ ! -d "${BACKEND_DIR}" ]; then
@@ -41,6 +45,12 @@ fi
 
 if ! run_in_distro "test -x '${ENV_DIR}/bin/python'"; then
   printf '%s\n' "Python environment not found at ${ENV_DIR} inside ${PROOT_DISTRO}. Run scripts/proot-setup.sh first." >&2
+  exit 1
+fi
+
+runtime_platform="$(runtime_python_platform)"
+if printf '%s' "${runtime_platform}" | grep -qi 'android'; then
+  printf '%s\n' "Python environment at ${ENV_DIR} is Android-native (${runtime_platform}). Rerun scripts/proot-setup.sh so it can rebuild the environment inside ${PROOT_DISTRO}." >&2
   exit 1
 fi
 

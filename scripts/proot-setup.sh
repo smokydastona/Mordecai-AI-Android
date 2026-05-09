@@ -33,6 +33,10 @@ ensure_proot_distro() {
   proot-distro install "${PROOT_DISTRO}"
 }
 
+runtime_python_platform() {
+  run_in_distro "'${ENV_DIR}/bin/python' -c 'import sysconfig; print(sysconfig.get_platform())'"
+}
+
 sync_runtime_scripts() {
   local source_dir="${BACKEND_DIR}/scripts"
   mkdir -p "${SCRIPT_DIR}"
@@ -92,6 +96,13 @@ run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get in
 
 if ! run_in_distro "test -x '${ENV_DIR}/bin/python'"; then
   printf '%s\n' 'Creating Python environment inside proot...'
+  run_in_distro "python3 -m venv '${ENV_DIR}'"
+fi
+
+runtime_platform="$(runtime_python_platform)"
+if printf '%s' "${runtime_platform}" | grep -qi 'android'; then
+  printf '%s\n' 'Replacing Android-native virtual environment with a proot Linux environment...'
+  rm -rf "${ENV_DIR}"
   run_in_distro "python3 -m venv '${ENV_DIR}'"
 fi
 

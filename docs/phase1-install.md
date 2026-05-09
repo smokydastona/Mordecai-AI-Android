@@ -27,6 +27,8 @@ The installer will:
 
 On Android, the install no longer depends on Android-native Python wheels for `psutil` or `pydantic-core`. The backend is installed inside the Linux `proot-distro` environment, and Mordecai still uses a standard-library watchdog fallback when `psutil` is unavailable.
 
+If an earlier failed install already created `$HOME/mordecai/env` from Termux Python, the installer now detects that Android-native virtual environment and rebuilds it inside `proot-distro` automatically.
+
 ## 3. Start Mordecai
 
 ```bash
