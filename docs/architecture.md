@@ -124,3 +124,61 @@ Workflow actions should stay on supported major versions so runner-runtime chang
 - extend trace surfaces into a real operational cockpit
 - expand Android-native tool providers without weakening the permission model
 - keep self-modification test-gated on every promotion path and rollback-first
+
+## Deployment contracts
+
+### Mode A contract
+
+Mode A is the portable deployment path that ships today. Its contract is:
+
+- Termux hosts the public install entrypoint.
+- `proot-distro` provides the Linux runtime boundary.
+- the backend lives under `$HOME/mordecai/backend`
+- the runtime environment lives under `$HOME/mordecai/env`
+- state, cache, logs, models, and exported runtime contracts live under `$HOME/mordecai/data`
+- lifecycle entrypoints live under `$HOME/mordecai/scripts`
+
+Mode A intentionally keeps Android automation and root-only actions off by default. The runtime must remain fully usable even when the phone is non-rooted and only the localhost dashboard plus API are available.
+
+### Mode B contract
+
+Mode B is the advanced-device path for rooted or specially prepared hardware. It extends the same runtime core rather than replacing it. Its contract is:
+
+- Mode A remains the foundation and recovery path.
+- root-dependent control is additive, not baseline.
+- rooted shell actions stay permission-gated and policy-visible.
+- any recovery-tree or Magisk integration must leave a recoverable route back to Mode A behavior.
+
+Mode B must never become a silent bypass around the policy, proxy, provider, or tool-manifest layers.
+
+## Formal runtime contracts
+
+Mordecai now exposes two explicit machine-readable runtime contracts:
+
+- provider registry: `/api/runtime/provider-registry`
+- tool manifest: `/api/runtime/tool-manifest`
+
+These contracts are also exportable through `python -m mordecai.runtime_contracts` into the runtime state directory. They are meant to support:
+
+- dashboard and shell introspection
+- first-boot verification
+- future plugin and extension compatibility checks
+- operator-visible debugging without source inspection
+
+The provider registry records which providers exist, whether they are local or remote, which one is currently preferred, and the capability boundaries the runtime will route against.
+
+The tool manifest records the canonical tool name, owning provider, permission requirements, input and output schemas, confirmation policy, sandbox profile, and default execution policy values surfaced by the runtime.
+
+## First-boot flow
+
+Phase 1 now has a formal first-boot verifier in `scripts/first_boot.sh`. That entrypoint exists to turn the install contract into an observable startup contract:
+
+- verify backend and environment layout
+- ensure the runtime environment is Linux-hosted rather than Android-native
+- initialize git metadata if the portable checkout lacks it
+- export provider and tool contracts into state
+- start the dashboard runtime
+- query the live policy report
+- verify the expected proxy allowlist hosts needed by the shipped install path
+
+This keeps first boot explicit and debuggable instead of assuming that a successful installer run means the runtime is operator-ready.

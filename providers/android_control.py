@@ -13,6 +13,7 @@ class AndroidControlToolProvider:
             (
                 ToolManifest(
                     tool="android.control",
+                    provider="provider.android-control",
                     permissions=("android-control",),
                     description="Execute allowlisted Android control actions through adb.",
                     input_schema={"action": "string", "arguments": "array"},

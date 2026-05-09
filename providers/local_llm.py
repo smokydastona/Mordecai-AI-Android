@@ -13,6 +13,7 @@ class LocalLLMToolProvider:
             (
                 ToolManifest(
                     tool="local-llm.chat",
+                    provider="provider.local-llm",
                     permissions=("llm",),
                     description="Run a local-first language-model completion.",
                     input_schema={"message": "string", "system_prompt": "string", "context": "string"},

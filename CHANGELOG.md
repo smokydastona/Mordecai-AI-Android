@@ -63,6 +63,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - The Termux installer now downloads the default local model bundle automatically, downloads the rolling `android-shell-latest` APK release asset automatically, and installs the shell app through silent root install or the Android package installer when running on standard phones.
 - Mordecai now includes a dedicated debugging guide with a top-5-by-scenario matrix for phone, backend, and network failures, and the Termux installer now supports an optional `MORDECAI_INSTALL_DEBUG_TOOLKIT=true` path that installs backend and network debugging tools into the Linux runtime.
 - The one-command Termux installer now provisions the default phone-supported local model runtime binaries by default, building `llama.cpp` and installing `openai-whisper` plus `piper-tts` so the bundled phone-starter assets are actually runnable after install.
+- Mordecai now exposes formal provider and tool contract exports through new runtime endpoints and `python -m mordecai.runtime_contracts`, and the portable phone install now includes a `scripts/first_boot.sh` verifier that exports those contracts, starts the dashboard, saves the policy report, and verifies the baseline proxy allowlist.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.
@@ -87,6 +88,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Phase 1 Termux lifecycle scripts now launch and update the backend through the Linux `proot-distro` layer instead of Android-native Python.
 - Phase 1 Termux lifecycle scripts now default to the pinned `ubuntu-24.04` profile, while still allowing `MORDECAI_PROOT_DISTRO` overrides for other distros.
 - README now documents automatic replacement of a previously created Android-native virtual environment during Phase 1 reinstalls.
+- Architecture, persona, roadmap, Mode A versus Mode B, and Phase 1 install docs now document the first-boot workflow, formal runtime contracts, and the split between the public portable install path and the advanced rooted-device path.
 
 - Avatar profile wiring now discovers every SVG under `assets/avatar/`, keeps a stable preferred display order, and exposes the full asset set through `/api/avatar` instead of a fixed seven-frame list.
 - Project positioning now frames Mordecai as a multi-phone Android runtime, with the Galaxy S10e retained as an advanced reference device instead of the implied default target.

@@ -122,6 +122,25 @@ def test_local_models_endpoint_returns_catalog(tmp_path, monkeypatch):
     assert any(bundle["bundle_id"] == "voice-asr-whispercpp-phone" for bundle in payload["bundles"])
 
 
+def test_runtime_contract_endpoints_return_provider_and_tool_manifests(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    provider_response = client.get("/api/runtime/provider-registry")
+    tool_response = client.get("/api/runtime/tool-manifest")
+
+    assert provider_response.status_code == 200
+    assert tool_response.status_code == 200
+
+    provider_payload = provider_response.json()
+    tool_payload = tool_response.json()
+
+    assert provider_payload["contract"] == "provider-registry"
+    assert any(provider["name"] == "rule-based" for provider in provider_payload["providers"])
+    assert tool_payload["contract"] == "tool-manifest"
+    assert any(tool["tool"] == "git.status" and tool["provider"] == "core.git" for tool in tool_payload["tools"])
+    assert any(tool["tool"] == "filesystem.read" and tool["default_timeout_seconds"] == 10.0 for tool in tool_payload["tools"])
+
+
 def test_local_model_install_endpoint_downloads_bundle_assets(tmp_path, monkeypatch):
     client = build_test_client(tmp_path, monkeypatch)
     settings = get_settings()

@@ -54,6 +54,9 @@ class ProviderRouter:
     def recent_decisions(self) -> list[dict[str, Any]]:
         return list(self._recent_decisions[-20:])
 
+    def preferred_provider_name(self) -> str:
+        return self._preferred_provider_name()
+
     def _preferred_provider_name(self) -> str:
         required_fields = [self.settings.openai_api_key, self.settings.openai_base_url, self.settings.openai_model]
         if all(required_fields):

@@ -13,6 +13,7 @@ class GitOpsToolProvider:
             (
                 ToolManifest(
                     tool="git.backup",
+                    provider="provider.git",
                     permissions=("git",),
                     description="Create a git backup commit and optionally push it.",
                     input_schema={"message": "string", "push": "boolean"},

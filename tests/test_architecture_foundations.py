@@ -229,7 +229,18 @@ def test_runtime_components_execute_tools_and_discover_capabilities():
     assert isinstance(result.output, dict)
     assert "tools" in capabilities
     assert "providers" in capabilities
-    assert any(tool["tool"] == "git.status" for tool in capabilities["tools"])
+    assert any(tool["tool"] == "git.status" and tool["provider"] == "core.git" for tool in capabilities["tools"])
+
+
+def test_runtime_capability_manifest_includes_tool_execution_defaults():
+    components = get_runtime_components()
+
+    capabilities = components.discover_capabilities()
+    git_status = next(tool for tool in capabilities["tools"] if tool["tool"] == "git.status")
+
+    assert git_status["provider"] == "core.git"
+    assert git_status["default_timeout_seconds"] == 10.0
+    assert git_status["default_max_retries"] == 0
 
 
 def test_runtime_components_hide_android_and_shell_tools_in_mode_a(tmp_path, monkeypatch):

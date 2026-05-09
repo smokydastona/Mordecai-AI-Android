@@ -27,6 +27,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Canonical architecture foundations for a unified tool registry, replaceable provider contracts, and an observable event bus in `mordecai_core/`
 - Structured tool execution engine with runtime context, permission checks, validation, retries, timeouts, cooperative cancellation, and execution telemetry
 - Developer trace and capability surfaces for provider routing, tool policy metadata, and runtime event inspection
+- Formal runtime contract exports for providers and tools through `/api/runtime/provider-registry`, `/api/runtime/tool-manifest`, and `python -m mordecai.runtime_contracts`
 - Persisted execution history and an operator-facing dashboard tool runner for direct invocation of registered tools
 - Phase 1 Termux installer and lifecycle scripts for portable Mode A deployment under `$HOME/mordecai`
 - Native Android shell app with a WebView dashboard, foreground supervision service, wake-phrase listening, Termux command bridge, and root-gated advanced mode controls
@@ -95,6 +96,7 @@ src/mordecai/
   watchdog.py
 prompts/system_prompt.txt
 scripts/proot-setup.sh
+scripts/first_boot.sh
 scripts/start.sh
 scripts/stop.sh
 scripts/start_server.ps1
@@ -192,6 +194,12 @@ Then start the backend:
 $HOME/mordecai/scripts/start.sh
 ```
 
+Or use the first-boot verifier to export the runtime contracts, save the live policy report, verify the baseline proxy allowlist, and start the dashboard in one pass:
+
+```bash
+$HOME/mordecai/scripts/first_boot.sh
+```
+
 This install flow creates:
 
 - `$HOME/mordecai/backend`
@@ -204,6 +212,8 @@ The virtual environment is created and used inside the Linux `proot-distro` laye
 If you need a different distro alias, set `MORDECAI_PROOT_DISTRO` before running the installer. If you need to retarget the pinned Ubuntu profile to a different `noble` image serial or mirror, set `MORDECAI_UBUNTU_24_04_RELEASE` and optionally `MORDECAI_UBUNTU_24_04_BASE_URL` before running `proot-setup.sh`.
 
 Phase 1 runs only on `127.0.0.1` by default and does not expose Android automation, daemon mode, or other Mode B-only behavior.
+
+Mode B remains an explicit advanced-device path layered on top of a working Mode A install. The install split and operational expectations are documented in `docs/modeA-vs-modeB.md`.
 
 ## Important operating constraints
 

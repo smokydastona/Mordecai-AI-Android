@@ -14,6 +14,7 @@ class CloudLLMToolProvider:
             (
                 ToolManifest(
                     tool="cloud-llm.chat",
+                    provider="provider.cloud-llm",
                     permissions=("network", "llm"),
                     description="Run a cloud language-model completion through the safe proxy.",
                     input_schema={"message": "string", "system_prompt": "string", "context": "string"},

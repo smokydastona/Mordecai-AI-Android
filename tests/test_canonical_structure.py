@@ -95,6 +95,16 @@ def test_start_script_exports_local_runtime_bin_path():
     assert 'export PATH="${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' in start_script
 
 
+def test_first_boot_script_exports_runtime_contracts_and_verifies_policy():
+    first_boot = Path("scripts/first_boot.sh").read_text(encoding="utf-8")
+
+    assert "python' -m mordecai.runtime_contracts --export-dir" in first_boot
+    assert '/api/runtime/provider-registry' in first_boot
+    assert '/api/runtime/tool-manifest' in first_boot
+    assert '/api/policy' in first_boot
+    assert 'REQUIRED_PROXY_HOSTS="api.github.com github.com hf.co huggingface.co"' in first_boot
+
+
 def test_debugging_guide_exists_with_scenario_matrix():
     guide = Path("docs/debugging-guide.md").read_text(encoding="utf-8")
 

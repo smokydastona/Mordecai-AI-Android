@@ -7,6 +7,7 @@ from mordecai.bootstrap import build_runtime
 from mordecai.dashboard import render_dashboard
 from mordecai.local_models import LocalModelService
 from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, VoiceSynthesizeRequest, VoiceTranscribeRequest, WebSearchRequest
+from mordecai.runtime_contracts import provider_registry_snapshot, tool_manifest_snapshot
 from mordecai.store import StateStoreError
 from mordecai.voice import VoiceService
 from mordecai_core.tool_registry import RuntimeContext
@@ -121,6 +122,14 @@ def create_app() -> FastAPI:
     @app.get("/api/runtime/capabilities")
     async def runtime_capabilities() -> dict[str, object]:
         return components.discover_capabilities()
+
+    @app.get("/api/runtime/provider-registry")
+    async def runtime_provider_registry() -> dict[str, object]:
+        return provider_registry_snapshot(components)
+
+    @app.get("/api/runtime/tool-manifest")
+    async def runtime_tool_manifest() -> dict[str, object]:
+        return tool_manifest_snapshot(components)
 
     @app.get("/api/proxy/logs")
     async def proxy_logs() -> list[dict[str, object]]:

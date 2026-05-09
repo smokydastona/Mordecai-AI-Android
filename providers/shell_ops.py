@@ -18,6 +18,7 @@ class ShellToolProvider:
             (
                 ToolManifest(
                     tool="shell.run",
+                    provider="provider.shell",
                     permissions=("shell",),
                     description="Run a bounded local command inside the workspace.",
                     input_schema={"command": "array", "cwd": "string"},

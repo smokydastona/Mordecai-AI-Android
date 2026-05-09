@@ -94,3 +94,52 @@ This keeps the runtime from hard-wiring itself to a single model vendor, makes d
 5. Permission escalation remains progressive and task-driven.
 6. Runtime execution context must stay typed and explicit rather than expanding through arbitrary dictionaries.
 7. High-risk providers such as shell and accessibility tools must use the same execution registry, permission checks, and failure taxonomy as lower-risk tools.
+
+## Formal registry surfaces
+
+The modular foundation is no longer only an internal abstraction. It now has explicit exported surfaces.
+
+### Provider registry
+
+The provider registry is the machine-readable contract for model and reasoning backends. It answers:
+
+- which providers are present
+- whether each provider is local or remote
+- which provider is currently preferred
+- what capability envelope each provider exposes
+
+This prevents the runtime from silently drifting into hard-coded provider selection logic that only exists in source.
+
+### Tool manifest
+
+The tool manifest is the machine-readable contract for the execution surface. Each entry now carries:
+
+- tool name
+- owning provider
+- permission requirements
+- input and output schema
+- risk and confirmation policy
+- safe-mode behavior
+- sandbox profile
+- default timeout and retry policy values surfaced by the runtime
+
+That manifest is the canonical operational inventory for the system. The dashboard, shell, tests, and future extension surfaces should all be able to rely on it.
+
+### First-boot verification as a foundation primitive
+
+`scripts/first_boot.sh` is now part of the modular foundation rather than just installer glue. It verifies that:
+
+- the deployment layout matches the portable contract
+- exported provider and tool contracts can be generated successfully
+- the dashboard can be started from the deployed scripts
+- the policy report is readable from the live API
+- the outbound allowlist still includes the baseline hosts required by the shipped install path
+
+That makes deployment a contract-checked surface, not just a sequence of best-effort commands.
+
+## Foundation invariants
+
+- A provider or tool that cannot be described through the formal registry surface is not ready to ship.
+- Safe-mode behavior must be observable through the tool manifest, not hidden in implementation details.
+- Execution defaults must be inspectable so operators can reason about timeout and retry behavior.
+- First boot must produce artifacts and reports that can be inspected after failure.

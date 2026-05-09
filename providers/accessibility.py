@@ -18,6 +18,7 @@ class AccessibilityToolProvider:
             (
                 ToolManifest(
                     tool="android.accessibility_dump",
+                    provider="provider.accessibility",
                     permissions=("android-control", "accessibility"),
                     description="Capture a read-only UI hierarchy dump through adb and uiautomator.",
                     input_schema={},

@@ -48,7 +48,7 @@ run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools w
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
 
 mkdir -p "${SCRIPT_DIR}"
-for script_name in proot-setup.sh start.sh stop.sh termux_boot.sh update.sh; do
+for script_name in first_boot.sh proot-setup.sh start.sh stop.sh termux_boot.sh update.sh; do
   cp "${BACKEND_DIR}/scripts/${script_name}" "${SCRIPT_DIR}/${script_name}"
   chmod 755 "${SCRIPT_DIR}/${script_name}"
 done

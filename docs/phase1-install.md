@@ -53,6 +53,12 @@ If you want the installer to provision the optional Mordecai debugging toolkit i
 $HOME/mordecai/scripts/start.sh
 ```
 
+Or run the full first-boot verifier instead:
+
+```bash
+$HOME/mordecai/scripts/first_boot.sh
+```
+
 What this does:
 
 - loads the local `.env`
@@ -60,6 +66,8 @@ What this does:
 - starts the backend from inside the configured `proot-distro` in the background
 - writes the PID file to `data/logs/backend.pid`
 - writes runtime output to `data/logs/backend.log`
+
+The first-boot verifier goes further than `start.sh`. It exports `provider-registry.json` and `tool-manifest.json` into `$HOME/mordecai/data/state/contracts/`, saves the live policy report, and verifies the baseline proxy allowlist hosts used by the shipped install path.
 
 ## 4. Open The Dashboard
 

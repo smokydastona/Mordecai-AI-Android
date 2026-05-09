@@ -129,12 +129,15 @@ class ToolManifest:
     tool: str
     permissions: tuple[str, ...]
     description: str
+    provider: str = "runtime"
     input_schema: dict[str, object] = field(default_factory=dict)
     output_schema: dict[str, object] = field(default_factory=dict)
     risk_level: Literal["low", "moderate", "high"] = "low"
     confirmation_policy: Literal["never", "on-request", "always"] = "never"
     safe_mode_behavior: Literal["allow", "deny", "read-only"] = "allow"
     sandbox_profile: Literal["trusted", "workspace-write", "networked", "device-control"] = "trusted"
+    default_timeout_seconds: float = 10.0
+    default_max_retries: int = 0
 
 
 class ToolRegistry:
@@ -159,6 +162,7 @@ class ToolRegistry:
         return [
             {
                 "tool": manifest.tool,
+                "provider": manifest.provider,
                 "permissions": list(manifest.permissions),
                 "description": manifest.description,
                 "input_schema": manifest.input_schema,
@@ -167,6 +171,8 @@ class ToolRegistry:
                 "confirmation_policy": manifest.confirmation_policy,
                 "safe_mode_behavior": manifest.safe_mode_behavior,
                 "sandbox_profile": manifest.sandbox_profile,
+                "default_timeout_seconds": manifest.default_timeout_seconds,
+                "default_max_retries": manifest.default_max_retries,
             }
             for manifest in self.list_tools()
         ]

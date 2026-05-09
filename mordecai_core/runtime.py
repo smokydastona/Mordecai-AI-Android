@@ -92,6 +92,7 @@ def _build_tool_registry(
     registry.register(
         ToolManifest(
             tool="filesystem.read",
+            provider="core.filesystem",
             permissions=("storage",),
             description="Read file contents from the workspace.",
             input_schema={"path": "string"},
@@ -104,6 +105,7 @@ def _build_tool_registry(
     registry.register(
         ToolManifest(
             tool="filesystem.write",
+            provider="core.filesystem",
             permissions=("storage",),
             description="Write file contents inside the workspace.",
             input_schema={"path": "string", "content": "string"},
@@ -117,6 +119,7 @@ def _build_tool_registry(
     registry.register(
         ToolManifest(
             tool="git.status",
+            provider="core.git",
             permissions=("git",),
             description="Inspect repository status.",
             output_schema={"branch": "string", "dirty": "boolean"},
@@ -128,6 +131,7 @@ def _build_tool_registry(
     registry.register(
         ToolManifest(
             tool="web.search",
+            provider="core.proxy",
             permissions=("network",),
             description="Run a safe web search through the outbound proxy.",
             input_schema={"query": "string"},
@@ -141,6 +145,7 @@ def _build_tool_registry(
     registry.register(
         ToolManifest(
             tool="github.search",
+            provider="core.proxy",
             permissions=("network",),
             description="Search GitHub repositories through the safe outbound proxy.",
             input_schema={"query": "string", "limit": "integer"},

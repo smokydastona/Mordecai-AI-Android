@@ -206,7 +206,7 @@ runtime_python_platform() {
 sync_runtime_scripts() {
   local source_dir="${BACKEND_DIR}/scripts"
   mkdir -p "${SCRIPT_DIR}"
-  for script_name in proot-setup.sh start.sh stop.sh termux_boot.sh update.sh; do
+  for script_name in first_boot.sh proot-setup.sh start.sh stop.sh termux_boot.sh update.sh; do
     if [ -f "${source_dir}/${script_name}" ]; then
       cp "${source_dir}/${script_name}" "${SCRIPT_DIR}/${script_name}"
       chmod 755 "${SCRIPT_DIR}/${script_name}"
@@ -412,4 +412,5 @@ printf 'Runtime layer: %s (%s)\n' 'proot-distro' "${PROOT_DISTRO}"
 printf 'Local model runtimes: %s\n' "${INSTALL_LOCAL_MODEL_BINARIES}"
 printf 'Debug toolkit: %s\n' "${INSTALL_DEBUG_TOOLKIT}"
 printf 'Start command: %s\n' "${SCRIPT_DIR}/start.sh"
+printf 'First boot check: %s\n' "${SCRIPT_DIR}/first_boot.sh"
 printf 'Dashboard URL: %s\n' 'http://127.0.0.1:8000'

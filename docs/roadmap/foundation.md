@@ -31,3 +31,37 @@ This roadmap translates the current strategic direction into execution order.
 - add plugin SDK and manifest format
 - support downloadable tool packs and provider packs
 - expose community extension points only after the core contracts are stable
+
+## Exit criteria by phase
+
+### Phase 1 exit criteria
+
+- portable Mode A install is reproducible from the public Termux command
+- first boot exports provider and tool contracts successfully
+- dashboard, policy report, and localhost API all come up from the deployed scripts
+- core provider and tool surfaces are discoverable without reading source code
+- docs explain Mode A install and Mode B gating clearly enough that operators do not need to infer the difference
+
+### Phase 2 exit criteria
+
+- Android-native shell supervision is reliable on supported devices
+- advanced automation remains opt-in and policy-auditable
+- failure paths preserve enough evidence for device debugging and rollback
+
+### Phase 3 exit criteria
+
+- planner and executor slices use the formal tool manifest instead of ad hoc tool assumptions
+- provider routing decisions are traceable and debuggable through the runtime API
+- replay and verification flows can explain why a tool chain succeeded or failed
+
+### Phase 4 exit criteria
+
+- extension points consume the same provider and tool contracts already used by the core runtime
+- no plugin path bypasses permission checks, safe mode, or policy enforcement
+
+## Current high-impact priorities
+
+- keep the Mode A install surface honest and fully documented
+- treat exported contracts as part of the shipped operator surface
+- harden first boot and recovery procedures before widening automation scope
+- make Mode B documentation precise enough that rooted-device work does not bleed into the default install story
