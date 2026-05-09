@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Voice Model Ecosystem Index**: Added a curated open-source AI voice model index to `voice/README.md` covering TTS, voice-cloning, and audio-generation repositories (Awesome AI Voice, WhisperSpeech, Kokoro, XTTS v2, Bark, Piper, Fish Speech, Dia, F5-TTS, Parler-TTS, OmniVoice), plus practical integration guidance for Mordecai.
 - **Mode B Ecosystem Resources**: Comprehensive GitHub index added to `docs/mode-b-automation.md` cataloging 20+ device tree, kernel, recovery, rooting, and flashing tool repositories. Includes critical path (ExtremeXT device tree + Magisk + TWRP), alternatives (SHRP, KernelSU, Heimdall), and reference resources (security research, TrustZone).
 - **Mode B Rooted Shell Automation**: Extended `AndroidController` with rooted shell actions (getprop, settings queries, dumpsys, process queries) gated behind `enable_mode_b=True` configuration flag. All Mode B commands require explicit policy enforcement and operator approval. Added comprehensive input validation and command injection prevention.
 - **Mode B Recovery State API**: New `GET /api/android/mode-b/state` endpoint queries recovery-layer initialization state written by custom device tree during boot. Returns bootloader status, ro.secure, build fingerprint, system-as-root detection, and Magisk presence.
