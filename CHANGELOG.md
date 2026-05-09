@@ -13,6 +13,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - Phase 1 installer now sets `PD_OVERRIDE_TARBALL_SHA256` during tarball URL overrides so `proot-distro` fallback installs do not abort under `set -u`.
 - Phase 1 installer now falls back by downloading the rootfs archive itself with `curl --http1.1`, verifying the plugin SHA-256, and handing `proot-distro` a local `file://` tarball when the default host fails.
 - Phase 1 installer now generates and defaults to a pinned `ubuntu-24.04` `proot-distro` profile so phone installs do not follow the moving upstream Ubuntu alias.
+- The pinned `ubuntu-24.04` profile now follows Canonical `cloud-images.ubuntu.com/noble/<serial>` root tarballs with known arm64 and armhf checksums instead of a generic Ubuntu Base URL pattern.
 
 - Permanent avatar assets under `assets/avatar/` plus backend avatar state and dashboard rendering.
 - Android shell voice command loop with one-shot speech capture, backend chat dispatch, TTS reply playback, notification action entrypoint, and quick-settings tile support.

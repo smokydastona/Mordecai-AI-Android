@@ -27,7 +27,7 @@ The installer will:
 
 On Android, the install no longer depends on Android-native Python wheels for `psutil` or `pydantic-core`. The backend is installed inside the Linux `proot-distro` environment, and Mordecai still uses a standard-library watchdog fallback when `psutil` is unavailable.
 
-By default, Mordecai now pins its Termux runtime to a generated `ubuntu-24.04` profile so the install does not track the moving upstream `ubuntu` alias.
+By default, Mordecai now pins its Termux runtime to a generated `ubuntu-24.04` profile backed by Canonical `cloud-images.ubuntu.com` `noble` root tarballs, so the install does not track the moving upstream `ubuntu` alias.
 
 If an earlier failed install already created `$HOME/mordecai/env` from Termux Python, the installer now detects that Android-native virtual environment and rebuilds it inside `proot-distro` automatically.
 
@@ -86,5 +86,5 @@ $HOME/mordecai/scripts/update.sh
 - if `start.sh` says the backend is already running, inspect `data/logs/backend.pid` and `data/logs/backend.log`
 - if the install fails during package setup, run `pkg update -y` and retry the installer
 - if `pip` reports Android-native build failures such as `psutil` or `pydantic-core`, update the backend checkout and rerun the installer so the `proot-distro` install path is picked up
-- if `proot-distro` fails to fetch a rootfs archive for the pinned `ubuntu-24.04` profile, confirm the Ubuntu Base mirror is reachable or override `MORDECAI_UBUNTU_24_04_BASE_URL` before rerunning the installer
+- if `proot-distro` fails to fetch a rootfs archive for the pinned `ubuntu-24.04` profile, confirm `cloud-images.ubuntu.com` is reachable or override `MORDECAI_UBUNTU_24_04_BASE_URL` before rerunning the installer
 - if the dashboard does not load, confirm the service is bound to `127.0.0.1` and that the port in `.env` matches the URL you opened
