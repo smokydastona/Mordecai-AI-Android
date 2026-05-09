@@ -11,6 +11,7 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - `CHANGELOG.md` tracks notable repository changes.
 - `README.md`, `docs/`, and `.github/copilot-instructions.md` are treated as first-class project surfaces and must be updated with implementation and workflow changes.
 - CI now includes a documentation sync gate that fails when implementation changes are pushed without the changelog and required docs updates.
+- Recent CI workflow fixes also require matching README, changelog, and docs updates even when the code change is only in `.github/`, including the Android shell rolling-release publication path handling.
 
 ## What is implemented
 

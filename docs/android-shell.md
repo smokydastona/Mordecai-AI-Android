@@ -48,6 +48,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - CI now runs the wrapper-backed Android build and uploads the debug APK as an artifact
 - pushes to `main` now also republish a rolling `android-shell-latest` GitHub release asset so the Termux installer has a stable APK download target, with the workflow staging the built APK to a deterministic filename before release publication
 - the release-publication job now resolves the downloaded APK with `find` under the artifact directory before calling `gh release create`, which avoids path mismatches caused by retained upload directory structure
+- this release-publication path handling is part of the required documentation-sync surface, because the installer depends on the rolling `android-shell-latest` asset remaining stable across CI changes
 - CI provisions Android SDK packages through `android-actions/setup-android@v4` instead of a manual `sdkmanager --licenses` pipe, which avoids broken-pipe failures under `bash -o pipefail`
 - the repository tracks `gradlew` with the executable bit, and Linux CI still applies `chmod +x ./gradlew` defensively before invoking it
 - the app module depends on `androidx.lifecycle:lifecycle-service` because the foreground supervisor is implemented as a `LifecycleService`

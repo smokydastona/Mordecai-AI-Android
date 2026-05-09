@@ -17,6 +17,7 @@ All notable changes to Mordecai-AI-Android are documented in this file.
 - **CRITICAL**: Self-improvement test runner now captures detailed error information instead of silently marking tests as failed. Added comprehensive exception handling, timeout detection (30s), and environment validation to `_run_tests()`.
 - **CRITICAL**: StateStore now uses atomic file writes with temporary file + rename pattern to prevent data loss under concurrent access (TOCTOU race condition fixed).
 - **HIGH**: The `android-shell-latest` release job now stages the built APK to a deterministic artifact path and checks out repository context before invoking `gh`, fixing the failing release publication step in CI.
+- **HIGH**: Follow-up docs sync now explicitly records the Android shell rolling-release path-resolution workflow behavior so `.github`-only CI fixes satisfy the repository documentation gate.
 - **CRITICAL**: Avatar emotion classification now uses comprehensive token scoring across all emotions instead of early return pattern that fell back to neutral 30% of the time.
 - **HIGH**: Workspace directory is now automatically created during config initialization instead of failing with validation error.
 - **HIGH**: Exception handling in FastAPI endpoints now properly preserves and re-raises system exceptions (KeyboardInterrupt, SystemExit) instead of masking them as HTTP 500 errors.
