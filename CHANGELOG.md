@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+
+- **Mode B Rooted Shell Automation**: Extended `AndroidController` with rooted shell actions (getprop, settings queries, dumpsys, process queries) gated behind `enable_mode_b=True` configuration flag. All Mode B commands require explicit policy enforcement and operator approval. Added comprehensive input validation and command injection prevention.
+- **Mode B Recovery State API**: New `GET /api/android/mode-b/state` endpoint queries recovery-layer initialization state written by custom device tree during boot. Returns bootloader status, ro.secure, build fingerprint, system-as-root detection, and Magisk presence.
+- **Mode B Action Endpoint**: New `POST /api/android/mode-b/action` endpoint executes privileged rooted shell commands with policy enforcement. Actions include: `mode_b_get_property`, `mode_b_get_setting`, `mode_b_query_battery`, `mode_b_query_display`, `mode_b_query_processes`.
+- **Mode B Documentation**: New `docs/mode-b-automation.md` provides comprehensive two-tier automation architecture guide covering rooted Magisk layer and custom TWRP recovery tree integration for Galaxy S10e reference device. Includes safety boundaries, operational checklists, and build instructions for custom device tree.
+- **Config Extension**: Added `enable_mode_b` boolean setting to control Mode B automation access at runtime.
+
+### Changed
+
+- `AndroidController.perform()` now logs errors and provides detailed failure context for debugging.
+- Input validation now enforces coordinate bounds (0-2000), swipe duration limits (100-5000ms), and character whitelisting for text input.
+
 - enforce self-improvement test gating on every apply path, including manual promotion of sandbox candidates
 - expand self-improvement protected-path coverage to core execution and provider surfaces
 - surface state store corruption and save failures as explicit runtime errors instead of silent fallbacks

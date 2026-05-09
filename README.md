@@ -40,6 +40,10 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Local dashboard memory browser for recent conversation inspection
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels
 - Local model registry is now exposed through the runtime API and capabilities dashboard, including Whisper, Piper, cloud, Ollama, `llama.cpp`, and `llamafile` chat profiles
+- Mode B rooted shell automation for Galaxy S10e reference device, with two-tier control: Magisk-based input injection and settings queries, plus custom TWRP recovery tree integration for boot-time state capture and device verification
+- Mode B API endpoints for rooted actions: input tap/swipe, property queries, settings get, dumpsys battery/display, and process queries, all gated behind `enable_mode_b=True` configuration and policy enforcement
+- Mode B recovery state API queries boot-time device state including bootloader status, ROM fingerprint, system-as-root detection, and Magisk presence
+- Mode B comprehensive documentation at `docs/mode-b-automation.md` covering two-tier architecture, safe defaults, operational checklists, and custom device tree build instructions for S10e
 
 ## Reliability and Security
 

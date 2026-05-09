@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     service_port: int = 8000
     mode: str = "mode-a"
     enable_android_control: bool = False
+    enable_mode_b: bool = False
     enable_advanced_self_improvement: bool = False
     enable_daemon_mode: bool = False
     allow_git_push: bool = False

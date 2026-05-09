@@ -269,6 +269,25 @@ def create_app() -> FastAPI:
         except Exception as exc:  # pragma: no cover - surfaced for API clients
             raise_mapped_exception(exc)
 
+    @app.get("/api/android/mode-b/state")
+    async def mode_b_state() -> dict[str, object]:
+        """Query recovery-layer Mode B initialization state."""
+        try:
+            return android.get_mode_b_state()
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+
+    @app.post("/api/android/mode-b/action")
+    async def mode_b_action(request: AndroidActionRequest) -> dict[str, object]:
+        """Execute Mode B rooted shell actions."""
+        try:
+            # Ensure action is a Mode B action
+            if not request.action.startswith("mode_b_"):
+                raise ValueError(f"Use /api/android/action for non-Mode-B actions; use 'mode_b_' prefix for Mode B actions")
+            return android.perform(request.action, request.arguments)
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+
     return app
 
 
