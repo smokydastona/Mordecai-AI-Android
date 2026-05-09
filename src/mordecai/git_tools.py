@@ -15,6 +15,7 @@ class GitService:
             text=True,
             capture_output=True,
             check=False,
+            errors="replace",
         )
 
     def status(self) -> dict[str, object]:

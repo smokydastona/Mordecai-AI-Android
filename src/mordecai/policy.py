@@ -50,14 +50,14 @@ class PolicyEngine:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.protected_paths = {
+        self.protected_paths = frozenset({
             "src/mordecai/policy.py",
             "src/mordecai/proxy.py",
             "src/mordecai/self_improvement.py",
             "src/mordecai/config.py",
             "src/mordecai/avatar.py",
             "prompts/system_prompt.txt",
-        }
+        })
         self.protected_prefixes = (
             "assets/avatar/",
         )

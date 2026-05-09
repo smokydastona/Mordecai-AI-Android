@@ -148,12 +148,23 @@ class SelfImprovementManager:
         return workspace_copy
 
     def _run_tests(self, workspace_dir: Path) -> tuple[bool, str]:
-        result = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q"],
-            cwd=workspace_dir,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        output = (result.stdout + "\n" + result.stderr).strip()
-        return result.returncode == 0, output
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q"],
+                cwd=workspace_dir,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                return True, result.stdout.strip() or "Tests passed"
+            else:
+                error_detail = (result.stderr or result.stdout or "pytest failed").strip()[:500]
+                return False, f"Tests failed: {error_detail}"
+        except subprocess.TimeoutExpired:
+            return False, "Test execution timed out after 30 seconds"
+        except FileNotFoundError:
+            return False, "Python or pytest not found in workspace environment"
+        except Exception as exc:
+            return False, f"Test execution error: {str(exc)[:200]}"

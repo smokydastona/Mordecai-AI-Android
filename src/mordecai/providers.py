@@ -55,8 +55,19 @@ class ProviderRouter:
         return list(self._recent_decisions[-20:])
 
     def _preferred_provider_name(self) -> str:
-        if self.settings.openai_api_key and self.settings.openai_base_url and self.settings.openai_model:
+        required_fields = [self.settings.openai_api_key, self.settings.openai_base_url, self.settings.openai_model]
+        if all(required_fields):
             return "openai-compatible"
+        if any(required_fields):
+            missing = []
+            if not self.settings.openai_api_key:
+                missing.append("openai_api_key")
+            if not self.settings.openai_base_url:
+                missing.append("openai_base_url")
+            if not self.settings.openai_model:
+                missing.append("openai_model")
+            import sys
+            print(f"Warning: OpenAI config incomplete (missing: {', '.join(missing)}). Using rule-based provider instead.", file=sys.stderr)
         return "rule-based"
 
     def _record_decision(self, provider_name: str, outcome: str, requirements: ProviderRequirements) -> None:

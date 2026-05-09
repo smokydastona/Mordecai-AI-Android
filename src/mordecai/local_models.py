@@ -42,7 +42,7 @@ class LocalModelService:
             prompt_format=profile.prompt_format,
             model_path=model_path.as_posix() if model_path else None,
             binary_available=shutil.which(binary) is not None if binary else False,
-            model_available=model_path.exists() if model_path else None,
+            model_available=model_path.exists() if model_path else False,
         )
 
     def _resolve_model_path(self, value: str | None) -> Path | None:

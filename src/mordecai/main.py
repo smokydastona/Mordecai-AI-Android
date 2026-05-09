@@ -64,6 +64,8 @@ def create_app() -> FastAPI:
         )
 
     def raise_mapped_exception(exc: Exception) -> None:
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
         if isinstance(exc, PermissionError):
             raise_api_error(403, "PermissionDenied", str(exc))
         if isinstance(exc, FileNotFoundError):

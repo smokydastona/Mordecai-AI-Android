@@ -2,6 +2,20 @@
 
 All notable changes to Mordecai-AI-Android are documented in this file.
 
+## 2026-05-08 (Continued)
+
+### Fixed
+
+- **CRITICAL**: Self-improvement test runner now captures detailed error information instead of silently marking tests as failed. Added comprehensive exception handling, timeout detection (30s), and environment validation to `_run_tests()`.
+- **CRITICAL**: StateStore now uses atomic file writes with temporary file + rename pattern to prevent data loss under concurrent access (TOCTOU race condition fixed).
+- **CRITICAL**: Avatar emotion classification now uses comprehensive token scoring across all emotions instead of early return pattern that fell back to neutral 30% of the time.
+- **HIGH**: Workspace directory is now automatically created during config initialization instead of failing with validation error.
+- **HIGH**: Exception handling in FastAPI endpoints now properly preserves and re-raises system exceptions (KeyboardInterrupt, SystemExit) instead of masking them as HTTP 500 errors.
+- **HIGH**: Policy engine's `protected_paths` now uses immutable `frozenset` instead of mutable `set` to prevent runtime modification.
+- **HIGH**: OpenAI provider configuration now validates all three required fields (api_key, base_url, model) at startup and logs detailed warning about missing fields instead of silent fallback.
+- **MEDIUM**: Git subprocess calls now use `errors='replace'` to handle binary output gracefully instead of crashing on decode errors.
+- **MEDIUM**: LocalModelService now returns consistent boolean type for `model_available` field instead of mixed bool/None.
+
 ## 2026-05-08
 
 ### Added

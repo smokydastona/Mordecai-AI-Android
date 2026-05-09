@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def resolve_paths(self) -> "Settings":
         workspace_dir = self._normalize_path(self.workspace_dir) if self.workspace_dir else Path.cwd().resolve()
+        workspace_dir.mkdir(parents=True, exist_ok=True)
         install_root = self._normalize_path(self.install_root) if self.install_root else self._default_install_root(workspace_dir)
 
         if self.data_dir:

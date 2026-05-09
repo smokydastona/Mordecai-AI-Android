@@ -39,6 +39,15 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels
 - Local model registry is now exposed through the runtime API and capabilities dashboard, including Whisper, Piper, cloud, and local chat profiles
 
+## Reliability and Security
+
+- Self-improvement test execution now includes comprehensive error handling, timeouts, and detailed failure reporting
+- State store uses atomic file operations to prevent data loss under concurrent access
+- Policy engine uses immutable collections to prevent runtime tampering
+- Configuration validation detects incomplete optional configs and logs warnings
+- Exception handling preserves system interrupts for graceful shutdown
+- Git operations handle binary output and encoding errors gracefully
+
 ## Strategic direction
 
 - Mordecai is being positioned as an Android-native control layer for supported Android phones, not a generic chat app.

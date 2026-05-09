@@ -58,28 +58,59 @@ def build_avatar_profile(settings: Settings, current_emotion: str = DEFAULT_AVAT
 
 def classify_avatar_emotion(reply: str, actions: list[str]) -> str:
     lowered = reply.lower()
+    emotion_scores = {
+        "focus": 0,
+        "concerned": 0,
+        "intrigued": 0,
+        "surprised": 0,
+        "proud": 0,
+        "sleep": 0,
+        "unimpressed": 0,
+        "thinking": 0,
+        "wise-smirk": 0,
+        "happy": 0,
+        "laughing": 0,
+    }
+    
     if any(action in {"github-search", "fetch-url", "web-search"} for action in actions):
-        return "focus"
-    if any(token in lowered for token in ["focus", "analy", "inspect", "investigat", "scan"]):
-        return "focus"
-    if any(token in lowered for token in ["warning", "blocked", "cannot", "failed", "denied", "forbidden"]):
-        return "concerned"
-    if any(token in lowered for token in ["intrigued", "curious", "interesting", "noted"]):
-        return "intrigued"
-    if any(token in lowered for token in ["surprised", "remarkable", "unexpected", "override acknowledged"]):
-        return "surprised"
-    if any(token in lowered for token in ["proud", "excellent", "accomplished", "solid work"]):
-        return "proud"
-    if any(token in lowered for token in ["sleep", "idle", "standby", "rest"]):
-        return "sleep"
-    if any(token in lowered for token in ["unimpressed", "predictable", "ordinary", "routine"]):
-        return "unimpressed"
-    if any(token in lowered for token in ["think", "consider", "plan", "reason"]):
-        return "thinking"
-    if any(token in lowered for token in ["wise", "steady", "stable", "calm", "measured"]):
-        return "wise-smirk"
-    if any(token in lowered for token in ["glad", "good", "great", "done", "complete", "online"]):
-        return "happy"
-    if any(token in lowered for token in ["laugh", "humor", "amusing"]):
-        return "laughing"
+        emotion_scores["focus"] += 3
+    
+    focus_tokens = ["focus", "analy", "inspect", "investigat", "scan", "examine", "review", "study"]
+    emotion_scores["focus"] += sum(1 for token in focus_tokens if token in lowered)
+    
+    concerned_tokens = ["warning", "blocked", "cannot", "failed", "denied", "forbidden", "error", "issue", "problem", "unavailable", "invalid"]
+    emotion_scores["concerned"] += sum(1 for token in concerned_tokens if token in lowered)
+    
+    intrigued_tokens = ["intrigued", "curious", "interesting", "noted", "fascinating", "remarkable"]
+    emotion_scores["intrigued"] += sum(1 for token in intrigued_tokens if token in lowered)
+    
+    surprised_tokens = ["surprised", "unexpected", "override acknowledged", "startling", "astonishing"]
+    emotion_scores["surprised"] += sum(1 for token in surprised_tokens if token in lowered)
+    
+    proud_tokens = ["proud", "excellent", "accomplished", "solid work", "well done", "success", "achieved"]
+    emotion_scores["proud"] += sum(1 for token in proud_tokens if token in lowered)
+    
+    sleep_tokens = ["sleep", "idle", "standby", "rest", "pause", "dormant"]
+    emotion_scores["sleep"] += sum(1 for token in sleep_tokens if token in lowered)
+    
+    unimpressed_tokens = ["unimpressed", "predictable", "ordinary", "routine", "mundane", "trivial"]
+    emotion_scores["unimpressed"] += sum(1 for token in unimpressed_tokens if token in lowered)
+    
+    thinking_tokens = ["think", "consider", "plan", "reason", "reflect", "understand", "analyze", "evaluate"]
+    emotion_scores["thinking"] += sum(1 for token in thinking_tokens if token in lowered)
+    
+    wise_tokens = ["wise", "steady", "stable", "calm", "measured", "prudent", "sage"]
+    emotion_scores["wise-smirk"] += sum(1 for token in wise_tokens if token in lowered)
+    
+    happy_tokens = ["glad", "good", "great", "done", "complete", "online", "ready", "happy", "excellent", "running"]
+    emotion_scores["happy"] += sum(1 for token in happy_tokens if token in lowered)
+    
+    laughing_tokens = ["laugh", "humor", "amusing", "funny", "comic", "hilarious"]
+    emotion_scores["laughing"] += sum(1 for token in laughing_tokens if token in lowered)
+    
+    max_score = max(emotion_scores.values())
+    if max_score > 0:
+        best_emotion = next(emotion for emotion, score in emotion_scores.items() if score == max_score)
+        return best_emotion
+    
     return DEFAULT_AVATAR_EMOTION

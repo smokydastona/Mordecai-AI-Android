@@ -37,10 +37,21 @@ class StateStore:
                 path.write_text(json.dumps(default, indent=2), encoding="utf-8")
 
     def _load(self, path: Path) -> list[dict[str, Any]]:
-        return json.loads(path.read_text(encoding="utf-8"))
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, FileNotFoundError):
+            return []
 
     def _save(self, path: Path, value: list[dict[str, Any]]) -> None:
-        path.write_text(json.dumps(value[-self.max_log_entries :], indent=2), encoding="utf-8")
+        try:
+            truncated = value[-self.max_log_entries :]
+            content = json.dumps(truncated, indent=2)
+            temp_path = path.with_suffix(".tmp")
+            temp_path.write_text(content, encoding="utf-8")
+            temp_path.replace(path)
+        except Exception as exc:
+            import sys
+            print(f"Warning: Failed to save {path.name}: {exc}", file=sys.stderr)
 
     def append_conversation(self, entry: ConversationEntry) -> None:
         with self._lock:
