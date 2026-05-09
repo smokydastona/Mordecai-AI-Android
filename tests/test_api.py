@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 import httpx
 from fastapi.testclient import TestClient
@@ -138,6 +139,99 @@ def test_local_model_install_endpoint_downloads_bundle_assets(tmp_path, monkeypa
     assert (settings.models_dir / "Qwen2.5-3B-Instruct-Q4_K_M.gguf").exists()
     assert (settings.models_dir / "en_US-lessac-medium.onnx").exists()
     assert (settings.models_dir / "en_US-lessac-medium.onnx.json").exists()
+
+
+def test_voice_engines_endpoint_reports_binary_availability(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    def fake_which(binary: str) -> str | None:
+        if binary == "piper":
+            return "C:/tools/piper.exe"
+        if binary == "whisper":
+            return None
+        return None
+
+    monkeypatch.setattr("mordecai.voice.shutil.which", fake_which)
+    response = client.get("/api/voice/engines")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["piper"]["available"] is True
+    assert payload["whisper"]["available"] is False
+
+
+def test_voice_synthesize_endpoint_generates_wav(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    settings = get_settings()
+    model_path = settings.models_dir / "en_US-lessac-medium.onnx"
+    config_path = settings.models_dir / "en_US-lessac-medium.onnx.json"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    model_path.write_bytes(b"model")
+    config_path.write_text("{}", encoding="utf-8")
+
+    def fake_which(binary: str) -> str | None:
+        if binary == "piper":
+            return "C:/tools/piper.exe"
+        return None
+
+    def fake_run(command, *args, **kwargs):
+        output_idx = command.index("--output_file") + 1
+        output_path = Path(command[output_idx])
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"RIFF....WAVE")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("mordecai.voice.shutil.which", fake_which)
+    monkeypatch.setattr("mordecai.voice.subprocess.run", fake_run)
+
+    response = client.post("/api/voice/synthesize", json={"text": "Hello from Mordecai", "output_filename": "test-voice.wav"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["engine"] == "piper"
+    assert payload["output_path"].endswith("test-voice.wav")
+    assert Path(payload["output_path"]).exists()
+
+
+def test_voice_transcribe_endpoint_reads_transcript(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    settings = get_settings()
+    audio_path = settings.data_dir / "voice" / "sample.wav"
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"WAVE")
+
+    def fake_which(binary: str) -> str | None:
+        if binary == "whisper":
+            return "C:/tools/whisper.exe"
+        return None
+
+    def fake_run(command, *args, **kwargs):
+        source = Path(command[1])
+        output_dir = Path(command[command.index("--output_dir") + 1])
+        transcript = output_dir / f"{source.stem}.txt"
+        transcript.parent.mkdir(parents=True, exist_ok=True)
+        transcript.write_text("transcribed text", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("mordecai.voice.shutil.which", fake_which)
+    monkeypatch.setattr("mordecai.voice.subprocess.run", fake_run)
+
+    response = client.post("/api/voice/transcribe", json={"audio_path": audio_path.as_posix(), "model": "base"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["engine"] == "whisper"
+    assert payload["text"] == "transcribed text"
+
+
+def test_voice_synthesize_endpoint_returns_validation_failure_when_piper_missing(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    monkeypatch.setattr("mordecai.voice.shutil.which", lambda binary: None)
+    response = client.post("/api/voice/synthesize", json={"text": "Hello"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"]["code"] == "ExecutionFailed"
 
 
 def test_improvement_candidate_blocks_protected_paths(tmp_path, monkeypatch):

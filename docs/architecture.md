@@ -64,6 +64,14 @@ Protected paths, command guards, outbound allowlists, rate limits, and permissio
 
 Cloud and local model routing, future STT/TTS systems, wake-word handling, and persona enforcement.
 
+The runtime now includes local voice execution APIs for:
+
+- engine discovery (`GET /api/voice/engines`)
+- text-to-speech synthesis through Piper (`POST /api/voice/synthesize`)
+- speech-to-text transcription through Whisper CLI (`POST /api/voice/transcribe`)
+
+These voice operations remain explicit and fail loudly when required binaries or model assets are missing.
+
 The permanent avatar also anchors here as a policy-protected identity surface whose assets and behavior are not mutable through the self-improvement path. The runtime derives its available expressions directly from the protected SVG set in `assets/avatar/`, so identity updates require explicit asset changes rather than silent prompt-only drift.
 
 ### 9. Self-modification and operator layer

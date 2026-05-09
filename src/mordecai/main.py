@@ -6,8 +6,9 @@ from mordecai.config import ensure_state_dirs, get_settings
 from mordecai.bootstrap import build_runtime
 from mordecai.dashboard import render_dashboard
 from mordecai.local_models import LocalModelService
-from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, WebSearchRequest
+from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, VoiceSynthesizeRequest, VoiceTranscribeRequest, WebSearchRequest
 from mordecai.store import StateStoreError
+from mordecai.voice import VoiceService
 from mordecai_core.tool_registry import RuntimeContext
 
 
@@ -24,7 +25,9 @@ def create_app() -> FastAPI:
     android = components.android_controller
     policy = components.policy
     local_models = LocalModelService(settings, proxy=proxy, store=components.store)
+    voice_service = VoiceService(settings)
     app.state.local_models = local_models
+    app.state.voice_service = voice_service
 
     def raise_api_error(status_code: int, code: str, message: str, details: dict[str, object] | None = None) -> None:
         raise HTTPException(
@@ -126,6 +129,24 @@ def create_app() -> FastAPI:
     @app.get("/api/voice")
     async def voice() -> dict[str, object]:
         return runtime.voice().__dict__
+
+    @app.get("/api/voice/engines")
+    async def voice_engines() -> dict[str, object]:
+        return app.state.voice_service.engines()
+
+    @app.post("/api/voice/synthesize")
+    async def voice_synthesize(request: VoiceSynthesizeRequest) -> dict[str, object]:
+        try:
+            return app.state.voice_service.synthesize(request.text, output_filename=request.output_filename)
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+
+    @app.post("/api/voice/transcribe")
+    async def voice_transcribe(request: VoiceTranscribeRequest) -> dict[str, object]:
+        try:
+            return app.state.voice_service.transcribe(request.audio_path, model=request.model)
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
 
     @app.get("/api/avatar")
     async def avatar() -> dict[str, object]:

@@ -69,6 +69,16 @@ class AndroidActionRequest(BaseModel):
     arguments: list[str] = Field(default_factory=list)
 
 
+class VoiceSynthesizeRequest(BaseModel):
+    text: str = Field(min_length=1)
+    output_filename: str | None = None
+
+
+class VoiceTranscribeRequest(BaseModel):
+    audio_path: str = Field(min_length=1)
+    model: str = "base"
+
+
 class GitBackupRequest(BaseModel):
     message: str = Field(min_length=3)
     push: bool = False
