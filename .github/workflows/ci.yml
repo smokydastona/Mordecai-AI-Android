@@ -99,13 +99,21 @@ jobs:
           name: android-shell-debug-apk
           path: artifacts/release
 
+      - name: Resolve Android shell release asset path
+        id: resolve_android_shell_asset
+        shell: bash
+        run: |
+          apk_path="$(find artifacts/release -type f -name 'android-shell-debug.apk' | head -n 1)"
+          test -n "$apk_path"
+          printf 'apk_path=%s\n' "$apk_path" >> "$GITHUB_OUTPUT"
+
       - name: Publish rolling Android shell release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh release delete android-shell-latest --yes --cleanup-tag || true
-          gh release create android-shell-latest artifacts/release/android-shell-debug.apk \
+          gh release create android-shell-latest "${{ steps.resolve_android_shell_asset.outputs.apk_path }}" \
             --title "Android Shell Latest" \
             --notes "Rolling Android shell debug APK for automated phone installs.\n\nCommit: ${{ github.sha }}" \
             --target "${{ github.sha }}"
