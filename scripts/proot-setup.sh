@@ -390,8 +390,8 @@ install_voice_runtime_python_packages() {
   local runtime_platform
   runtime_platform="$(runtime_python_platform)"
 
-  if [ "${runtime_platform}" = "linux-x86_64" ]; then
-    printf '%s\n' 'Preinstalling CPU-only Torch for openai-whisper on Linux x86_64 to avoid unsupported CUDA/NVIDIA wheel resolution...'
+  if printf '%s' "${runtime_platform}" | grep -qi '^linux-'; then
+    printf '%s\n' 'Preinstalling CPU-only Torch for openai-whisper on the Linux runtime to avoid unsupported CUDA/NVIDIA wheel resolution on Termux/proot installs...'
     run_in_distro "'${ENV_DIR}/bin/python' -m pip install --index-url '${TORCH_CPU_INDEX_URL}' 'torch<3'"
   fi
 
