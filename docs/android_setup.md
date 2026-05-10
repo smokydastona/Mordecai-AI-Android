@@ -56,7 +56,7 @@ On reruns, the installer now recreates missing standard runtime subdirectories a
 
 It now applies the same repair model to the backend checkout: an invalid or incomplete `backend/` work tree is removed and recloned automatically instead of forcing a manual cleanup step.
 
-After provisioning finishes, the installer runs a backend smoke check by starting the shipped service once, polling `http://127.0.0.1:<port>/api/status`, verifying the managed local-runtime commands are available on `PATH` when enabled, and stopping the service again before returning control to the operator.
+After provisioning finishes, the installer runs a backend smoke check by reusing an already-running backend when one exists, otherwise starting the shipped service once, probing `http://127.0.0.1:<port>/api/status`, asserting the runtime provider-registry and voice-engine APIs return the expected contract shape, verifying the managed local-runtime commands are available on `PATH` when enabled, and stopping the service only if the smoke check started it.
 
 Use the canonical installer from Termux:
 

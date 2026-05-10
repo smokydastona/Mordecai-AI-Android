@@ -24,6 +24,7 @@
 
 ### Changed
 
+- The Phase 1 post-install smoke check now preserves an already-running backend instead of stopping it unconditionally, and it now asserts deeper runtime API shape by probing `/api/runtime/provider-registry` and `/api/voice/engines` in addition to `/api/status`.
 - The Phase 1 installer now repairs a broken `backend/` checkout in place by removing an invalid work tree and recloning it, and it now performs a post-install smoke check that starts the backend once, probes `/api/status`, verifies the managed local-runtime commands are visible on `PATH`, and shuts the process back down.
 - The Phase 1 installer now recreates missing runtime subdirectories on every run and repairs a broken `tools/llama.cpp` checkout in place by removing the damaged checkout/build tree and recloning it before falling back to full force reinstall.
 - The Phase 1 installer now preinstalls CPU-only PyTorch on Linux `x86_64` before installing `openai-whisper`, preventing pip from drifting into unsupported CUDA/NVIDIA wheel sets during phone-runtime bootstrap.

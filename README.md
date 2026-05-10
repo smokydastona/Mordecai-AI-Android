@@ -283,7 +283,7 @@ Each installer run now also recreates any missing standard runtime subdirectorie
 
 The backend checkout now self-heals too: if `$HOME/mordecai/backend` exists but is not a valid Mordecai git work tree, the installer removes that broken checkout and reclones it in place.
 
-At the end of install, the script now runs a real smoke check using the shipped lifecycle scripts. It starts the backend once, waits for `/api/status` to answer on `127.0.0.1`, verifies `llama-cli`, `whisper`, and `piper` are visible on `PATH` when local model runtimes are enabled, and then stops the backend again.
+At the end of install, the script now runs a real smoke check using the shipped lifecycle scripts. If the backend is already running, the smoke check reuses that process instead of stopping it. It verifies `/api/status`, checks `/api/runtime/provider-registry` and `/api/voice/engines` for the expected runtime contracts, verifies `llama-cli`, `whisper`, and `piper` are visible on `PATH` when local model runtimes are enabled, and only stops the backend when the smoke check had to start it itself.
 
 If you want a fresh runtime reinstall without losing models or state, set `MORDECAI_FORCE_REINSTALL=true` before running `scripts/proot-setup.sh`. That path wipes only the backend checkout, `env/`, `tools/`, and copied `scripts/`, then rebuilds them while preserving `data/models`, `data/state`, logs, and caches.
 

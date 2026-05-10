@@ -253,14 +253,34 @@ repair_llama_cpp_checkout() {
 run_post_install_smoke_check() {
   local service_port="${MORDECAI_SERVICE_PORT:-8000}"
   local status_url="http://127.0.0.1:${service_port}/api/status"
+  local provider_registry_url="http://127.0.0.1:${service_port}/api/runtime/provider-registry"
+  local voice_engines_url="http://127.0.0.1:${service_port}/api/voice/engines"
+  local pid_file="${LOG_DIR}/backend.pid"
+  local existing_pid=""
+  local already_running="false"
+  local started_here="false"
   local attempt
 
   printf '%s\n' 'Running post-install backend smoke check...'
-  if [ -x "${SCRIPT_DIR}/stop.sh" ]; then
-    "${SCRIPT_DIR}/stop.sh" >/dev/null 2>&1 || true
+  trap 'if [ "${started_here}" = "true" ] && [ -x "${SCRIPT_DIR}/stop.sh" ]; then "${SCRIPT_DIR}/stop.sh" >/dev/null 2>&1 || true; fi' RETURN
+
+  if [ -f "${pid_file}" ]; then
+    existing_pid="$(cat "${pid_file}")"
+    if [ -n "${existing_pid}" ] && kill -0 "${existing_pid}" 2>/dev/null; then
+      already_running="true"
+    fi
   fi
 
-  "${SCRIPT_DIR}/start.sh"
+  if [ "${already_running}" != "true" ] && "${TERMUX_PREFIX}/bin/curl" --fail --silent --show-error "${status_url}" >/dev/null 2>&1; then
+    already_running="true"
+  fi
+
+  if [ "${already_running}" = "true" ]; then
+    printf '%s\n' 'Backend already running; preserving the existing process for smoke validation.'
+  else
+    "${SCRIPT_DIR}/start.sh"
+    started_here="true"
+  fi
 
   for attempt in 1 2 3 4 5 6 7 8 9 10; do
     if "${TERMUX_PREFIX}/bin/curl" --fail --silent --show-error "${status_url}" >/dev/null; then
@@ -270,12 +290,11 @@ run_post_install_smoke_check() {
   done
 
   "${TERMUX_PREFIX}/bin/curl" --fail --silent --show-error "${status_url}" >/dev/null
+  run_in_distro "'${ENV_DIR}/bin/python' -c \"import json, urllib.request; provider_registry = json.load(urllib.request.urlopen('${provider_registry_url}')); assert provider_registry['contract'] == 'provider-registry'; assert isinstance(provider_registry['providers'], list) and provider_registry['providers']; voice_engines = json.load(urllib.request.urlopen('${voice_engines_url}')); assert 'catalog_summary' in voice_engines; assert 'recommended_stack' in voice_engines; assert 'piper' in voice_engines; assert 'whisper' in voice_engines\""
 
   if [ "${INSTALL_LOCAL_MODEL_BINARIES}" = "true" ]; then
     run_in_distro "PATH='${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' /bin/bash -lc 'command -v llama-cli >/dev/null && command -v whisper >/dev/null && command -v piper >/dev/null'"
   fi
-
-  "${SCRIPT_DIR}/stop.sh" >/dev/null
 }
 
 force_reinstall_runtime_layers() {
