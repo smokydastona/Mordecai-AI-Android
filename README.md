@@ -275,6 +275,8 @@ The one-command phone installer now also provisions the default phone-supported 
 
 The installer now configures `llama.cpp` with its server-backed CLI target enabled while keeping the embedded web UI off, so current upstream builds still emit `llama-cli`. It also tolerates current and legacy output layouts by preferring upstream `llama-cli`, accepting `llama-run` or legacy `main` when needed, and linking the resolved binary to Mordecai's stable `tools/bin/llama-cli` path. If a future upstream checkout still omits the expected front-end binary entirely, the installer makes one explicit `llama-cli` target build attempt before failing.
 
+On portable phone installs, the `llama.cpp` build now also forces `GGML_NATIVE=OFF` and `LLAMA_OPENSSL=OFF` so proot environments do not get stuck in noisy or fragile host-CPU feature probes like `-mcpu=native` or optional OpenSSL detection for disabled HTTPS paths.
+
 On the Linux runtime used by the phone installer, the bootstrap now preinstalls CPU-only PyTorch from the PyTorch CPU wheel index before installing `openai-whisper`. That keeps pip from selecting unsupported CUDA/NVIDIA wheel families in CPU-only phone or VM runtimes, including ARM/ARM64 Termux plus proot installs where packages such as `nvidia-cusparselt-cu13` are not valid.
 
 It now also verifies the Python runtime dependency graph with `pip check`, validates the core Mordecai imports after installation, checks that required local-runtime build tools such as `ffmpeg` and `cmake` are present, verifies that the installed Whisper stack is CPU-only, and confirms that the default phone-starter model assets were actually downloaded.
