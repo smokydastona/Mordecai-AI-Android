@@ -254,7 +254,7 @@ What exists in the repository today is a local model registry and integration su
 
 The runtime now includes a managed `phone-starter` local model bundle that installs:
 
-- `Qwen2.5-3B-Instruct-Q4_K_M.gguf` for the `llama.cpp-qwen2.5-3b` profile
+- `Qwen2.5-3B-Instruct-Q4_K_M.gguf` for the `llama.cpp-qwen2.5-3b` profile, downloaded from the public official `Qwen/Qwen2.5-3B-Instruct-GGUF` repository so phone installs do not depend on an auth-gated mirror
 - `en_US-lessac-medium.onnx` and `en_US-lessac-medium.onnx.json` for the `piper-tts` profile
 
 You can install that bundle explicitly from the runtime environment with:

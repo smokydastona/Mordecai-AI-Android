@@ -153,7 +153,7 @@ class LocalModelService:
                 profile_name="llama.cpp-qwen2.5-3b",
                 modality="chat",
                 filename="Qwen2.5-3B-Instruct-Q4_K_M.gguf",
-                source_url="https://huggingface.co/unsloth/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf?download=true",
+                source_url="https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf?download=true",
                 description="Recommended small GGUF chat model for phone-hosted llama.cpp inference.",
                 max_bytes=3_000_000_000,
                 runtime_fit="phone",

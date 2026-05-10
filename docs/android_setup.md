@@ -48,6 +48,8 @@ The installer treats the `llama.cpp` CLI as a compatibility surface instead of a
 
 The installer is incremental by default, but it now also supports `MORDECAI_FORCE_REINSTALL=true` for a fresh runtime rebuild that preserves user data. That path removes only the backend checkout, runtime environment, copied scripts, and managed tool checkout under the install root, then rebuilds them while keeping models, state, logs, and caches intact.
 
+The default phone starter GGUF now comes from the public official `Qwen/Qwen2.5-3B-Instruct-GGUF` repository instead of an auth-gated mirror, so fresh installs do not fail on a `401 Unauthorized` while downloading the chat model.
+
 To keep `openai-whisper` CPU-safe on the Linux runtime used by the portable installer, the bootstrap preinstalls CPU-only PyTorch before installing the Whisper package itself. That avoids unsupported CUDA/NVIDIA dependency chains in the portable runtime, including ARM/ARM64 Termux plus proot environments where NVIDIA CUDA wheels are not applicable.
 
 It also performs explicit post-install verification before reporting success: the Python dependency graph is checked with `pip check`, the core Mordecai runtime modules are imported in the Linux environment, the installed Whisper stack is checked to confirm it is not CUDA-linked, local runtime build tools and CLIs are verified, and the default phone-starter bundle files are checked on disk when model installation is enabled.

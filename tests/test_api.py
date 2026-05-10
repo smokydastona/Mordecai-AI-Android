@@ -358,7 +358,7 @@ def test_local_model_install_endpoint_downloads_bundle_assets(tmp_path, monkeypa
 
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
-        if path.endswith("Qwen2.5-3B-Instruct-Q4_K_M.gguf"):
+        if path.endswith("qwen2.5-3b-instruct-q4_k_m.gguf"):
             return httpx.Response(200, content=b"qwen-bytes", request=request)
         if path.endswith("en_US-lessac-medium.onnx"):
             return httpx.Response(200, content=b"voice-bytes", request=request)
@@ -385,6 +385,12 @@ def test_local_model_install_endpoint_downloads_bundle_assets(tmp_path, monkeypa
     assert (settings.models_dir / "Qwen2.5-3B-Instruct-Q4_K_M.gguf").exists()
     assert (settings.models_dir / "en_US-lessac-medium.onnx").exists()
     assert (settings.models_dir / "en_US-lessac-medium.onnx.json").exists()
+
+
+def test_phone_starter_qwen_asset_uses_public_official_repo():
+    asset = next(asset for asset in LocalModelService.default_assets() if asset.asset_id == "qwen2.5-3b-instruct-q4km")
+
+    assert asset.source_url == "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf?download=true"
 
 
 def test_local_model_install_endpoint_supports_whispercpp_voice_bundle(tmp_path, monkeypatch):
