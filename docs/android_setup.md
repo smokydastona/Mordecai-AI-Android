@@ -54,6 +54,10 @@ It also performs explicit post-install verification before reporting success: th
 
 On reruns, the installer now recreates missing standard runtime subdirectories automatically and attempts an in-place repair of a broken `tools/llama.cpp` checkout before asking you to use the heavier force-reinstall path.
 
+It now applies the same repair model to the backend checkout: an invalid or incomplete `backend/` work tree is removed and recloned automatically instead of forcing a manual cleanup step.
+
+After provisioning finishes, the installer runs a backend smoke check by starting the shipped service once, polling `http://127.0.0.1:<port>/api/status`, verifying the managed local-runtime commands are available on `PATH` when enabled, and stopping the service again before returning control to the operator.
+
 Use the canonical installer from Termux:
 
 ```bash

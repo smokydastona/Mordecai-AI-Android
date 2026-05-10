@@ -108,7 +108,22 @@ def test_phase1_installer_repairs_missing_runtime_directories_and_broken_tool_ch
 
     assert 'ensure_runtime_layout()' in installer
     assert 'mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}" "${ROOTFS_CACHE_DIR}" "${TOOLS_DIR}"' in installer
+    assert 'repair_backend_checkout()' in installer
+    assert 'Repairing broken Mordecai backend checkout in place before continuing...' in installer
+    assert 'rm -rf "${BACKEND_DIR}"' in installer
+    assert '[ -f "${BACKEND_DIR}/pyproject.toml" ] && [ -f "${BACKEND_DIR}/scripts/proot-setup.sh" ]' in installer
     assert 'Repairing broken llama.cpp tool checkout in place before continuing...' in installer
+
+
+def test_phase1_installer_runs_post_install_backend_smoke_check():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'run_post_install_smoke_check()' in installer
+    assert 'Running post-install backend smoke check...' in installer
+    assert 'http://127.0.0.1:${service_port}/api/status' in installer
+    assert '"${SCRIPT_DIR}/start.sh"' in installer
+    assert '"${SCRIPT_DIR}/stop.sh" >/dev/null' in installer
+    assert 'command -v llama-cli >/dev/null && command -v whisper >/dev/null && command -v piper >/dev/null' in installer
 
 
 def test_phase1_installer_verifies_runtime_and_default_model_bundle_after_install():

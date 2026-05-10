@@ -224,6 +224,19 @@ ensure_runtime_tool_layout() {
   run_in_distro "mkdir -p '${TOOLS_DIR}' '${TOOLS_BIN_DIR}'"
 }
 
+repair_backend_checkout() {
+  if [ ! -e "${BACKEND_DIR}" ]; then
+    return
+  fi
+
+  if [ -d "${BACKEND_DIR}/.git" ] && git -C "${BACKEND_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1 && [ -f "${BACKEND_DIR}/pyproject.toml" ] && [ -f "${BACKEND_DIR}/scripts/proot-setup.sh" ]; then
+    return
+  fi
+
+  printf '%s\n' 'Repairing broken Mordecai backend checkout in place before continuing...'
+  rm -rf "${BACKEND_DIR}"
+}
+
 repair_llama_cpp_checkout() {
   ensure_runtime_tool_layout
 
@@ -235,6 +248,34 @@ repair_llama_cpp_checkout() {
 
   printf '%s\n' 'Repairing broken llama.cpp tool checkout in place before continuing...'
   run_in_distro "rm -rf '${LLAMA_CPP_DIR}' '${LLAMA_CPP_BUILD_DIR}'"
+}
+
+run_post_install_smoke_check() {
+  local service_port="${MORDECAI_SERVICE_PORT:-8000}"
+  local status_url="http://127.0.0.1:${service_port}/api/status"
+  local attempt
+
+  printf '%s\n' 'Running post-install backend smoke check...'
+  if [ -x "${SCRIPT_DIR}/stop.sh" ]; then
+    "${SCRIPT_DIR}/stop.sh" >/dev/null 2>&1 || true
+  fi
+
+  "${SCRIPT_DIR}/start.sh"
+
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    if "${TERMUX_PREFIX}/bin/curl" --fail --silent --show-error "${status_url}" >/dev/null; then
+      break
+    fi
+    sleep 2
+  done
+
+  "${TERMUX_PREFIX}/bin/curl" --fail --silent --show-error "${status_url}" >/dev/null
+
+  if [ "${INSTALL_LOCAL_MODEL_BINARIES}" = "true" ]; then
+    run_in_distro "PATH='${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' /bin/bash -lc 'command -v llama-cli >/dev/null && command -v whisper >/dev/null && command -v piper >/dev/null'"
+  fi
+
+  "${SCRIPT_DIR}/stop.sh" >/dev/null
 }
 
 force_reinstall_runtime_layers() {
@@ -428,13 +469,11 @@ ensure_runtime_layout
 
 ensure_pinned_distro_plugin
 ensure_proot_distro
+repair_backend_checkout
 
 if [ -d "${BACKEND_DIR}/.git" ]; then
   printf '%s\n' 'Updating existing Mordecai checkout...'
   git -C "${BACKEND_DIR}" pull --ff-only
-elif [ -e "${BACKEND_DIR}" ]; then
-  printf '%s\n' "${BACKEND_DIR} exists but is not a git checkout. Move it aside and rerun the installer." >&2
-  exit 1
 else
   printf '%s\n' 'Cloning Mordecai backend...'
   git clone "${REPO_URL}" "${BACKEND_DIR}"
@@ -479,6 +518,7 @@ fi
 
 write_env_file
 sync_runtime_scripts
+run_post_install_smoke_check
 
 printf '\n%s\n' 'Mordecai Phase 1 install complete.'
 printf 'Install root: %s\n' "${INSTALL_ROOT}"

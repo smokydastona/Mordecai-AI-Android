@@ -281,6 +281,10 @@ It now also verifies the Python runtime dependency graph with `pip check`, valid
 
 Each installer run now also recreates any missing standard runtime subdirectories under `$HOME/mordecai` and self-heals a broken `tools/llama.cpp` checkout in place by deleting the damaged checkout/build tree and recloning it before you need to reach for `MORDECAI_FORCE_REINSTALL=true`.
 
+The backend checkout now self-heals too: if `$HOME/mordecai/backend` exists but is not a valid Mordecai git work tree, the installer removes that broken checkout and reclones it in place.
+
+At the end of install, the script now runs a real smoke check using the shipped lifecycle scripts. It starts the backend once, waits for `/api/status` to answer on `127.0.0.1`, verifies `llama-cli`, `whisper`, and `piper` are visible on `PATH` when local model runtimes are enabled, and then stops the backend again.
+
 If you want a fresh runtime reinstall without losing models or state, set `MORDECAI_FORCE_REINSTALL=true` before running `scripts/proot-setup.sh`. That path wipes only the backend checkout, `env/`, `tools/`, and copied `scripts/`, then rebuilds them while preserving `data/models`, `data/state`, logs, and caches.
 
 The runtime also exposes a policy-aware voice ecosystem catalog at `GET /api/voice/catalog`. That catalog does not auto-install or auto-enable upstream projects; it exists to make operator-visible routing, evaluation, and future explicit integrations possible without hiding model choices behind prompt state.

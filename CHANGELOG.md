@@ -24,6 +24,7 @@
 
 ### Changed
 
+- The Phase 1 installer now repairs a broken `backend/` checkout in place by removing an invalid work tree and recloning it, and it now performs a post-install smoke check that starts the backend once, probes `/api/status`, verifies the managed local-runtime commands are visible on `PATH`, and shuts the process back down.
 - The Phase 1 installer now recreates missing runtime subdirectories on every run and repairs a broken `tools/llama.cpp` checkout in place by removing the damaged checkout/build tree and recloning it before falling back to full force reinstall.
 - The Phase 1 installer now preinstalls CPU-only PyTorch on Linux `x86_64` before installing `openai-whisper`, preventing pip from drifting into unsupported CUDA/NVIDIA wheel sets during phone-runtime bootstrap.
 - The Phase 1 installer now supports `MORDECAI_FORCE_REINSTALL=true`, which wipes only the backend checkout, runtime environment, copied scripts, and managed tools while preserving models, logs, cache, and state under `data/`.
