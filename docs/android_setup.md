@@ -52,6 +52,8 @@ To keep `openai-whisper` CPU-safe on Linux `x86_64`, the installer preinstalls C
 
 It also performs explicit post-install verification before reporting success: the Python dependency graph is checked with `pip check`, the core Mordecai runtime modules are imported in the Linux environment, the installed Whisper stack is checked to confirm it is not CUDA-linked, local runtime build tools and CLIs are verified, and the default phone-starter bundle files are checked on disk when model installation is enabled.
 
+On reruns, the installer now recreates missing standard runtime subdirectories automatically and attempts an in-place repair of a broken `tools/llama.cpp` checkout before asking you to use the heavier force-reinstall path.
+
 Use the canonical installer from Termux:
 
 ```bash

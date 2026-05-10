@@ -73,6 +73,12 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
 
     assert 'install_local_model_binaries()' in installer
+    assert 'ensure_runtime_tool_layout()' in installer
+    assert 'repair_llama_cpp_checkout()' in installer
+    assert "run_in_distro \"mkdir -p '${TOOLS_DIR}' '${TOOLS_BIN_DIR}'\"" in installer
+    assert "test -d '${LLAMA_CPP_DIR}/.git' && test -f '${LLAMA_CPP_DIR}/CMakeLists.txt'" in installer
+    assert "git -C '${LLAMA_CPP_DIR}' rev-parse --is-inside-work-tree >/dev/null 2>&1" in installer
+    assert "run_in_distro \"rm -rf '${LLAMA_CPP_DIR}' '${LLAMA_CPP_BUILD_DIR}'\"" in installer
     assert 'install_voice_runtime_python_packages()' in installer
     assert 'TORCH_CPU_INDEX_URL="${MORDECAI_TORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}"' in installer
     assert "runtime_platform=\"$(runtime_python_platform)\"" in installer
@@ -95,6 +101,14 @@ def test_phase1_installer_supports_force_reinstall_without_wiping_models_or_stat
     assert 'force_reinstall_runtime_layers()' in installer
     assert 'Force reinstall requested; removing backend checkout, runtime environment, tools, and copied scripts while preserving models and state...' in installer
     assert 'rm -rf "${BACKEND_DIR}" "${ENV_DIR}" "${TOOLS_DIR}" "${SCRIPT_DIR}"' in installer
+
+
+def test_phase1_installer_repairs_missing_runtime_directories_and_broken_tool_checkout_in_place():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'ensure_runtime_layout()' in installer
+    assert 'mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}" "${ROOTFS_CACHE_DIR}" "${TOOLS_DIR}"' in installer
+    assert 'Repairing broken llama.cpp tool checkout in place before continuing...' in installer
 
 
 def test_phase1_installer_verifies_runtime_and_default_model_bundle_after_install():

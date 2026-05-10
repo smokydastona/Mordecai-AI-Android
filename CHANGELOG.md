@@ -24,6 +24,7 @@
 
 ### Changed
 
+- The Phase 1 installer now recreates missing runtime subdirectories on every run and repairs a broken `tools/llama.cpp` checkout in place by removing the damaged checkout/build tree and recloning it before falling back to full force reinstall.
 - The Phase 1 installer now preinstalls CPU-only PyTorch on Linux `x86_64` before installing `openai-whisper`, preventing pip from drifting into unsupported CUDA/NVIDIA wheel sets during phone-runtime bootstrap.
 - The Phase 1 installer now supports `MORDECAI_FORCE_REINSTALL=true`, which wipes only the backend checkout, runtime environment, copied scripts, and managed tools while preserving models, logs, cache, and state under `data/`.
 - The installer now verifies the Python runtime with `pip check` and import smoke tests, verifies local runtime tool dependencies such as `ffmpeg` and `cmake`, and verifies that the default phone-starter model assets were actually downloaded before declaring install success.

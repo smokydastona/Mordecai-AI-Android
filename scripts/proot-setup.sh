@@ -216,6 +216,27 @@ sync_runtime_scripts() {
   done
 }
 
+ensure_runtime_layout() {
+  mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}" "${ROOTFS_CACHE_DIR}" "${TOOLS_DIR}"
+}
+
+ensure_runtime_tool_layout() {
+  run_in_distro "mkdir -p '${TOOLS_DIR}' '${TOOLS_BIN_DIR}'"
+}
+
+repair_llama_cpp_checkout() {
+  ensure_runtime_tool_layout
+
+  if run_in_distro "test -d '${LLAMA_CPP_DIR}/.git' && test -f '${LLAMA_CPP_DIR}/CMakeLists.txt'"; then
+    if run_in_distro "git -C '${LLAMA_CPP_DIR}' rev-parse --is-inside-work-tree >/dev/null 2>&1"; then
+      return
+    fi
+  fi
+
+  printf '%s\n' 'Repairing broken llama.cpp tool checkout in place before continuing...'
+  run_in_distro "rm -rf '${LLAMA_CPP_DIR}' '${LLAMA_CPP_BUILD_DIR}'"
+}
+
 force_reinstall_runtime_layers() {
   if [ "${FORCE_REINSTALL}" != "true" ]; then
     return
@@ -265,13 +286,14 @@ install_local_model_binaries() {
   fi
 
   printf '%s\n' 'Installing phone-supported local model runtime binaries inside the Linux runtime...'
+  ensure_runtime_tool_layout
   run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl ffmpeg cmake ninja-build pkg-config python3-dev git build-essential'
   run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
   install_voice_runtime_python_packages
   run_in_distro "'${ENV_DIR}/bin/python' -m pip check"
   verify_voice_runtime_python_packages
 
-  run_in_distro "mkdir -p '${TOOLS_BIN_DIR}'"
+  repair_llama_cpp_checkout
   run_in_distro "if [ ! -d '${LLAMA_CPP_DIR}/.git' ]; then git clone --depth 1 https://github.com/ggml-org/llama.cpp '${LLAMA_CPP_DIR}'; else git -C '${LLAMA_CPP_DIR}' pull --ff-only; fi"
   run_in_distro "cmake -S '${LLAMA_CPP_DIR}' -B '${LLAMA_CPP_BUILD_DIR}' -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=OFF -DLLAMA_CURL=OFF"
   run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\$(nproc)"
@@ -402,7 +424,7 @@ pkg install -y git curl proot-distro
 
 force_reinstall_runtime_layers
 
-mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}" "${ROOTFS_CACHE_DIR}"
+ensure_runtime_layout
 
 ensure_pinned_distro_plugin
 ensure_proot_distro

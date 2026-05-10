@@ -279,6 +279,8 @@ On Linux `x86_64`, the installer now preinstalls CPU-only PyTorch from the PyTor
 
 It now also verifies the Python runtime dependency graph with `pip check`, validates the core Mordecai imports after installation, checks that required local-runtime build tools such as `ffmpeg` and `cmake` are present, verifies that the installed Whisper stack is CPU-only, and confirms that the default phone-starter model assets were actually downloaded.
 
+Each installer run now also recreates any missing standard runtime subdirectories under `$HOME/mordecai` and self-heals a broken `tools/llama.cpp` checkout in place by deleting the damaged checkout/build tree and recloning it before you need to reach for `MORDECAI_FORCE_REINSTALL=true`.
+
 If you want a fresh runtime reinstall without losing models or state, set `MORDECAI_FORCE_REINSTALL=true` before running `scripts/proot-setup.sh`. That path wipes only the backend checkout, `env/`, `tools/`, and copied `scripts/`, then rebuilds them while preserving `data/models`, `data/state`, logs, and caches.
 
 The runtime also exposes a policy-aware voice ecosystem catalog at `GET /api/voice/catalog`. That catalog does not auto-install or auto-enable upstream projects; it exists to make operator-visible routing, evaluation, and future explicit integrations possible without hiding model choices behind prompt state.
