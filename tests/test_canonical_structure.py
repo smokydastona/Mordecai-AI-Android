@@ -122,7 +122,12 @@ def test_phase1_installer_runs_post_install_backend_smoke_check():
     assert 'Running post-install backend smoke check...' in installer
     assert 'http://127.0.0.1:${service_port}/api/status' in installer
     assert 'http://127.0.0.1:${service_port}/api/runtime/provider-registry' in installer
+    assert 'http://127.0.0.1:${service_port}/api/runtime/tool-manifest' in installer
     assert 'http://127.0.0.1:${service_port}/api/voice/engines' in installer
+    assert 'install-verification-report.txt' in installer
+    assert 'Mordecai install verification report' in installer
+    assert 'result=${smoke_result}' in installer
+    assert 'detail=${smoke_detail}' in installer
     assert 'Backend already running; preserving the existing process for smoke validation.' in installer
     assert 'started_here="true"' in installer
     assert 'trap ' in installer
@@ -130,8 +135,13 @@ def test_phase1_installer_runs_post_install_backend_smoke_check():
     assert '"${SCRIPT_DIR}/stop.sh" >/dev/null' in installer
     assert "assert provider_registry['contract'] == 'provider-registry'" in installer
     assert "assert isinstance(provider_registry['providers'], list) and provider_registry['providers']" in installer
+    assert "assert tool_manifest['contract'] == 'tool-manifest'" in installer
+    assert "assert tool_manifest['tool_count'] == len(tool_manifest['tools'])" in installer
     assert "assert 'catalog_summary' in voice_engines" in installer
     assert "assert 'recommended_stack' in voice_engines" in installer
+    assert 'Backend status probe failed at ${status_url} with exit code ${curl_status}.' in installer
+    assert 'Runtime API contract probe failed for provider registry, tool manifest, or voice engines.' in installer
+    assert 'Managed local runtime commands were not all visible on PATH inside the runtime.' in installer
     assert 'command -v llama-cli >/dev/null && command -v whisper >/dev/null && command -v piper >/dev/null' in installer
 
 

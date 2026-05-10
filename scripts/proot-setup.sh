@@ -254,15 +254,34 @@ run_post_install_smoke_check() {
   local service_port="${MORDECAI_SERVICE_PORT:-8000}"
   local status_url="http://127.0.0.1:${service_port}/api/status"
   local provider_registry_url="http://127.0.0.1:${service_port}/api/runtime/provider-registry"
+  local tool_manifest_url="http://127.0.0.1:${service_port}/api/runtime/tool-manifest"
   local voice_engines_url="http://127.0.0.1:${service_port}/api/voice/engines"
   local pid_file="${LOG_DIR}/backend.pid"
+  local report_file="${LOG_DIR}/install-verification-report.txt"
   local existing_pid=""
   local already_running="false"
   local started_here="false"
+  local smoke_result="failed"
+  local smoke_detail="Smoke check did not complete."
   local attempt
+  local curl_status
 
   printf '%s\n' 'Running post-install backend smoke check...'
-  trap 'if [ "${started_here}" = "true" ] && [ -x "${SCRIPT_DIR}/stop.sh" ]; then "${SCRIPT_DIR}/stop.sh" >/dev/null 2>&1 || true; fi' RETURN
+  trap 'smoke_exit=$?; mkdir -p "${LOG_DIR}"; cat > "${report_file}" <<EOF
+Mordecai install verification report
+result=${smoke_result}
+detail=${smoke_detail}
+service_port=${service_port}
+status_url=${status_url}
+provider_registry_url=${provider_registry_url}
+tool_manifest_url=${tool_manifest_url}
+voice_engines_url=${voice_engines_url}
+backend_was_running=${already_running}
+backend_started_by_smoke_check=${started_here}
+local_model_runtimes_enabled=${INSTALL_LOCAL_MODEL_BINARIES}
+EOF
+if [ "${started_here}" = "true" ] && [ -x "${SCRIPT_DIR}/stop.sh" ]; then "${SCRIPT_DIR}/stop.sh" >/dev/null 2>&1 || true; fi
+return ${smoke_exit}' RETURN
 
   if [ -f "${pid_file}" ]; then
     existing_pid="$(cat "${pid_file}")"
@@ -289,12 +308,26 @@ run_post_install_smoke_check() {
     sleep 2
   done
 
-  "${TERMUX_PREFIX}/bin/curl" --fail --silent --show-error "${status_url}" >/dev/null
-  run_in_distro "'${ENV_DIR}/bin/python' -c \"import json, urllib.request; provider_registry = json.load(urllib.request.urlopen('${provider_registry_url}')); assert provider_registry['contract'] == 'provider-registry'; assert isinstance(provider_registry['providers'], list) and provider_registry['providers']; voice_engines = json.load(urllib.request.urlopen('${voice_engines_url}')); assert 'catalog_summary' in voice_engines; assert 'recommended_stack' in voice_engines; assert 'piper' in voice_engines; assert 'whisper' in voice_engines\""
+  if ! "${TERMUX_PREFIX}/bin/curl" --fail --silent --show-error "${status_url}" >/dev/null; then
+    curl_status=$?
+    smoke_detail="Backend status probe failed at ${status_url} with exit code ${curl_status}."
+    return "${curl_status}"
+  fi
+
+  if ! run_in_distro "'${ENV_DIR}/bin/python' -c \"import json, urllib.request; provider_registry = json.load(urllib.request.urlopen('${provider_registry_url}')); assert provider_registry['contract'] == 'provider-registry'; assert isinstance(provider_registry['providers'], list) and provider_registry['providers']; tool_manifest = json.load(urllib.request.urlopen('${tool_manifest_url}')); assert tool_manifest['contract'] == 'tool-manifest'; assert isinstance(tool_manifest['tools'], list); assert tool_manifest['tool_count'] == len(tool_manifest['tools']); voice_engines = json.load(urllib.request.urlopen('${voice_engines_url}')); assert 'catalog_summary' in voice_engines; assert 'recommended_stack' in voice_engines; assert 'piper' in voice_engines; assert 'whisper' in voice_engines\""; then
+    smoke_detail="Runtime API contract probe failed for provider registry, tool manifest, or voice engines."
+    return 1
+  fi
 
   if [ "${INSTALL_LOCAL_MODEL_BINARIES}" = "true" ]; then
-    run_in_distro "PATH='${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' /bin/bash -lc 'command -v llama-cli >/dev/null && command -v whisper >/dev/null && command -v piper >/dev/null'"
+    if ! run_in_distro "PATH='${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' /bin/bash -lc 'command -v llama-cli >/dev/null && command -v whisper >/dev/null && command -v piper >/dev/null'"; then
+      smoke_detail="Managed local runtime commands were not all visible on PATH inside the runtime."
+      return 1
+    fi
   fi
+
+  smoke_result="passed"
+  smoke_detail="Backend responded to status/provider/tool/voice probes and runtime commands were available as expected."
 }
 
 force_reinstall_runtime_layers() {
