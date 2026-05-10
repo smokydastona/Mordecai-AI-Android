@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from mordecai.models import ConversationEntry, GoalRecord, ImprovementBackupRecord, ImprovementCandidate, ProxyRequestRecord, RoutineRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord
+from mordecai.models import AgentPlanRecord, AndroidPerceptionSnapshot, ConversationEntry, GoalRecord, ImprovementBackupRecord, ImprovementCandidate, MemoryRecord, MemorySearchResult, ProxyRequestRecord, RoutineRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord, VoiceSessionRecord
 
 
 class StateStoreError(RuntimeError):
@@ -27,6 +28,10 @@ class StateStore:
         self._tool_executions_path = state_dir / "tool_executions.json"
         self._goals_path = state_dir / "goals.json"
         self._routines_path = state_dir / "routines.json"
+        self._memory_path = state_dir / "memory.json"
+        self._perception_path = state_dir / "perception.json"
+        self._voice_sessions_path = state_dir / "voice_sessions.json"
+        self._plans_path = state_dir / "plans.json"
         for path, default in (
             (self._conversation_path, []),
             (self._proxy_log_path, []),
@@ -36,6 +41,10 @@ class StateStore:
             (self._tool_executions_path, []),
             (self._goals_path, []),
             (self._routines_path, []),
+            (self._memory_path, []),
+            (self._perception_path, []),
+            (self._voice_sessions_path, []),
+            (self._plans_path, []),
         ):
             if not path.exists():
                 path.write_text(json.dumps(default, indent=2), encoding="utf-8")
@@ -67,6 +76,111 @@ class StateStore:
     def read_conversation(self) -> list[ConversationEntry]:
         with self._lock:
             return [ConversationEntry.model_validate(item) for item in self._load(self._conversation_path)]
+
+    def save_memory(self, record: MemoryRecord) -> None:
+        with self._lock:
+            payload = self._load(self._memory_path)
+            payload = [item for item in payload if item["memory_id"] != record.memory_id]
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._memory_path, payload)
+
+    def read_memories(self) -> list[MemoryRecord]:
+        with self._lock:
+            records = [MemoryRecord.model_validate(item) for item in self._load(self._memory_path)]
+        return sorted(records, key=lambda record: record.updated_at)
+
+    def save_perception_snapshot(self, record: AndroidPerceptionSnapshot) -> None:
+        with self._lock:
+            payload = self._load(self._perception_path)
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._perception_path, payload)
+
+    def read_perception_history(self) -> list[AndroidPerceptionSnapshot]:
+        with self._lock:
+            return [AndroidPerceptionSnapshot.model_validate(item) for item in self._load(self._perception_path)]
+
+    def latest_perception(self) -> AndroidPerceptionSnapshot | None:
+        history = self.read_perception_history()
+        if not history:
+            return None
+        return history[-1]
+
+    def save_voice_session(self, record: VoiceSessionRecord) -> None:
+        with self._lock:
+            payload = self._load(self._voice_sessions_path)
+            payload = [item for item in payload if item["session_id"] != record.session_id]
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._voice_sessions_path, payload)
+
+    def read_voice_sessions(self) -> list[VoiceSessionRecord]:
+        with self._lock:
+            records = [VoiceSessionRecord.model_validate(item) for item in self._load(self._voice_sessions_path)]
+        return sorted(records, key=lambda record: record.updated_at)
+
+    def save_plan(self, record: AgentPlanRecord) -> None:
+        with self._lock:
+            payload = self._load(self._plans_path)
+            payload = [item for item in payload if item["plan_id"] != record.plan_id]
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._plans_path, payload)
+
+    def read_plans(self) -> list[AgentPlanRecord]:
+        with self._lock:
+            records = [AgentPlanRecord.model_validate(item) for item in self._load(self._plans_path)]
+        return sorted(records, key=lambda record: record.created_at)
+
+    def get_plan(self, plan_id: str) -> AgentPlanRecord | None:
+        for record in self.read_plans():
+            if record.plan_id == plan_id:
+                return record
+        return None
+
+    def get_voice_session(self, session_id: str) -> VoiceSessionRecord | None:
+        for record in self.read_voice_sessions():
+            if record.session_id == session_id:
+                return record
+        return None
+
+    def search_memories(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        categories: list[str] | None = None,
+        pinned_only: bool = False,
+    ) -> list[MemorySearchResult]:
+        tokens = self._tokenize(query)
+        if not tokens:
+            return []
+        allowed_categories = {item for item in (categories or []) if item}
+        ranked: list[MemorySearchResult] = []
+        for record in self.read_memories():
+            if pinned_only and not record.pinned:
+                continue
+            if allowed_categories and record.category not in allowed_categories:
+                continue
+            score = self._score_memory(record, tokens)
+            if score <= 0:
+                continue
+            ranked.append(MemorySearchResult(record=record, score=round(score, 4)))
+        ranked.sort(key=lambda item: (item.score, item.record.updated_at), reverse=True)
+        return ranked[:limit]
+
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        return {token for token in re.findall(r"[a-z0-9]+", text.lower()) if len(token) > 1}
+
+    def _score_memory(self, record: MemoryRecord, tokens: set[str]) -> float:
+        haystack = self._tokenize(" ".join([record.content, *record.tags, record.category, record.source]))
+        overlap = len(tokens & haystack)
+        if overlap == 0:
+            return 0.0
+        recency_hours = max((datetime.now(UTC) - record.updated_at).total_seconds() / 3600, 0.0)
+        recency_bonus = 1.0 / (1.0 + recency_hours / 24.0)
+        pin_bonus = 0.75 if record.pinned else 0.0
+        importance_bonus = record.importance * 0.35
+        coverage_bonus = overlap / max(len(tokens), 1)
+        return (overlap * 1.5) + coverage_bonus + recency_bonus + pin_bonus + importance_bonus
 
     def append_proxy_record(self, entry: ProxyRequestRecord) -> None:
         with self._lock:

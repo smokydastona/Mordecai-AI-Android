@@ -43,6 +43,18 @@ Phase 1 freezes this layer into a portable backend contract rooted at `$HOME/mor
 
 The active FastAPI runtime currently implemented in `src/mordecai/`. This layer owns chat orchestration, API serving, dashboard rendering, state storage, and service wiring.
 
+That runtime now distinguishes between short-term conversation state and structured long-term memory records. Preferences, project context, task reminders, facts, contacts, and episodic notes are persisted as explicit records and can be retrieved independently of the raw chat log.
+
+It now also owns three additional operator-visible state systems that make the assistant more agentic instead of chat-only:
+
+- structured Android perception snapshots
+- planner/agent execution plans layered on the tool registry
+- persisted background voice sessions with wake-word and interruption state
+
+The dashboard is now an operator surface for those systems, not just a passive status page. It can inspect live perception state, generate or execute plans, and inspect or drive active voice sessions through the same typed APIs the shell uses.
+
+Generated plans are now also persisted as explicit operator-visible records instead of being transient response objects only. This keeps planning inspectable across sessions and aligns plan history with the same persistence model already used for memory, perception, and voice-session state. The dashboard can now select an individual saved plan record for full inspection rather than only showing a summary list.
+
 The native Android shell in `android-shell/` sits above this layer as the Phase 2 supervision surface, but it does not bypass the runtime or policy layers.
 
 ### 6. Execution layer
@@ -55,6 +67,10 @@ The modular execution surface in `mordecai_core/` and `providers/`. This include
 - structured failure taxonomy
 - provider capability routing
 - developer trace surfaces
+
+The planner now sits directly on this execution layer instead of bypassing it. Tool-backed steps are selected against the registered manifest surface, executed through the existing runtime context and permission model, and receive both memory references and device-state context from the perception layer.
+
+Planner selection now includes Android workflows when the corresponding tool is present, including allowlisted app launching and notification/navigation actions instead of remaining limited to repository and network tasks.
 
 ### 7. Policy layer
 
@@ -79,6 +95,8 @@ That discovery layer now feeds the local model registry directly for selected ph
 
 The voice execution layer now has three explicit offline ASR paths: the existing Whisper CLI route, a `whisper.cpp` route that uses managed ggml model assets plus optional local VAD, and a `sherpa-onnx` route that uses the extracted whisper encoder/decoder/tokens manifest from the managed archive. This keeps execution explicit and inspectable while allowing multiple phone-targeted transcription paths.
 
+On top of those engines, the runtime now has a background voice-session orchestrator. Sessions persist wake-word state, partial/final transcript ingestion, interruption counts, pending commands, last responses, and optional synthesized reply output. Voice commands are no longer forced through a single chat endpoint; they can enter the planner loop directly and execute manifest-backed tools under the same permission surface.
+
 The permanent avatar also anchors here as a policy-protected identity surface whose assets and behavior are not mutable through the self-improvement path. The runtime derives its available expressions directly from the protected SVG set in `assets/avatar/`, so identity updates require explicit asset changes rather than silent prompt-only drift.
 
 ### 9. Self-modification and operator layer
@@ -86,6 +104,16 @@ The permanent avatar also anchors here as a policy-protected identity surface wh
 Candidate proposal, sandbox execution, promotion, rollback, observability, and the human approval path for anything with real impact.
 
 The runtime also persists long-term goals and routine triggers as operator-visible state, keeping task memory explicit instead of hidden in prompt-only context.
+
+Structured long-term memory follows the same rule: remembered state must be inspectable, auditable, and retrievable through explicit APIs rather than smuggled into opaque prompt history. Ranked retrieval currently favors token overlap, recency, pinning, and operator-assigned importance so the runtime can reuse relevant memory without losing operator visibility.
+
+Structured Android perception follows that same principle. Screen and app context are ingested as typed snapshots rather than hidden in screenshots alone. Parsed accessibility XML, visible text, clickable labels, app package, and notification summaries remain available to operators and to the planner as explicit state.
+
+When available, perception now also includes focused-node metadata and notification action metadata, which makes notification workflows and app-action planning less dependent on brittle free-text heuristics.
+
+On-device producers now exist for that state as well: the Android accessibility service streams continuous perception updates into the localhost backend on relevant window and notification events, so the perception layer is no longer API-only.
+
+The preferred full-capability deployment target for those flows is still a Linux-hosted backend inside Termux plus `proot-distro` Ubuntu, optionally running under a rooted Android VM or Linux chroot when the operator wants a more root-like environment without moving the core runtime into the Android base system itself.
 
 Local model profiles are also surfaced as first-class runtime state so operators can inspect configured chat, STT, and TTS backends through the same dashboard and API used for the live system. These profiles are declarative integration targets, not proof that the corresponding model weights are already present on-device.
 
@@ -168,6 +196,18 @@ These contracts are also exportable through `python -m mordecai.runtime_contract
 The provider registry records which providers exist, whether they are local or remote, which one is currently preferred, and the capability boundaries the runtime will route against.
 
 The tool manifest records the canonical tool name, owning provider, permission requirements, input and output schemas, confirmation policy, sandbox profile, and default execution policy values surfaced by the runtime.
+
+The runtime also exposes explicit memory APIs alongside those contracts:
+
+- conversation log: `/api/memory`
+- structured memory records: `/api/memory/records`
+- ranked memory retrieval: `/api/memory/search`
+
+The runtime now also exposes explicit planning, perception, and voice-session APIs:
+
+- planner: `/api/agent/plan`
+- Android perception: `/api/android/perception`, `/api/android/perception/latest`, `/api/android/perception/history`
+- voice sessions: `/api/voice/sessions`, `/api/voice/sessions/{session_id}`, `/api/voice/sessions/{session_id}/events`
 
 ## First-boot flow
 

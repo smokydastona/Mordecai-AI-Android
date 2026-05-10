@@ -24,6 +24,185 @@ class ConversationEntry(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class MemoryRecord(BaseModel):
+    memory_id: str
+    category: str = Field(pattern="^(preference|project|contact|task|fact|episode)$")
+    content: str = Field(min_length=3)
+    tags: list[str] = Field(default_factory=list)
+    source: str = "runtime"
+    importance: int = Field(default=1, ge=1, le=5)
+    pinned: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class MemoryWriteRequest(BaseModel):
+    category: str = Field(pattern="^(preference|project|contact|task|fact|episode)$")
+    content: str = Field(min_length=3)
+    tags: list[str] = Field(default_factory=list)
+    source: str = "api"
+    importance: int = Field(default=1, ge=1, le=5)
+    pinned: bool = False
+
+
+class MemorySearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    limit: int = Field(default=5, ge=1, le=25)
+    categories: list[str] = Field(default_factory=list)
+    pinned_only: bool = False
+
+
+class MemorySearchResult(BaseModel):
+    record: MemoryRecord
+    score: float
+
+
+class PerceptionElement(BaseModel):
+    text: str | None = None
+    content_desc: str | None = None
+    resource_id: str | None = None
+    class_name: str | None = None
+    package: str | None = None
+    clickable: bool = False
+    enabled: bool = True
+    bounds: str | None = None
+
+
+class NotificationActionMetadata(BaseModel):
+    title: str
+    action_type: str = "notification-action"
+
+
+class FocusedNodeSnapshot(BaseModel):
+    text: str | None = None
+    content_desc: str | None = None
+    resource_id: str | None = None
+    class_name: str | None = None
+    package: str | None = None
+    clickable: bool = False
+    enabled: bool = True
+    bounds: str | None = None
+
+
+class AndroidPerceptionIngestRequest(BaseModel):
+    source: str = "android-shell"
+    app_package: str | None = None
+    activity: str | None = None
+    screen_title: str | None = None
+    visible_text: list[str] = Field(default_factory=list)
+    action_labels: list[str] = Field(default_factory=list)
+    focused_text: str | None = None
+    clipboard_text: str | None = None
+    notification_summaries: list[str] = Field(default_factory=list)
+    notification_actions: list[NotificationActionMetadata] = Field(default_factory=list)
+    focused_node: FocusedNodeSnapshot | None = None
+    ui_dump_xml: str | None = None
+    screenshot_path: str | None = None
+    interactive: bool = True
+
+
+class AndroidPerceptionSnapshot(BaseModel):
+    snapshot_id: str
+    source: str
+    app_package: str | None = None
+    activity: str | None = None
+    screen_title: str | None = None
+    visible_text: list[str] = Field(default_factory=list)
+    action_labels: list[str] = Field(default_factory=list)
+    focused_text: str | None = None
+    focused_node: FocusedNodeSnapshot | None = None
+    clipboard_text: str | None = None
+    notification_summaries: list[str] = Field(default_factory=list)
+    notification_actions: list[NotificationActionMetadata] = Field(default_factory=list)
+    ui_elements: list[PerceptionElement] = Field(default_factory=list)
+    screenshot_path: str | None = None
+    interactive: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class AgentPlanStep(BaseModel):
+    step_id: str
+    title: str
+    rationale: str
+    tool_name: str | None = None
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    status: str = "planned"
+    result: Any = None
+    error: RuntimeFailure | None = None
+
+
+class AgentPlanRequest(BaseModel):
+    goal: str = Field(min_length=3)
+    auto_execute: bool = False
+    granted_permissions: list[str] = Field(default_factory=list)
+    session_id: str = "agent-api"
+    safe_mode: bool = True
+    max_steps: int = Field(default=5, ge=1, le=10)
+
+
+class AgentPlanResponse(BaseModel):
+    goal: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    plan_id: str | None = None
+    session_id: str | None = None
+    memory_hits: list[MemorySearchResult] = Field(default_factory=list)
+    perception: AndroidPerceptionSnapshot | None = None
+    steps: list[AgentPlanStep] = Field(default_factory=list)
+    executed: bool = False
+    final_response: str = ""
+
+
+class AgentPlanRecord(BaseModel):
+    plan_id: str
+    session_id: str
+    goal: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    executed: bool = False
+    final_response: str = ""
+    memory_hits: list[MemorySearchResult] = Field(default_factory=list)
+    perception: AndroidPerceptionSnapshot | None = None
+    steps: list[AgentPlanStep] = Field(default_factory=list)
+
+
+class VoiceSessionStartRequest(BaseModel):
+    label: str = "background"
+    background: bool = True
+
+
+class VoiceSessionRecord(BaseModel):
+    session_id: str
+    label: str = "background"
+    background: bool = True
+    status: str = "awaiting-wake-word"
+    last_wake_word: str | None = None
+    last_transcript: str | None = None
+    pending_command: str | None = None
+    last_response: str | None = None
+    last_audio_path: str | None = None
+    last_plan_goal: str | None = None
+    interrupted_count: int = 0
+    last_error: RuntimeFailure | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class VoiceSessionEventRequest(BaseModel):
+    transcript: str = ""
+    is_final: bool = False
+    interrupt: bool = False
+    playback_finished: bool = False
+    auto_execute: bool = True
+    synthesize_response: bool = False
+    granted_permissions: list[str] = Field(default_factory=list)
+    safe_mode: bool = True
+
+
+class VoiceSessionEventResponse(BaseModel):
+    session: VoiceSessionRecord
+    plan: AgentPlanResponse | None = None
+    wake_word_detected: bool = False
+
+
 class ProxyRequestRecord(BaseModel):
     method: str
     url: str

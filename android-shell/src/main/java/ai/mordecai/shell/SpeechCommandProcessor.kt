@@ -11,6 +11,7 @@ class SpeechCommandProcessor(
     private val context: Context,
     private val onCommandHeard: (String) -> Unit,
     private val onFailure: (String) -> Unit,
+    private val onTranscript: (String) -> Unit = {},
 ) : RecognitionListener {
     private var speechRecognizer: SpeechRecognizer? = null
     private var active = false
@@ -26,7 +27,7 @@ class SpeechCommandProcessor(
         active = true
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
@@ -69,6 +70,13 @@ class SpeechCommandProcessor(
     override fun onEndOfSpeech() = Unit
 
     override fun onPartialResults(partialResults: Bundle) = Unit
+
+    override fun onPartialResults(partialResults: Bundle) {
+        val match = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty().firstOrNull()?.trim()
+        if (!match.isNullOrBlank()) {
+            onTranscript(match)
+        }
+    }
 
     override fun onEvent(eventType: Int, params: Bundle) = Unit
 }

@@ -3,11 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 from datetime import UTC, datetime
+import re
 
 from mordecai.config import Settings
 from mordecai.avatar import DEFAULT_AVATAR_EMOTION, build_avatar_profile, classify_avatar_emotion
 from mordecai.git_tools import GitService
-from mordecai.models import AvatarProfile, ChatResponse, ConversationEntry, GoalRecord, GoalRequest, RoutineRecord, RoutineRequest, RuntimeEvent, StatusSnapshot
+from mordecai.models import AvatarProfile, ChatResponse, ConversationEntry, GoalRecord, GoalRequest, MemoryRecord, MemorySearchResult, MemoryWriteRequest, RoutineRecord, RoutineRequest, RuntimeEvent, StatusSnapshot
 from mordecai.policy import PolicyEngine
 from mordecai.providers import ProviderRouter
 from mordecai.proxy import SafeHttpClient
@@ -43,9 +44,10 @@ class MordecaiRuntime:
 
     async def chat(self, message: str) -> ChatResponse:
         self.store.append_conversation(ConversationEntry(role="user", content=message))
+        self._remember_from_message(message)
         actions: list[str] = []
         lowered = message.lower().strip()
-        context = self._build_context()
+        context = self._build_context(message)
 
         if lowered.startswith("override:"):
             reply = "Override acknowledged. Safety and physical-harm constraints remain in force."
@@ -102,6 +104,41 @@ class MordecaiRuntime:
     def memory(self) -> list[ConversationEntry]:
         return self.store.read_conversation()
 
+    def memory_records(self) -> list[MemoryRecord]:
+        return self.store.read_memories()
+
+    def remember(self, request: MemoryWriteRequest) -> MemoryRecord:
+        now = datetime.now(UTC)
+        record = MemoryRecord(
+            memory_id=uuid4().hex[:12],
+            category=request.category,
+            content=request.content.strip(),
+            tags=self._normalize_tags(request.tags),
+            source=request.source,
+            importance=request.importance,
+            pinned=request.pinned,
+            created_at=now,
+            updated_at=now,
+        )
+        self.store.save_memory(record)
+        self.store.append_event(RuntimeEvent(category="memory", detail=f"saved:{record.memory_id}:{record.category}"))
+        return record
+
+    def search_memory(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        categories: list[str] | None = None,
+        pinned_only: bool = False,
+    ) -> list[MemorySearchResult]:
+        return self.store.search_memories(
+            query,
+            limit=limit,
+            categories=categories,
+            pinned_only=pinned_only,
+        )
+
     def events(self) -> list[dict[str, object]]:
         return [event.model_dump(mode="json") for event in self.store.read_events()]
 
@@ -146,17 +183,97 @@ class MordecaiRuntime:
         self.store.append_event(RuntimeEvent(category="routine", detail=f"created:{record.routine_id}"))
         return record
 
-    def _build_context(self) -> str:
+    def _build_context(self, focus_message: str) -> str:
         git_state = self.git_service.status()
         last_messages = self.store.read_conversation()[-6:]
         history = "\n".join(f"{entry.role}: {entry.content}" for entry in last_messages)
+        retrieved_memories = self.search_memory(focus_message, limit=4)
+        memory_lines = "\n".join(
+            f"- [{item.record.category}] {item.record.content}"
+            for item in retrieved_memories
+        ) or "- none"
         return (
             f"User: {self.settings.user_name}\n"
             f"Branch: {git_state['branch']}\n"
             f"Dirty: {git_state['dirty']}\n"
             f"Wake words: {', '.join(self.voice_profile.wake_words)}\n"
+            f"Relevant memory:\n{memory_lines}\n"
             f"Recent conversation:\n{history}"
         )
+
+    def _remember_from_message(self, message: str) -> None:
+        candidate = self._derive_memory_request(message)
+        if candidate is None:
+            return
+        existing = self.search_memory(candidate.content, limit=1, categories=[candidate.category])
+        if existing and existing[0].record.content.lower() == candidate.content.lower():
+            return
+        self.remember(candidate)
+
+    def _derive_memory_request(self, message: str) -> MemoryWriteRequest | None:
+        cleaned = " ".join(message.strip().split())
+        if len(cleaned) < 12:
+            return None
+        lowered = cleaned.lower()
+        if any(token in lowered for token in ("i prefer", "i usually", "please always", "don't ", "do not ")):
+            return MemoryWriteRequest(
+                category="preference",
+                content=cleaned,
+                tags=self._extract_tags(cleaned),
+                source="conversation",
+                importance=4,
+            )
+        if any(token in lowered for token in ("i am working on", "i'm working on", "debugging", "building", "fixing", "implementing")):
+            return MemoryWriteRequest(
+                category="project",
+                content=cleaned,
+                tags=self._extract_tags(cleaned),
+                source="conversation",
+                importance=3,
+            )
+        if any(token in lowered for token in ("remind me", "need to", "todo", "to do", "follow up")):
+            return MemoryWriteRequest(
+                category="task",
+                content=cleaned,
+                tags=self._extract_tags(cleaned),
+                source="conversation",
+                importance=3,
+            )
+        if cleaned.endswith((".", "!", "?")) and len(cleaned.split()) >= 8:
+            return MemoryWriteRequest(
+                category="episode",
+                content=cleaned,
+                tags=self._extract_tags(cleaned),
+                source="conversation",
+                importance=2,
+            )
+        return None
+
+    def _extract_tags(self, text: str) -> list[str]:
+        stop_words = {
+            "about", "after", "always", "assistant", "because", "before", "build", "could", "debugging",
+            "during", "follow", "have", "implementing", "need", "please", "project", "should", "that",
+            "their", "them", "there", "this", "today", "want", "with", "working",
+        }
+        tokens = re.findall(r"[a-z0-9]+", text.lower())
+        tags: list[str] = []
+        for token in tokens:
+            if len(token) < 3 or token in stop_words:
+                continue
+            if token not in tags:
+                tags.append(token)
+            if len(tags) == 6:
+                break
+        return tags
+
+    @staticmethod
+    def _normalize_tags(tags: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for tag in tags:
+            cleaned = tag.strip().lower().replace(" ", "-")
+            if cleaned and cleaned not in normalized:
+                normalized.append(cleaned)
+        return normalized
 
     def _load_system_prompt(self) -> str:
         prompt_path = Path(self.settings.system_prompt_path)

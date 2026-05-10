@@ -11,6 +11,7 @@ class WakePhraseManager(
     private val context: Context,
     private val phrase: String,
     private val onWakePhraseHeard: () -> Unit,
+    private val onWakeTranscript: (String) -> Unit = {},
 ) : RecognitionListener {
     private var speechRecognizer: SpeechRecognizer? = null
     private var active = false
@@ -48,14 +49,18 @@ class WakePhraseManager(
 
     override fun onPartialResults(partialResults: Bundle) {
         val matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
-        if (matches.any { it.contains(phrase, ignoreCase = true) }) {
+        val wakeMatch = matches.firstOrNull { it.contains(phrase, ignoreCase = true) }
+        if (wakeMatch != null) {
+            onWakeTranscript(wakeMatch)
             onWakePhraseHeard()
         }
     }
 
     override fun onResults(results: Bundle) {
         val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
-        if (matches.any { it.contains(phrase, ignoreCase = true) }) {
+        val wakeMatch = matches.firstOrNull { it.contains(phrase, ignoreCase = true) }
+        if (wakeMatch != null) {
+            onWakeTranscript(wakeMatch)
             onWakePhraseHeard()
         }
         beginListening()

@@ -14,15 +14,16 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 ## Current Implementation
 
 - `android-shell/` is a standalone Android application module built with Kotlin and Gradle
-- `MainActivity` provides install, start, stop, update, refresh, and settings controls
+- `MainActivity` provides install, start, stop, update, and refresh controls, now behind a first-run welcome flow with the shell configuration moved into a dedicated in-app settings screen opened from the settings cog
+- `SettingsActivity` now provides a permissions/status summary card, permission review actions, shell toggles, backend URL and wake-phrase configuration, and AI routing controls for cloud and local OpenAI-compatible endpoints
 - `MordecaiShellService` polls the localhost backend and can auto-start it through Termux when offline
 - `WakePhraseManager` listens for the configured wake phrase and triggers backend startup when it is heard
-- `SpeechCommandProcessor` captures the next spoken command and dispatches it to the backend chat API
-- `SpeechOutput` speaks backend replies through Android TTS with an older, slower default cadence
+- `SpeechCommandProcessor` now emits partial transcript updates while capturing the next spoken command and streams the final command into the backend voice-session API instead of only dispatching through chat
+- `SpeechOutput` now reports playback completion back into the backend voice-session state so background sessions can move out of speaking mode explicitly
 - `TermuxCommandClient` invokes the Phase 1 scripts through the Termux run-command API
 - `RootDetector` gates advanced mode toggles so Mode B activation remains explicit
 - `MordecaiTileService` gives the shell a quick-settings entrypoint for voice command activation
-- `MordecaiAccessibilityService` exposes a lock-screen-safe accessibility overlay and can own voice command capture when accessibility mode is enabled
+- `MordecaiAccessibilityService` exposes a lock-screen-safe accessibility overlay, can own voice command capture when accessibility mode is enabled, and now streams continuous perception snapshots to the backend from active windows and notification events
 - `MordecaiOverlay` renders avatar feedback and backend replies through `TYPE_ACCESSIBILITY_OVERLAY` as a compact top-corner card instead of a full-width panel so the phone remains usable underneath it
 - the overlay now includes a restricted local action set for safe navigation gestures and can resolve matching voice commands locally before escalating to backend chat
 
@@ -32,6 +33,10 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - runtime install and lifecycle operations still flow through the Termux-managed scripts under `$HOME/mordecai/scripts`
 - advanced mode updates `.env` through Termux and restarts the backend after changing mode flags
 - when the accessibility service is enabled, notification and wake-phrase voice commands can delegate into the overlay path so replies, avatar emotion, and TTS stay aligned on the lock screen
+- both the foreground shell service and the accessibility service now create backend voice sessions and stream wake-word, partial transcript, final transcript, interruption, and playback-finished events into `/api/voice/sessions/*`
+- accessibility events now also feed `/api/android/perception`, letting the backend maintain current app, visible text, clickable action labels, and notification summaries without waiting for manual operator ingestion
+- the shell now starts with a dedicated welcome screen on first launch and uses explicit rationale popups before requesting microphone, notification, or accessibility access, keeping permission escalation visible and intentional; the cog in the main shell opens a dedicated settings screen for backend URL, wake phrase, permission review, shell toggles, live status summaries, and AI profile selection
+- AI settings are now applied explicitly through the shell by writing the selected provider mode and OpenAI-compatible endpoint settings into the Termux-managed runtime `.env`, then restarting the backend so cloud or local model routing changes take effect visibly
 
 ## Build Surface
 
@@ -58,7 +63,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - the shell supervises the existing backend contract rather than replacing it with an embedded Python runtime
 - Android automation remains bound by the backend policy layer and only becomes available when advanced mode is explicitly enabled
 - local APK validation still depends on a configured Android SDK; without `ANDROID_HOME` or `local.properties`, `assembleDebug` cannot run on this machine
-- accessibility service metadata now uses `android:accessibilityFlags` in `mordecai_accessibility_config.xml`, matching Android resource-link requirements in CI
+- accessibility service metadata now uses `android:accessibilityFlags` in `mordecai_accessibility_config.xml`, matching Android resource-link requirements in CI, and now subscribes to notification-state events so shell-side perception can include notification summaries
 
 ## Debugging
 

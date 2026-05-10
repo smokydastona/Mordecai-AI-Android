@@ -2,9 +2,10 @@ package ai.mordecai.shell
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
-class SpeechOutput(context: Context) : TextToSpeech.OnInitListener {
+class SpeechOutput(context: Context, private val onCompleted: (() -> Unit)? = null) : TextToSpeech.OnInitListener {
     private val appContext = context.applicationContext
     private var tts: TextToSpeech? = TextToSpeech(appContext, this)
     private var ready = false
@@ -16,6 +17,16 @@ class SpeechOutput(context: Context) : TextToSpeech.OnInitListener {
             tts?.language = Locale.US
             tts?.setPitch(0.88f)
             tts?.setSpeechRate(0.92f)
+            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) = Unit
+
+                override fun onDone(utteranceId: String?) {
+                    onCompleted?.invoke()
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun onError(utteranceId: String?) = Unit
+            })
             queuedText?.let {
                 speak(it)
                 queuedText = null
@@ -33,6 +44,10 @@ class SpeechOutput(context: Context) : TextToSpeech.OnInitListener {
             return
         }
         tts?.speak(sanitized, TextToSpeech.QUEUE_FLUSH, null, "mordecai-reply")
+    }
+
+    fun interrupt() {
+        tts?.stop()
     }
 
     fun shutdown() {

@@ -31,6 +31,45 @@ class TermuxCommandClient(private val context: Context) {
 
     fun updateRuntime(): CommandResult = runBash("$INSTALL_ROOT/scripts/update.sh", "Update Mordecai runtime")
 
+    fun configureAiProvider(
+        providerMode: String,
+        baseUrl: String,
+        apiKey: String,
+        model: String,
+    ): CommandResult {
+        val normalizedMode = providerMode.trim().lowercase()
+        val defaultProvider = if (normalizedMode == "rule-based") "rule-based" else "openai-compatible"
+        val normalizedBaseUrl = baseUrl.trim()
+        val normalizedApiKey = apiKey.trim()
+        val normalizedModel = model.trim()
+        val script = """
+python - <<'PY'
+from pathlib import Path
+
+env_path = Path.home() / "mordecai" / ".env"
+if not env_path.exists():
+    raise SystemExit("Missing runtime environment file. Install the runtime first.")
+
+entries = {}
+for line in env_path.read_text(encoding="utf-8").splitlines():
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    entries[key] = value
+
+entries["MORDECAI_DEFAULT_PROVIDER"] = "$defaultProvider"
+entries["MORDECAI_OPENAI_BASE_URL"] = "$normalizedBaseUrl"
+entries["MORDECAI_OPENAI_API_KEY"] = "$normalizedApiKey"
+entries["MORDECAI_OPENAI_MODEL"] = "$normalizedModel"
+
+env_path.write_text("\n".join(f"{key}={value}" for key, value in entries.items()) + "\n", encoding="utf-8")
+PY
+$INSTALL_ROOT/scripts/stop.sh || true
+$INSTALL_ROOT/scripts/start.sh
+""".trimIndent()
+        return runBash(script, "Apply AI provider settings")
+    }
+
     fun setAdvancedMode(enabled: Boolean): CommandResult {
         val mode = if (enabled) "mode-b" else "mode-a"
         val androidControl = enabled.toString().lowercase()

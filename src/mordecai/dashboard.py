@@ -353,6 +353,94 @@ def render_dashboard() -> str:
         </div>
       </div>
       <div class="card">
+        <h2>Live Perception</h2>
+        <pre id="perception-latest"></pre>
+        <pre id="perception-history"></pre>
+      </div>
+      <div class="card">
+        <h2>Planner</h2>
+        <div class="control-stack">
+          <div class="field">
+            <label for="planner-goal">Goal</label>
+            <textarea id="planner-goal" class="terminal" placeholder="Open notifications and inspect the current app context."></textarea>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="planner-permissions">Permissions</label>
+              <input id="planner-permissions" value="git" placeholder="git,android-control,network" />
+            </div>
+            <div class="field">
+              <label for="planner-auto-execute">Auto Execute</label>
+              <select id="planner-auto-execute">
+                <option value="false" selected>Plan only</option>
+                <option value="true">Plan and execute</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="planner-safe-mode">Safe Mode</label>
+            <select id="planner-safe-mode">
+              <option value="true" selected>Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <button id="run-planner">Generate Plan</button>
+          <pre id="planner-response"></pre>
+          <div class="field">
+            <label for="planner-history-select">Historical Plan</label>
+            <select id="planner-history-select"></select>
+          </div>
+          <pre id="planner-history"></pre>
+          <pre id="planner-history-detail"></pre>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Voice Sessions</h2>
+        <div class="control-stack">
+          <div class="row">
+            <div class="field">
+              <label for="voice-session-label">Label</label>
+              <input id="voice-session-label" value="dashboard" />
+            </div>
+            <div class="field">
+              <label for="voice-session-background">Background</label>
+              <select id="voice-session-background">
+                <option value="true" selected>Background</option>
+                <option value="false">Foreground</option>
+              </select>
+            </div>
+          </div>
+          <button id="start-voice-session">Start Voice Session</button>
+          <div class="field">
+            <label for="voice-session-select">Active Session</label>
+            <select id="voice-session-select"></select>
+          </div>
+          <div class="field">
+            <label for="voice-session-transcript">Transcript Event</label>
+            <textarea id="voice-session-transcript" class="terminal" placeholder="Mordecai show notifications"></textarea>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="voice-session-final">Final Transcript</label>
+              <select id="voice-session-final">
+                <option value="false">Partial</option>
+                <option value="true" selected>Final</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="voice-session-interrupt">Interrupt</label>
+              <select id="voice-session-interrupt">
+                <option value="false" selected>No</option>
+                <option value="true">Yes</option>
+              </select>
+            </div>
+          </div>
+          <button id="send-voice-session-event">Send Voice Event</button>
+          <pre id="voice-session-response"></pre>
+          <pre id="voice-session-list"></pre>
+        </div>
+      </div>
+      <div class="card">
         <h2>Runtime Trace</h2>
         <div id="trace" class="trace-list"></div>
       </div>
@@ -411,6 +499,23 @@ def render_dashboard() -> str:
   <script>
     let latestCapabilities = null;
     let latestVoiceFilter = {};
+    let selectedPlanId = '';
+
+    function summarizePerception(snapshot) {
+      if (!snapshot || Object.keys(snapshot).length === 0) {
+        return { status: 'No perception snapshot yet.' };
+      }
+      return {
+        snapshot_id: snapshot.snapshot_id,
+        app_package: snapshot.app_package,
+        activity: snapshot.activity,
+        screen_title: snapshot.screen_title,
+        focused_text: snapshot.focused_text,
+        visible_text: (snapshot.visible_text || []).slice(0, 12),
+        action_labels: (snapshot.action_labels || []).slice(0, 12),
+        notification_summaries: (snapshot.notification_summaries || []).slice(0, 8),
+      };
+    }
 
     function readVoiceFilter() {
       return {
@@ -432,8 +537,19 @@ def render_dashboard() -> str:
       return queryString ? `/api/voice/catalog?${queryString}` : '/api/voice/catalog';
     }
 
+    async function loadSelectedPlanDetail() {
+      const target = document.getElementById('planner-history-detail');
+      if (!selectedPlanId) {
+        target.textContent = JSON.stringify({ status: 'No historical plan selected.' }, null, 2);
+        return;
+      }
+      const response = await fetch(`/api/agent/plans/${selectedPlanId}`);
+      const payload = await response.json();
+      target.textContent = JSON.stringify(payload, null, 2);
+    }
+
     async function load() {
-      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, localModels, voiceCatalog, trace, capabilities, avatar] = await Promise.all([
+      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, localModels, voiceCatalog, trace, capabilities, avatar, perceptionLatest, perceptionHistory, voiceSessions, planHistory] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
         fetch('/api/memory').then(r => r.json()),
@@ -448,6 +564,10 @@ def render_dashboard() -> str:
         fetch('/api/runtime/trace').then(r => r.json()),
         fetch('/api/runtime/capabilities').then(r => r.json()),
         fetch('/api/avatar').then(r => r.json()),
+        fetch('/api/android/perception/latest').then(r => r.json()),
+        fetch('/api/android/perception/history').then(r => r.json()),
+        fetch('/api/voice/sessions').then(r => r.json()),
+        fetch('/api/agent/plans').then(r => r.json()),
       ]);
       latestCapabilities = capabilities;
 
@@ -472,6 +592,30 @@ def render_dashboard() -> str:
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);
       document.getElementById('proxy').textContent = JSON.stringify(proxyLogs.slice(-10), null, 2);
       document.getElementById('local-models').textContent = JSON.stringify(localModels, null, 2);
+      document.getElementById('perception-latest').textContent = JSON.stringify(summarizePerception(perceptionLatest), null, 2);
+      document.getElementById('perception-history').textContent = JSON.stringify((perceptionHistory || []).slice(-5).map(summarizePerception), null, 2);
+      document.getElementById('voice-session-list').textContent = JSON.stringify((voiceSessions || []).slice(-10), null, 2);
+      document.getElementById('planner-history').textContent = JSON.stringify((planHistory || []).slice(-10).reverse().map(plan => ({
+        plan_id: plan.plan_id,
+        session_id: plan.session_id,
+        goal: plan.goal,
+        executed: plan.executed,
+        created_at: plan.created_at,
+        step_count: (plan.steps || []).length,
+        final_response: plan.final_response,
+      })), null, 2);
+      const planSelect = document.getElementById('planner-history-select');
+      const sortedPlans = (planHistory || []).slice().reverse();
+      const currentPlan = selectedPlanId;
+      planSelect.innerHTML = sortedPlans.map(plan => `<option value="${plan.plan_id}">${plan.goal} | ${plan.executed ? 'executed' : 'planned'} | ${plan.plan_id}</option>`).join('');
+      if (currentPlan && sortedPlans.some(plan => plan.plan_id === currentPlan)) {
+        planSelect.value = currentPlan;
+      }
+      if (!planSelect.value && planSelect.options.length > 0) {
+        planSelect.selectedIndex = 0;
+      }
+      selectedPlanId = planSelect.value || '';
+      await loadSelectedPlanDetail();
       document.getElementById('voice-catalog').textContent = JSON.stringify({
         summary: voiceCatalog.summary,
         filters: voiceCatalog.filters,
@@ -545,6 +689,16 @@ def render_dashboard() -> str:
       if (currentTool && capabilities.tools.some(tool => tool.tool === currentTool)) {
         toolSelect.value = currentTool;
       }
+
+      const sessionSelect = document.getElementById('voice-session-select');
+      const currentSession = sessionSelect.value;
+      sessionSelect.innerHTML = (voiceSessions || []).map(session => `<option value="${session.session_id}">${session.label} | ${session.status} | ${session.session_id}</option>`).join('');
+      if (currentSession && (voiceSessions || []).some(session => session.session_id === currentSession)) {
+        sessionSelect.value = currentSession;
+      }
+      if (!sessionSelect.value && sessionSelect.options.length > 0) {
+        sessionSelect.selectedIndex = 0;
+      }
       updateToolDefaults();
     }
 
@@ -595,6 +749,11 @@ def render_dashboard() -> str:
       await load();
     });
 
+    document.getElementById('planner-history-select').addEventListener('change', async event => {
+      selectedPlanId = event.target.value;
+      await loadSelectedPlanDetail();
+    });
+
     document.getElementById('install-model-bundle').addEventListener('click', async () => {
       const bundleId = document.getElementById('model-bundle').value;
       const overwrite = document.getElementById('model-overwrite').value === 'true';
@@ -628,6 +787,66 @@ def render_dashboard() -> str:
       });
       const payload = await response.json();
       document.getElementById('voice-transcribe-response').textContent = JSON.stringify(payload, null, 2);
+      await load();
+    });
+
+    document.getElementById('run-planner').addEventListener('click', async () => {
+      const goal = document.getElementById('planner-goal').value.trim();
+      if (!goal) {
+        document.getElementById('planner-response').textContent = JSON.stringify({ error: 'Goal is required.' }, null, 2);
+        return;
+      }
+      const response = await fetch('/api/agent/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goal,
+          auto_execute: document.getElementById('planner-auto-execute').value === 'true',
+          granted_permissions: document.getElementById('planner-permissions').value.split(',').map(item => item.trim()).filter(Boolean),
+          safe_mode: document.getElementById('planner-safe-mode').value === 'true',
+        }),
+      });
+      const payload = await response.json();
+      document.getElementById('planner-response').textContent = JSON.stringify(payload, null, 2);
+      selectedPlanId = payload.plan_id || selectedPlanId;
+      await load();
+    });
+
+    document.getElementById('start-voice-session').addEventListener('click', async () => {
+      const response = await fetch('/api/voice/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: document.getElementById('voice-session-label').value.trim() || 'dashboard',
+          background: document.getElementById('voice-session-background').value === 'true',
+        }),
+      });
+      const payload = await response.json();
+      document.getElementById('voice-session-response').textContent = JSON.stringify(payload, null, 2);
+      await load();
+      if (payload.session_id) {
+        document.getElementById('voice-session-select').value = payload.session_id;
+      }
+    });
+
+    document.getElementById('send-voice-session-event').addEventListener('click', async () => {
+      const sessionId = document.getElementById('voice-session-select').value;
+      if (!sessionId) {
+        document.getElementById('voice-session-response').textContent = JSON.stringify({ error: 'Start or select a voice session first.' }, null, 2);
+        return;
+      }
+      const response = await fetch(`/api/voice/sessions/${sessionId}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: document.getElementById('voice-session-transcript').value,
+          is_final: document.getElementById('voice-session-final').value === 'true',
+          interrupt: document.getElementById('voice-session-interrupt').value === 'true',
+          auto_execute: true,
+        }),
+      });
+      const payload = await response.json();
+      document.getElementById('voice-session-response').textContent = JSON.stringify(payload, null, 2);
       await load();
     });
 

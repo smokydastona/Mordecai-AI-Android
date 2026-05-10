@@ -248,3 +248,23 @@ class TestModeBAandroidController:
         
         with pytest.raises(PermissionError, match="Command blocked by policy"):
             controller.perform("mode_b_get_property", ["ro.test"])
+
+    def test_mode_a_statusbar_and_navigation_actions(self, settings_mode_b_enabled, policy):
+        controller = AndroidController(settings_mode_b_enabled, policy)
+
+        with patch("mordecai.android_control.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            controller.perform("show_notifications", [])
+            assert mock_run.call_args[0][0] == ["adb", "shell", "cmd", "statusbar", "expand-notifications"]
+
+            controller.perform("show_quick_settings", [])
+            assert mock_run.call_args[0][0] == ["adb", "shell", "cmd", "statusbar", "expand-settings"]
+
+            controller.perform("back", [])
+            assert mock_run.call_args[0][0] == ["adb", "shell", "input", "keyevent", "KEYCODE_BACK"]
+
+            controller.perform("home", [])
+            assert mock_run.call_args[0][0] == ["adb", "shell", "input", "keyevent", "KEYCODE_HOME"]
+
+            controller.perform("recents", [])
+            assert mock_run.call_args[0][0] == ["adb", "shell", "input", "keyevent", "KEYCODE_APP_SWITCH"]

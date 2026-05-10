@@ -6,6 +6,8 @@ This repository is the canonical home of the Mordecai Android runtime project. I
 
 Mordecai itself is a policy-bound AI runtime for Android phones. The current implementation provides a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, a sandboxed self-improvement workflow, and a Phase 1 Termux installer for portable Mode A deployment.
 
+For the most capable local deployment path, the intended target remains a rooted Android VM or Linux chroot hosting Termux plus `proot-distro` Ubuntu, so Mordecai can run Linux-hosted AI runtimes such as Whisper and Piper while the Android shell supervises the localhost backend.
+
 ## Project hygiene
 
 - `CHANGELOG.md` tracks notable repository changes.
@@ -16,6 +18,10 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 ## What is implemented
 
 - FastAPI dashboard and API surface for chat, status, policy, memory, git state, outbound fetches, web search, GitHub search, runtime events, proxy logs, and self-improvement candidates
+- Structured long-term memory for preferences, projects, tasks, facts, contacts, and episodic context, with explicit save/search endpoints and retrieval-backed chat context construction
+- Structured planning and agent execution on top of the tool registry, with plan generation, tool execution, and context assembly from both memory retrieval and the latest Android perception snapshot
+- Operator-facing dashboard surfaces for live perception state, planner inspection/execution, and active voice-session inspection and event injection
+- Planner history is now persisted and operator-visible through the dashboard and API, with per-record selection in the dashboard for full inspection after the latest response scrolls away, while the permanent avatar remains part of the operator surface
 - Formal Mordecai identity with wake words and personality modes
 - Policy engine that protects core safety files and execution surfaces, blocks destructive shell patterns, and enforces an outbound domain allowlist
 - Safe HTTP client with per-minute request throttling and request logging
@@ -24,6 +30,8 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Self-improvement perimeter with protected-path enforcement, hidden-persistence diff filters, sandboxed test gating, and rollback snapshots
 - Resource watchdog that reports CPU and memory usage
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
+- Structured Android perception ingestion for app package, activity, visible text, clickable actions, clipboard hints, notifications, and parsed accessibility UI dumps so planning can reason over current screen context
+- Perception snapshots now also preserve focused-node metadata and notification action metadata when the shell producer can collect them
 - Canonical architecture foundations for a unified tool registry, replaceable provider contracts, and an observable event bus in `mordecai_core/`
 - Structured tool execution engine with runtime context, permission checks, validation, retries, timeouts, cooperative cancellation, and execution telemetry
 - Developer trace and capability surfaces for provider routing, tool policy metadata, and runtime event inspection
@@ -31,17 +39,21 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 - Persisted execution history and an operator-facing dashboard tool runner for direct invocation of registered tools
 - Phase 1 Termux installer and lifecycle scripts for portable Mode A deployment under `$HOME/mordecai`
 - Native Android shell app with a WebView dashboard, foreground supervision service, wake-phrase listening, Termux command bridge, and root-gated advanced mode controls
+- The Android shell now includes a first-run welcome screen, explicit permission review popups, and a settings cog that opens a dedicated in-app settings screen with a permissions/status summary plus cloud/local AI provider controls, so shell setup stays guided instead of exposing all operator controls at launch
 - Android shell voice command loop with wake phrase, speech capture, backend chat dispatch, spoken replies, notification action entrypoint, and quick-settings tile activation
+- Android shell now streams continuous accessibility-derived perception snapshots and wake/command transcript events into the localhost backend so planning and memory can use live device context instead of only manual API posts
 - Android shell accessibility service with lock-screen overlay feedback, accessibility onboarding actions, and overlay-backed voice command delegation
 - Accessibility overlay now supports a restricted local action set for back, home, notifications, quick settings, recents, and a center-screen tap without bypassing the backend policy surface
 - Accessibility overlay now renders as a compact top-corner card so lock-screen feedback stays visible without covering a large part of the phone screen
 - Android shell accessibility resource config now uses the platform-correct `android:accessibilityFlags` attribute so CI Android resource linking succeeds
 - Android shell release publication now resolves the downloaded artifact path dynamically before invoking `gh release create`, so the rolling `android-shell-latest` asset survives artifact-directory nesting in GitHub Actions
 - Permanent avatar system with immutable old-man emotion frames, asset-driven SVG discovery, backend emotion selection, and dashboard rendering
-- Local dashboard memory browser for recent conversation inspection
+- Local dashboard memory browser for recent conversation inspection, plus API-visible long-term memory records and ranked retrieval for assistant context reuse
 - Persisted long-term goals and daily routines surfaced through API and dashboard panels
 - Local model registry is now exposed through the runtime API and capabilities dashboard, including Whisper, Piper, cloud, Ollama, `llama.cpp`, and `llamafile` chat profiles
 - Voice runtime APIs now support local engine discovery, Piper-based speech synthesis, and Whisper CLI transcription with explicit error reporting when binaries or model files are missing
+- Background voice sessions now support wake-word detection, streaming partial/final transcript events, interruption handling, planner-backed command execution, and persisted session state through `/api/voice/sessions`
+- The dashboard now exposes those voice sessions directly so operators can start sessions, inspect active state, and inject transcript events without leaving the console
 - Voice ecosystem discovery is now exposed through `GET /api/voice/catalog` and the dashboard, with categorized open-source repositories spanning TTS, cloning, ASR, pipelines, training toolkits, enhancement, and multimodal audio research
 - Voice catalog discovery now supports filtering by query, category, runtime fit, and runtime-supported status so operators can narrow the ecosystem view to phone-safe or currently integrated stacks
 - The dashboard model installer now shows bundle metadata and supports explicit approval acknowledgement for gated voice bundles before install
@@ -55,6 +67,8 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 
 - Self-improvement test execution now includes comprehensive error handling, timeouts, and detailed failure reporting
 - State store uses atomic file operations and now raises explicit failures when persistence or state reads break
+- Long-term memory remains operator-visible and stored in explicit state files instead of hidden prompt-only context, so remembered preferences and project context can be inspected, searched, and audited
+- Planner and voice-session state are also explicit and inspectable: perception snapshots, generated plans, and background voice session status are surfaced through typed APIs rather than hidden in transient prompt glue
 - Policy engine uses immutable collections to prevent runtime tampering
 - Configuration validation detects incomplete optional configs and logs warnings
 - Exception handling preserves system interrupts for graceful shutdown

@@ -27,6 +27,19 @@ For the advanced reference-device path, use `docs/s10e-setup.md`. For the portab
 4. Install Termux and update its package index.
 5. Decide whether the phone will remain in Mode A or later graduate to rooted advanced-mode use.
 
+## Preferred Full-Capability Runtime
+
+For the most capable local deployment, prefer a rooted Android VM or Linux chroot hosting:
+
+- Termux
+- `proot-distro` Ubuntu
+- the Mordecai backend under the Linux environment
+- Linux-hosted AI runtimes such as Whisper, Piper, and related model tooling
+
+That path keeps the runtime in a Linux userland with root-like flexibility for package management and runtime tooling, while still letting the Android shell supervise the localhost backend from the Android side.
+
+The repository does not auto-provision a rooted Android VM from this workspace. The supported contract here is still the Termux plus `proot-distro` installer path and the Android shell supervision layer above it.
+
 ## Phase 1 Setup Path
 
 Phase 1 is the standard portable backend path for supported phones.

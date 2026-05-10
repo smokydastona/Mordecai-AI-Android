@@ -1,8 +1,10 @@
 import asyncio
 import time
 from threading import Event
+from types import SimpleNamespace
 
 from mordecai.config import Settings
+from mordecai.models import AgentPlanRequest, AndroidPerceptionIngestRequest
 from mordecai.policy import PolicyEngine
 from mordecai.store import StateStore
 from mordecai_core.events import EventBus
@@ -11,6 +13,8 @@ from mordecai_core.tool_registry import RuntimeContext, ToolExecutionRequest, To
 from mordecai_core.runtime import get_runtime_components
 from mordecai.proxy import SafeHttpClient
 from mordecai.providers import ProviderRouter
+from mordecai.planner import PlannerService
+from mordecai.perception import PerceptionService
 
 
 def test_event_bus_records_and_broadcasts_events():
@@ -263,3 +267,49 @@ def test_runtime_components_hide_android_and_shell_tools_in_mode_a(tmp_path, mon
     assert "android.control" not in tool_names
     assert "android.accessibility_dump" not in tool_names
     assert "shell.run" not in tool_names
+
+
+def test_planner_executes_android_control_step_with_mocked_runtime(tmp_path):
+    class FakeRegistry:
+        def list_tools(self):
+            return [SimpleNamespace(tool="android.control")]
+
+    executed = {}
+    store = StateStore(tmp_path / ".mordecai", 20)
+    perception = PerceptionService(store)
+    perception.ingest(
+        AndroidPerceptionIngestRequest(
+            app_package="com.termux",
+            screen_title="Termux",
+            visible_text=["Termux"],
+        )
+    )
+
+    components = SimpleNamespace(
+        runtime=SimpleNamespace(
+            settings=Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai", enable_android_control=True),
+            search_memory=lambda *args, **kwargs: [],
+        ),
+        tool_registry=FakeRegistry(),
+        store=store,
+        execute_tool=lambda tool_name, arguments, context: executed.update({
+            "tool_name": tool_name,
+            "arguments": arguments,
+            "permissions": context.granted_permissions,
+        }) or SimpleNamespace(status="completed", output={"stdout": "ok"}, error=None),
+    )
+
+    planner = PlannerService(components, perception)
+    plan = planner.run(
+        AgentPlanRequest(
+            goal="Open notifications",
+            auto_execute=True,
+            granted_permissions=["android-control"],
+            session_id="planner-test",
+        )
+    )
+
+    assert executed["tool_name"] == "android.control"
+    assert executed["arguments"]["action"] == "show_notifications"
+    assert executed["permissions"] == frozenset({"android-control"})
+    assert any(step.tool_name == "android.control" and step.status == "completed" for step in plan.steps)

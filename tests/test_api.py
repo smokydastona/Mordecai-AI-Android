@@ -53,6 +53,15 @@ def test_dashboard_renders_bundle_details_and_approval_toggle(tmp_path, monkeypa
     assert "approvalSelect.disabled = true;" in response.text
     assert 'id="voice-transcribe-provider"' in response.text
     assert "fetch('/api/voice/transcribe'" in response.text
+    assert 'id="perception-latest"' in response.text
+    assert 'id="planner-goal"' in response.text
+    assert 'id="planner-history"' in response.text
+    assert 'id="planner-history-select"' in response.text
+    assert 'id="planner-history-detail"' in response.text
+    assert "fetch(`/api/agent/plans/${selectedPlanId}`)" in response.text
+    assert 'id="voice-session-select"' in response.text
+    assert 'id="avatar-frame"' in response.text
+    assert 'id="avatar-meta"' in response.text
 
 
 def test_chat_and_status_endpoints(tmp_path, monkeypatch):
@@ -90,6 +99,207 @@ def test_goals_and_routines_endpoints_persist_records(tmp_path, monkeypatch):
     assert routines_response.status_code == 200
     assert goals_response.json()[0]["title"] == "Protect the runtime"
     assert routines_response.json()[0]["trigger"] == "time:08:00"
+
+
+def test_memory_record_endpoints_persist_and_search_context(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    create_response = client.post(
+        "/api/memory/records",
+        json={
+            "category": "preference",
+            "content": "Prefer anti-cheat-safe solutions when discussing controller tooling.",
+            "tags": ["anti-cheat", "controller"],
+            "importance": 5,
+            "pinned": True,
+        },
+    )
+    list_response = client.get("/api/memory/records")
+    search_response = client.post(
+        "/api/memory/search",
+        json={"query": "controller anti-cheat guidance", "limit": 3},
+    )
+
+    assert create_response.status_code == 200
+    assert list_response.status_code == 200
+    assert search_response.status_code == 200
+    assert list_response.json()[0]["category"] == "preference"
+    assert search_response.json()[0]["record"]["pinned"] is True
+    assert "anti-cheat-safe" in search_response.json()[0]["record"]["content"]
+
+
+def test_chat_persists_project_memory_for_future_retrieval(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.post("/api/chat", json={"message": "I am working on ESP32 joycon mappings and debugging firmware flashing issues."})
+    search_response = client.post("/api/memory/search", json={"query": "esp32 firmware", "limit": 5})
+
+    assert response.status_code == 200
+    assert search_response.status_code == 200
+    assert any(item["record"]["category"] == "project" for item in search_response.json())
+
+
+def test_android_perception_ingest_parses_ui_dump_and_exposes_latest_snapshot(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+    xml = """
+    <hierarchy>
+      <node package="com.termux" class="android.widget.TextView" text="Mordecai Console" clickable="false" enabled="true" />
+      <node package="com.termux" class="android.widget.Button" text="Run" clickable="true" enabled="true" resource-id="com.termux:id/run" />
+    </hierarchy>
+    """
+
+    ingest_response = client.post(
+        "/api/android/perception",
+        json={"activity": "TermuxActivity", "ui_dump_xml": xml, "notification_summaries": ["Build finished"]},
+    )
+    latest_response = client.get("/api/android/perception/latest")
+
+    assert ingest_response.status_code == 200
+    assert latest_response.status_code == 200
+    payload = latest_response.json()
+    assert payload["app_package"] == "com.termux"
+    assert "Mordecai Console" in payload["visible_text"]
+    assert "Run" in payload["action_labels"]
+
+
+def test_android_perception_ingest_accepts_notification_actions_and_focused_node(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.post(
+        "/api/android/perception",
+        json={
+            "app_package": "com.android.systemui",
+            "focused_text": "Reply",
+            "focused_node": {
+                "text": "Reply",
+                "resource_id": "android:id/reply",
+                "class_name": "android.widget.Button",
+                "clickable": True,
+                "enabled": True,
+                "bounds": "[0,0][100,40]"
+            },
+            "notification_actions": [
+                {"title": "Reply", "action_type": "notification-action"},
+                {"title": "Archive", "action_type": "notification-action"}
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["focused_node"]["resource_id"] == "android:id/reply"
+    assert payload["notification_actions"][0]["title"] == "Reply"
+
+
+def test_agent_plan_uses_perception_to_retrieve_relevant_memory_and_execute_git_status(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    memory_response = client.post(
+        "/api/memory/records",
+        json={
+            "category": "project",
+            "content": "Termux is used for backend control and local runtime debugging.",
+            "tags": ["termux", "debugging"],
+            "importance": 4,
+        },
+    )
+    assert memory_response.status_code == 200
+
+    perception_response = client.post(
+        "/api/android/perception",
+        json={"app_package": "com.termux", "screen_title": "Mordecai Console", "visible_text": ["Terminal", "Mordecai Console"]},
+    )
+    assert perception_response.status_code == 200
+
+    plan_response = client.post(
+        "/api/agent/plan",
+        json={"goal": "Check git status for the current screen workflow", "auto_execute": True, "granted_permissions": ["git"], "safe_mode": True},
+    )
+
+    assert plan_response.status_code == 200
+    payload = plan_response.json()
+    assert payload["perception"]["app_package"] == "com.termux"
+    assert any("Termux" in item["record"]["content"] for item in payload["memory_hits"])
+    assert any(step["tool_name"] == "git.status" and step["status"] == "completed" for step in payload["steps"])
+
+
+def test_agent_plan_includes_android_notification_workflow_when_android_control_is_enabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("MORDECAI_ENABLE_ANDROID_CONTROL", "true")
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.post(
+        "/api/agent/plan",
+        json={"goal": "Open notifications for the current app", "auto_execute": False},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert any(step["tool_name"] == "android.control" for step in payload["steps"])
+    assert any(step["arguments"]["action"] == "show_notifications" for step in payload["steps"] if step["tool_name"] == "android.control")
+
+
+def test_agent_plan_can_select_allowlisted_app_launch_action(tmp_path, monkeypatch):
+    monkeypatch.setenv("MORDECAI_ENABLE_ANDROID_CONTROL", "true")
+    client = build_test_client(tmp_path, monkeypatch)
+
+    response = client.post(
+        "/api/agent/plan",
+        json={"goal": "Launch Termux so I can inspect the shell", "auto_execute": False},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    android_steps = [step for step in payload["steps"] if step["tool_name"] == "android.control"]
+    assert any(step["arguments"]["action"] == "open_app" for step in android_steps)
+    assert any(step["arguments"]["arguments"] == ["com.termux"] for step in android_steps)
+
+
+def test_agent_plan_history_endpoint_returns_saved_plans(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    create_response = client.post(
+        "/api/agent/plan",
+        json={"goal": "Check git status", "auto_execute": False},
+    )
+    history_response = client.get("/api/agent/plans")
+
+    assert create_response.status_code == 200
+    assert history_response.status_code == 200
+    assert any(item["goal"] == "Check git status" for item in history_response.json())
+
+
+def test_voice_session_orchestration_handles_wake_word_command_and_interruptions(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    start_response = client.post("/api/voice/sessions", json={"label": "hands-free", "background": True})
+    assert start_response.status_code == 200
+    session_id = start_response.json()["session_id"]
+
+    partial_response = client.post(
+        f"/api/voice/sessions/{session_id}/events",
+        json={"transcript": "Mordecai", "is_final": False},
+    )
+    assert partial_response.status_code == 200
+    assert partial_response.json()["session"]["status"] == "listening-command"
+
+    command_response = client.post(
+        f"/api/voice/sessions/{session_id}/events",
+        json={"transcript": "Mordecai show git status", "is_final": True, "granted_permissions": ["git"], "auto_execute": True},
+    )
+
+    assert command_response.status_code == 200
+    command_payload = command_response.json()
+    assert command_payload["wake_word_detected"] is True
+    assert command_payload["session"]["status"] == "speaking"
+    assert command_payload["plan"]["goal"] == "show git status"
+
+    interrupt_response = client.post(
+        f"/api/voice/sessions/{session_id}/events",
+        json={"transcript": "Mordecai stop", "is_final": False, "interrupt": True},
+    )
+
+    assert interrupt_response.status_code == 200
+    assert interrupt_response.json()["session"]["interrupted_count"] == 1
 
 
 def test_avatar_endpoint_returns_immutable_frames(tmp_path, monkeypatch):

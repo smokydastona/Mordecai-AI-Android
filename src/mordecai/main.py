@@ -6,10 +6,13 @@ from mordecai.config import ensure_state_dirs, get_settings
 from mordecai.bootstrap import build_runtime
 from mordecai.dashboard import render_dashboard
 from mordecai.local_models import LocalModelService
-from mordecai.models import AndroidActionRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, VoiceSynthesizeRequest, VoiceTranscribeRequest, WebSearchRequest
+from mordecai.models import AgentPlanRequest, AndroidActionRequest, AndroidPerceptionIngestRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, MemorySearchRequest, MemoryWriteRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, VoiceSessionEventRequest, VoiceSessionStartRequest, VoiceSynthesizeRequest, VoiceTranscribeRequest, WebSearchRequest
+from mordecai.perception import PerceptionService
+from mordecai.planner import PlannerService
 from mordecai.runtime_contracts import provider_registry_snapshot, tool_manifest_snapshot
 from mordecai.store import StateStoreError
 from mordecai.voice import VoiceService
+from mordecai.voice_sessions import VoiceSessionService
 from mordecai_core.tool_registry import RuntimeContext
 
 
@@ -27,8 +30,14 @@ def create_app() -> FastAPI:
     policy = components.policy
     local_models = LocalModelService(settings, proxy=proxy, store=components.store)
     voice_service = VoiceService(settings)
+    perception_service = PerceptionService(components.store)
+    planner_service = PlannerService(components, perception_service)
+    voice_sessions = VoiceSessionService(components.store, planner_service, voice_service, runtime.voice().wake_words)
     app.state.local_models = local_models
     app.state.voice_service = voice_service
+    app.state.perception_service = perception_service
+    app.state.planner_service = planner_service
+    app.state.voice_sessions = voice_sessions
 
     def raise_api_error(status_code: int, code: str, message: str, details: dict[str, object] | None = None) -> None:
         raise HTTPException(
@@ -95,6 +104,26 @@ def create_app() -> FastAPI:
     async def memory() -> list[dict[str, object]]:
         return [entry.model_dump(mode="json") for entry in runtime.memory()]
 
+    @app.get("/api/memory/records")
+    async def memory_records() -> list[dict[str, object]]:
+        return [record.model_dump(mode="json") for record in runtime.memory_records()]
+
+    @app.post("/api/memory/records")
+    async def create_memory_record(request: MemoryWriteRequest) -> dict[str, object]:
+        return runtime.remember(request).model_dump(mode="json")
+
+    @app.post("/api/memory/search")
+    async def search_memory(request: MemorySearchRequest) -> list[dict[str, object]]:
+        return [
+            result.model_dump(mode="json")
+            for result in runtime.search_memory(
+                request.query,
+                limit=request.limit,
+                categories=request.categories,
+                pinned_only=request.pinned_only,
+            )
+        ]
+
     @app.get("/api/goals")
     async def goals() -> list[dict[str, object]]:
         return [goal.model_dump(mode="json") for goal in runtime.goals()]
@@ -114,6 +143,42 @@ def create_app() -> FastAPI:
     @app.get("/api/events")
     async def events() -> list[dict[str, object]]:
         return runtime.events()
+
+    @app.get("/api/android/perception/latest")
+    async def android_perception_latest() -> dict[str, object]:
+        snapshot = app.state.perception_service.latest_snapshot()
+        return snapshot.model_dump(mode="json") if snapshot else {}
+
+    @app.get("/api/android/perception/history")
+    async def android_perception_history() -> list[dict[str, object]]:
+        return [snapshot.model_dump(mode="json") for snapshot in app.state.perception_service.history()]
+
+    @app.post("/api/android/perception")
+    async def android_perception_ingest(request: AndroidPerceptionIngestRequest) -> dict[str, object]:
+        try:
+            snapshot = app.state.perception_service.ingest(request)
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+        return snapshot.model_dump(mode="json")
+
+    @app.post("/api/agent/plan")
+    async def agent_plan(request: AgentPlanRequest) -> dict[str, object]:
+        plan = app.state.planner_service.run(request) if request.auto_execute else app.state.planner_service.build_plan(request)
+        if not plan.final_response:
+            plan.final_response = app.state.planner_service._compose_response(plan)
+            app.state.planner_service._persist_plan(plan)
+        return plan.model_dump(mode="json")
+
+    @app.get("/api/agent/plans")
+    async def agent_plan_history() -> list[dict[str, object]]:
+        return [record.model_dump(mode="json") for record in app.state.planner_service.history()]
+
+    @app.get("/api/agent/plans/{plan_id}")
+    async def agent_plan_record(plan_id: str) -> dict[str, object]:
+        try:
+            return app.state.planner_service.get_plan(plan_id).model_dump(mode="json")
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
 
     @app.get("/api/runtime/trace")
     async def runtime_trace() -> dict[str, object]:
@@ -138,6 +203,28 @@ def create_app() -> FastAPI:
     @app.get("/api/voice")
     async def voice() -> dict[str, object]:
         return runtime.voice().__dict__
+
+    @app.get("/api/voice/sessions")
+    async def voice_session_list() -> list[dict[str, object]]:
+        return [record.model_dump(mode="json") for record in app.state.voice_sessions.list_sessions()]
+
+    @app.post("/api/voice/sessions")
+    async def voice_session_start(request: VoiceSessionStartRequest) -> dict[str, object]:
+        return app.state.voice_sessions.start_session(request).model_dump(mode="json")
+
+    @app.get("/api/voice/sessions/{session_id}")
+    async def voice_session_get(session_id: str) -> dict[str, object]:
+        try:
+            return app.state.voice_sessions.get_session(session_id).model_dump(mode="json")
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+
+    @app.post("/api/voice/sessions/{session_id}/events")
+    async def voice_session_event(session_id: str, request: VoiceSessionEventRequest) -> dict[str, object]:
+        try:
+            return app.state.voice_sessions.ingest_event(session_id, request).model_dump(mode="json")
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
 
     @app.get("/api/voice/engines")
     async def voice_engines() -> dict[str, object]:

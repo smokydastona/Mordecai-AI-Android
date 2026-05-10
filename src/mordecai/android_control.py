@@ -116,6 +116,21 @@ class AndroidController:
             if package not in self.settings.allowed_android_packages:
                 raise PermissionError(f"Package '{package}' is not allowlisted; add to allowed_android_packages in config")
             return ["adb", "shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1"]
+
+        if action == "back" and len(arguments) == 0:
+            return ["adb", "shell", "input", "keyevent", "KEYCODE_BACK"]
+
+        if action == "home" and len(arguments) == 0:
+            return ["adb", "shell", "input", "keyevent", "KEYCODE_HOME"]
+
+        if action == "recents" and len(arguments) == 0:
+            return ["adb", "shell", "input", "keyevent", "KEYCODE_APP_SWITCH"]
+
+        if action == "show_notifications" and len(arguments) == 0:
+            return ["adb", "shell", "cmd", "statusbar", "expand-notifications"]
+
+        if action == "show_quick_settings" and len(arguments) == 0:
+            return ["adb", "shell", "cmd", "statusbar", "expand-settings"]
         
         # ============ Mode B: Rooted Shell Actions ============
         
