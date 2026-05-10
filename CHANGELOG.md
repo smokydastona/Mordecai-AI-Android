@@ -24,6 +24,7 @@
 
 ### Changed
 
+- The Phase 1 `proot-distro` installer now builds `llama.cpp` without hard-coding a single CMake target and normalizes either `bin/llama-cli` or the older `bin/main` output to Mordecai's managed `tools/bin/llama-cli` path.
 - Outbound networking now rejects commerce-oriented endpoints and blocks requests that contain personal-data fields or values, even when the destination host is on the allowlist.
 - Android control now blocks direct `tap`, `swipe`, and `type` input injection so the runtime cannot drive checkout flows or enter personal/payment data through arbitrary UI automation.
 - Android shell Kotlin sources now keep the wake-phrase callback wiring, speech partial-result handling, and dedicated settings companion constants in a compile-safe shape so CI `:android-shell:assembleDebug` no longer fails on duplicate declarations or invalid lambda invocation syntax.

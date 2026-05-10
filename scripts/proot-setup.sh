@@ -227,15 +227,15 @@ install_local_model_binaries() {
   run_in_distro "mkdir -p '${TOOLS_BIN_DIR}'"
   run_in_distro "if [ ! -d '${LLAMA_CPP_DIR}/.git' ]; then git clone --depth 1 https://github.com/ggml-org/llama.cpp '${LLAMA_CPP_DIR}'; else git -C '${LLAMA_CPP_DIR}' pull --ff-only; fi"
   run_in_distro "cmake -S '${LLAMA_CPP_DIR}' -B '${LLAMA_CPP_BUILD_DIR}' -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=OFF -DLLAMA_CURL=OFF"
-  run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli -j\$(nproc)"
+  run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\$(nproc)"
 
   run_in_distro "test -x '${ENV_DIR}/bin/whisper'"
   run_in_distro "test -x '${ENV_DIR}/bin/piper'"
-  run_in_distro "test -x '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli'"
+  run_in_distro "if [ -x '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then true; elif [ -x '${LLAMA_CPP_BUILD_DIR}/bin/main' ]; then true; else echo 'llama.cpp CLI binary not found after build' >&2; exit 1; fi"
 
   run_in_distro "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'"
   run_in_distro "ln -sf '${ENV_DIR}/bin/piper' '${TOOLS_BIN_DIR}/piper'"
-  run_in_distro "ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'"
+  run_in_distro "if [ -x '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'; else ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/main' '${TOOLS_BIN_DIR}/llama-cli'; fi"
 
   mkdir -p "${TOOLS_DIR}"
   cat > "${TOOLS_DIR}/local-model-runtime.txt" <<EOF
@@ -247,7 +247,7 @@ Commands:
 - ${TOOLS_BIN_DIR}/piper
 
 Backed by:
-- ${LLAMA_CPP_BUILD_DIR}/bin/llama-cli
+- ${LLAMA_CPP_BUILD_DIR}/bin/llama-cli or ${LLAMA_CPP_BUILD_DIR}/bin/main
 - ${ENV_DIR}/bin/whisper
 - ${ENV_DIR}/bin/piper
 EOF

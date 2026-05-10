@@ -273,6 +273,8 @@ The one-command phone installer now also provisions the default phone-supported 
 - `openai-whisper` to provide the `whisper` CLI
 - `piper-tts` to provide the `piper` CLI
 
+The installer now tolerates both current and older `llama.cpp` CLI output layouts by linking either upstream `llama-cli` or legacy `main` to Mordecai's stable `tools/bin/llama-cli` path.
+
 The runtime also exposes a policy-aware voice ecosystem catalog at `GET /api/voice/catalog`. That catalog does not auto-install or auto-enable upstream projects; it exists to make operator-visible routing, evaluation, and future explicit integrations possible without hiding model choices behind prompt state.
 
 The local model registry now also promotes additional explicit voice integrations beyond the Piper and Whisper CLI defaults, including `whisper.cpp` and `sherpa-onnx` profiles plus phone-oriented install bundles. Some bundles are policy-gated and require explicit operator acknowledgement before download. Archive-based bundles now extract into a managed helper directory, emit a machine-readable sherpa manifest, and write a setup note so they become runnable preparation paths instead of download-only blobs.
