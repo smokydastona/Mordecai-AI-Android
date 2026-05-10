@@ -24,6 +24,7 @@
 
 ### Changed
 
+- The Phase 1 installer now writes its smoke-check artifact as JSON at `data/logs/install-verification-report.json`, and failed smoke checks automatically include the tail of `backend.log` in that report for faster diagnosis.
 - The Phase 1 post-install smoke check now also asserts `/api/runtime/tool-manifest` and writes a concise `data/logs/install-verification-report.txt` artifact on both success and failure so install verification leaves a durable summary.
 - The Phase 1 post-install smoke check now preserves an already-running backend instead of stopping it unconditionally, and it now asserts deeper runtime API shape by probing `/api/runtime/provider-registry` and `/api/voice/engines` in addition to `/api/status`.
 - The Phase 1 installer now repairs a broken `backend/` checkout in place by removing an invalid work tree and recloning it, and it now performs a post-install smoke check that starts the backend once, probes `/api/status`, verifies the managed local-runtime commands are visible on `PATH`, and shuts the process back down.
