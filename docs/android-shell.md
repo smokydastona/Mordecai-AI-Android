@@ -16,6 +16,7 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - `android-shell/` is a standalone Android application module built with Kotlin and Gradle
 - `MainActivity` provides install, start, stop, update, and refresh controls, now behind a first-run welcome flow with the shell configuration moved into a dedicated in-app settings screen opened from the settings cog
 - `SettingsActivity` now provides a permissions/status summary card, permission review actions, shell toggles, backend URL and wake-phrase configuration, and AI routing controls for cloud and local OpenAI-compatible endpoints
+- the shell Kotlin sources now keep wake-phrase callback wiring, partial transcript callbacks, and AI profile preference constants consolidated so the Android module remains CI-compilable after the voice-session and dedicated-settings refactor
 - `MordecaiShellService` polls the localhost backend and can auto-start it through Termux when offline
 - `WakePhraseManager` listens for the configured wake phrase and triggers backend startup when it is heard
 - `SpeechCommandProcessor` now emits partial transcript updates while capturing the next spoken command and streams the final command into the backend voice-session API instead of only dispatching through chat

@@ -59,6 +59,13 @@ class SettingsActivity : AppCompatActivity() {
         private const val SUMMARY_MODEL_RULE_BASED = "Active model profile: rule-based"
         private const val SUMMARY_UNKNOWN_PROVIDER = "unknown"
         private const val SUMMARY_BACKEND_UNAVAILABLE = "Backend unavailable"
+        private const val PREF_MODEL_PROFILE_MODE = "model_profile_mode"
+        private const val PREF_CLOUD_BASE_URL = "cloud_openai_base_url"
+        private const val PREF_CLOUD_API_KEY = "cloud_openai_api_key"
+        private const val PREF_CLOUD_MODEL = "cloud_openai_model"
+        private const val PREF_LOCAL_BASE_URL = "local_openai_base_url"
+        private const val PREF_LOCAL_API_KEY = "local_openai_api_key"
+        private const val PREF_LOCAL_MODEL = "local_openai_model"
     }
 
     private lateinit var binding: ActivitySettingsBinding
@@ -455,13 +462,4 @@ class SettingsActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    companion object {
-        private const val PREF_MODEL_PROFILE_MODE = "model_profile_mode"
-        private const val PREF_CLOUD_BASE_URL = "cloud_openai_base_url"
-        private const val PREF_CLOUD_API_KEY = "cloud_openai_api_key"
-        private const val PREF_CLOUD_MODEL = "cloud_openai_model"
-        private const val PREF_LOCAL_BASE_URL = "local_openai_base_url"
-        private const val PREF_LOCAL_API_KEY = "local_openai_api_key"
-        private const val PREF_LOCAL_MODEL = "local_openai_model"
-    }
 }

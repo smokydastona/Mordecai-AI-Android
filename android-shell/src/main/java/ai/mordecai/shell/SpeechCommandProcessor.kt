@@ -69,8 +69,6 @@ class SpeechCommandProcessor(
 
     override fun onEndOfSpeech() = Unit
 
-    override fun onPartialResults(partialResults: Bundle) = Unit
-
     override fun onPartialResults(partialResults: Bundle) {
         val match = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty().firstOrNull()?.trim()
         if (!match.isNullOrBlank()) {

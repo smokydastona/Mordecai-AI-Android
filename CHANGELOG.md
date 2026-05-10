@@ -24,6 +24,7 @@
 
 ### Changed
 
+- Android shell Kotlin sources now keep the wake-phrase callback wiring, speech partial-result handling, and dedicated settings companion constants in a compile-safe shape so CI `:android-shell:assembleDebug` no longer fails on duplicate declarations or invalid lambda invocation syntax.
 - Android shell perception producers now attach richer structured context when available, including focused-node details and notification action titles extracted from notification events.
 - `AndroidController.perform()` now supports explicit app and notification/navigation actions for planning workflows: `back`, `home`, `recents`, `show_notifications`, and `show_quick_settings` in addition to existing tap/swipe/type/open-app paths.
 - Planner tool selection now expands beyond repo and web tools into Android app-launch and notification/navigation workflows when `android.control` is available.

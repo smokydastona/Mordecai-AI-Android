@@ -101,17 +101,22 @@ class MordecaiShellService : LifecycleService() {
         }
         val phrase = prefs.getString(PREF_WAKE_PHRASE, DEFAULT_WAKE_PHRASE) ?: DEFAULT_WAKE_PHRASE
         wakePhraseManager?.stop()
-        wakePhraseManager = WakePhraseManager(this, phrase) {
-            backendSupervisor.startRuntime()
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_wake_phrase_heard)))
-            listenForVoiceCommand(manualTrigger = false)
-        } { transcript ->
-            lifecycleScope.launch {
-                val sessionId = ensureVoiceSessionId("shell-service") ?: return@launch
-                backendSupervisor.postVoiceSessionEvent(sessionId, transcript, isFinal = false, autoExecute = false)
-            }
-        }
+        wakePhraseManager = WakePhraseManager(
+            context = this,
+            phrase = phrase,
+            onWakePhraseHeard = {
+                backendSupervisor.startRuntime()
+                val manager = getSystemService(NotificationManager::class.java)
+                manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_wake_phrase_heard)))
+                listenForVoiceCommand(manualTrigger = false)
+            },
+            onWakeTranscript = { transcript ->
+                lifecycleScope.launch {
+                    val sessionId = ensureVoiceSessionId("shell-service") ?: return@launch
+                    backendSupervisor.postVoiceSessionEvent(sessionId, transcript, isFinal = false, autoExecute = false)
+                }
+            },
+        )
         wakePhraseManager?.start()
     }
 
