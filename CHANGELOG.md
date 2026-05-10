@@ -24,6 +24,8 @@
 
 ### Changed
 
+- The Phase 1 installer now supports `MORDECAI_FORCE_REINSTALL=true`, which wipes only the backend checkout, runtime environment, copied scripts, and managed tools while preserving models, logs, cache, and state under `data/`.
+- The installer now verifies the Python runtime with `pip check` and import smoke tests, verifies local runtime tool dependencies such as `ffmpeg` and `cmake`, and verifies that the default phone-starter model assets were actually downloaded before declaring install success.
 - The Phase 1 `proot-distro` installer now builds `llama.cpp` without hard-coding a single CMake target and normalizes either `bin/llama-cli` or the older `bin/main` output to Mordecai's managed `tools/bin/llama-cli` path.
 - Outbound networking now rejects commerce-oriented endpoints and blocks requests that contain personal-data fields or values, even when the destination host is on the allowlist.
 - Android control now blocks direct `tap`, `swipe`, and `type` input injection so the runtime cannot drive checkout flows or enter personal/payment data through arbitrary UI automation.

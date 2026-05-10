@@ -29,6 +29,7 @@ INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-true}"
 INSTALL_LOCAL_MODEL_BINARIES="${MORDECAI_INSTALL_LOCAL_MODEL_BINARIES:-true}"
 INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"
 INSTALL_DEBUG_TOOLKIT="${MORDECAI_INSTALL_DEBUG_TOOLKIT:-false}"
+FORCE_REINSTALL="${MORDECAI_FORCE_REINSTALL:-false}"
 APK_RELEASE_TAG="${MORDECAI_APK_RELEASE_TAG:-android-shell-latest}"
 APK_ASSET_NAME="${MORDECAI_APK_ASSET_NAME:-android-shell-debug.apk}"
 APK_DOWNLOAD_URL="${MORDECAI_APK_DOWNLOAD_URL:-https://github.com/smokydastona/Mordecai-AI-Android/releases/download/${APK_RELEASE_TAG}/${APK_ASSET_NAME}}"
@@ -214,21 +215,51 @@ sync_runtime_scripts() {
   done
 }
 
+force_reinstall_runtime_layers() {
+  if [ "${FORCE_REINSTALL}" != "true" ]; then
+    return
+  fi
+
+  printf '%s\n' 'Force reinstall requested; removing backend checkout, runtime environment, tools, and copied scripts while preserving models and state...'
+  rm -rf "${BACKEND_DIR}" "${ENV_DIR}" "${TOOLS_DIR}" "${SCRIPT_DIR}"
+}
+
+verify_runtime_python_install() {
+  printf '%s\n' 'Verifying Mordecai Python runtime dependencies...'
+  run_in_distro "'${ENV_DIR}/bin/python' -m pip check"
+  run_in_distro "'${ENV_DIR}/bin/python' -c \"import fastapi, httpx, yaml, pydantic_settings, uvicorn; import mordecai, mordecai_core, providers, self_mod, net_proxy, voice\""
+}
+
+verify_default_model_bundle() {
+  if [ "${INSTALL_DEFAULT_MODELS}" != "true" ]; then
+    return
+  fi
+
+  printf '%s\n' 'Verifying default local model bundle assets...'
+  run_in_distro "test -f '${MODELS_DIR}/Qwen2.5-3B-Instruct-Q4_K_M.gguf'"
+  run_in_distro "test -f '${MODELS_DIR}/en_US-lessac-medium.onnx'"
+  run_in_distro "test -f '${MODELS_DIR}/en_US-lessac-medium.onnx.json'"
+}
+
 install_local_model_binaries() {
   if [ "${INSTALL_LOCAL_MODEL_BINARIES}" != "true" ]; then
     return
   fi
 
   printf '%s\n' 'Installing phone-supported local model runtime binaries inside the Linux runtime...'
-  run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ffmpeg cmake ninja-build pkg-config python3-dev git build-essential'
+  run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl ffmpeg cmake ninja-build pkg-config python3-dev git build-essential'
   run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
   run_in_distro "'${ENV_DIR}/bin/python' -m pip install openai-whisper piper-tts"
+  run_in_distro "'${ENV_DIR}/bin/python' -m pip check"
 
   run_in_distro "mkdir -p '${TOOLS_BIN_DIR}'"
   run_in_distro "if [ ! -d '${LLAMA_CPP_DIR}/.git' ]; then git clone --depth 1 https://github.com/ggml-org/llama.cpp '${LLAMA_CPP_DIR}'; else git -C '${LLAMA_CPP_DIR}' pull --ff-only; fi"
   run_in_distro "cmake -S '${LLAMA_CPP_DIR}' -B '${LLAMA_CPP_BUILD_DIR}' -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=OFF -DLLAMA_CURL=OFF"
   run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\$(nproc)"
 
+  run_in_distro "command -v ffmpeg >/dev/null"
+  run_in_distro "command -v cmake >/dev/null"
+  run_in_distro "command -v git >/dev/null"
   run_in_distro "test -x '${ENV_DIR}/bin/whisper'"
   run_in_distro "test -x '${ENV_DIR}/bin/piper'"
   run_in_distro "if [ -x '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then true; elif [ -x '${LLAMA_CPP_BUILD_DIR}/bin/main' ]; then true; else echo 'llama.cpp CLI binary not found after build' >&2; exit 1; fi"
@@ -350,6 +381,8 @@ pkg update -y
 pkg upgrade -y
 pkg install -y git curl proot-distro
 
+force_reinstall_runtime_layers
+
 mkdir -p "${INSTALL_ROOT}" "${DATA_DIR}" "${STATE_DIR}" "${LOG_DIR}" "${CACHE_DIR}" "${MODELS_DIR}" "${SCRIPT_DIR}" "${ROOTFS_CACHE_DIR}"
 
 ensure_pinned_distro_plugin
@@ -383,6 +416,7 @@ fi
 
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
+verify_runtime_python_install
 
 if [ "${INSTALL_LOCAL_MODEL_BINARIES}" = "true" ]; then
   install_local_model_binaries
@@ -391,6 +425,7 @@ fi
 if [ "${INSTALL_DEFAULT_MODELS}" = "true" ]; then
   printf '%s\n' 'Installing the default local model bundle into Mordecai data/models...'
   run_in_distro "'${ENV_DIR}/bin/python' -m mordecai.local_models --install-root '${INSTALL_ROOT}' --install-bundle phone-starter"
+  verify_default_model_bundle
 fi
 
 if [ "${INSTALL_DEBUG_TOOLKIT}" = "true" ]; then

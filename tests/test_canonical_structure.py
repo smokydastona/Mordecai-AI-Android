@@ -64,6 +64,7 @@ def test_phase1_installer_defaults_to_models_and_shell_apk():
     assert 'INSTALL_DEFAULT_MODELS="${MORDECAI_INSTALL_DEFAULT_MODELS:-true}"' in installer
     assert 'INSTALL_LOCAL_MODEL_BINARIES="${MORDECAI_INSTALL_LOCAL_MODEL_BINARIES:-true}"' in installer
     assert 'INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"' in installer
+    assert 'FORCE_REINSTALL="${MORDECAI_FORCE_REINSTALL:-false}"' in installer
     assert 'android-shell-latest' in installer
     assert 'termux-open --content-type application/vnd.android.package-archive' in installer
 
@@ -74,10 +75,31 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert 'install_local_model_binaries()' in installer
     assert 'pip install openai-whisper piper-tts' in installer
     assert 'ggml-org/llama.cpp' in installer
+    assert "'${ENV_DIR}/bin/python' -m pip check" in installer
+    assert "command -v ffmpeg >/dev/null" in installer
     assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\\$(nproc)" in installer
     assert "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'" in installer
     assert "ln -sf '${ENV_DIR}/bin/piper' '${TOOLS_BIN_DIR}/piper'" in installer
     assert "${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'; else ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/main' '${TOOLS_BIN_DIR}/llama-cli'; fi" in installer
+
+
+def test_phase1_installer_supports_force_reinstall_without_wiping_models_or_state():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'force_reinstall_runtime_layers()' in installer
+    assert 'Force reinstall requested; removing backend checkout, runtime environment, tools, and copied scripts while preserving models and state...' in installer
+    assert 'rm -rf "${BACKEND_DIR}" "${ENV_DIR}" "${TOOLS_DIR}" "${SCRIPT_DIR}"' in installer
+
+
+def test_phase1_installer_verifies_runtime_and_default_model_bundle_after_install():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'verify_runtime_python_install' in installer
+    assert 'import fastapi, httpx, yaml, pydantic_settings, uvicorn; import mordecai, mordecai_core, providers, self_mod, net_proxy, voice' in installer
+    assert 'verify_default_model_bundle' in installer
+    assert "test -f '${MODELS_DIR}/Qwen2.5-3B-Instruct-Q4_K_M.gguf'" in installer
+    assert "test -f '${MODELS_DIR}/en_US-lessac-medium.onnx'" in installer
+    assert "test -f '${MODELS_DIR}/en_US-lessac-medium.onnx.json'" in installer
 
 
 def test_phase1_installer_supports_optional_debug_toolkit():
