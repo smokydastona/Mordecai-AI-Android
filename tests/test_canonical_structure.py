@@ -73,9 +73,15 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
 
     assert 'install_local_model_binaries()' in installer
-    assert 'pip install openai-whisper piper-tts' in installer
+    assert 'install_voice_runtime_python_packages()' in installer
+    assert 'TORCH_CPU_INDEX_URL="${MORDECAI_TORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}"' in installer
+    assert "runtime_platform=\"$(runtime_python_platform)\"" in installer
+    assert "'${ENV_DIR}/bin/python' -m pip install --index-url '${TORCH_CPU_INDEX_URL}' 'torch<3'" in installer
+    assert "'${ENV_DIR}/bin/python' -m pip install openai-whisper piper-tts" in installer
     assert 'ggml-org/llama.cpp' in installer
     assert "'${ENV_DIR}/bin/python' -m pip check" in installer
+    assert 'verify_voice_runtime_python_packages' in installer
+    assert 'assert torch.version.cuda is None' in installer
     assert "command -v ffmpeg >/dev/null" in installer
     assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\\$(nproc)" in installer
     assert "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'" in installer

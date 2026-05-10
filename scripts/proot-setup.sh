@@ -33,6 +33,7 @@ FORCE_REINSTALL="${MORDECAI_FORCE_REINSTALL:-false}"
 APK_RELEASE_TAG="${MORDECAI_APK_RELEASE_TAG:-android-shell-latest}"
 APK_ASSET_NAME="${MORDECAI_APK_ASSET_NAME:-android-shell-debug.apk}"
 APK_DOWNLOAD_URL="${MORDECAI_APK_DOWNLOAD_URL:-https://github.com/smokydastona/Mordecai-AI-Android/releases/download/${APK_RELEASE_TAG}/${APK_ASSET_NAME}}"
+TORCH_CPU_INDEX_URL="${MORDECAI_TORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}"
 APK_DOWNLOAD_PATH="${CACHE_DIR}/${APK_ASSET_NAME}"
 TOOLS_BIN_DIR="${TOOLS_DIR}/bin"
 LLAMA_CPP_DIR="${TOOLS_DIR}/llama.cpp"
@@ -241,6 +242,23 @@ verify_default_model_bundle() {
   run_in_distro "test -f '${MODELS_DIR}/en_US-lessac-medium.onnx.json'"
 }
 
+install_voice_runtime_python_packages() {
+  local runtime_platform
+  runtime_platform="$(runtime_python_platform)"
+
+  if [ "${runtime_platform}" = "linux-x86_64" ]; then
+    printf '%s\n' 'Preinstalling CPU-only Torch for openai-whisper on Linux x86_64 to avoid unsupported CUDA/NVIDIA wheel resolution...'
+    run_in_distro "'${ENV_DIR}/bin/python' -m pip install --index-url '${TORCH_CPU_INDEX_URL}' 'torch<3'"
+  fi
+
+  run_in_distro "'${ENV_DIR}/bin/python' -m pip install openai-whisper piper-tts"
+}
+
+verify_voice_runtime_python_packages() {
+  printf '%s\n' 'Verifying local voice runtime Python packages...'
+  run_in_distro "'${ENV_DIR}/bin/python' -c \"import torch, whisper, onnxruntime; assert torch.version.cuda is None, torch.version.cuda\""
+}
+
 install_local_model_binaries() {
   if [ "${INSTALL_LOCAL_MODEL_BINARIES}" != "true" ]; then
     return
@@ -249,8 +267,9 @@ install_local_model_binaries() {
   printf '%s\n' 'Installing phone-supported local model runtime binaries inside the Linux runtime...'
   run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl ffmpeg cmake ninja-build pkg-config python3-dev git build-essential'
   run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
-  run_in_distro "'${ENV_DIR}/bin/python' -m pip install openai-whisper piper-tts"
+  install_voice_runtime_python_packages
   run_in_distro "'${ENV_DIR}/bin/python' -m pip check"
+  verify_voice_runtime_python_packages
 
   run_in_distro "mkdir -p '${TOOLS_BIN_DIR}'"
   run_in_distro "if [ ! -d '${LLAMA_CPP_DIR}/.git' ]; then git clone --depth 1 https://github.com/ggml-org/llama.cpp '${LLAMA_CPP_DIR}'; else git -C '${LLAMA_CPP_DIR}' pull --ff-only; fi"

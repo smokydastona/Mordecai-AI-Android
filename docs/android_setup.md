@@ -48,7 +48,9 @@ The installer treats the `llama.cpp` CLI as a compatibility surface instead of a
 
 The installer is incremental by default, but it now also supports `MORDECAI_FORCE_REINSTALL=true` for a fresh runtime rebuild that preserves user data. That path removes only the backend checkout, runtime environment, copied scripts, and managed tool checkout under the install root, then rebuilds them while keeping models, state, logs, and caches intact.
 
-It also performs explicit post-install verification before reporting success: the Python dependency graph is checked with `pip check`, the core Mordecai runtime modules are imported in the Linux environment, local runtime build tools and CLIs are verified, and the default phone-starter bundle files are checked on disk when model installation is enabled.
+To keep `openai-whisper` CPU-safe on Linux `x86_64`, the installer preinstalls CPU-only PyTorch before installing the Whisper package itself. That avoids unsupported CUDA/NVIDIA dependency chains in the portable runtime.
+
+It also performs explicit post-install verification before reporting success: the Python dependency graph is checked with `pip check`, the core Mordecai runtime modules are imported in the Linux environment, the installed Whisper stack is checked to confirm it is not CUDA-linked, local runtime build tools and CLIs are verified, and the default phone-starter bundle files are checked on disk when model installation is enabled.
 
 Use the canonical installer from Termux:
 

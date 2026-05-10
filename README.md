@@ -275,7 +275,9 @@ The one-command phone installer now also provisions the default phone-supported 
 
 The installer now tolerates both current and older `llama.cpp` CLI output layouts by linking either upstream `llama-cli` or legacy `main` to Mordecai's stable `tools/bin/llama-cli` path.
 
-It now also verifies the Python runtime dependency graph with `pip check`, validates the core Mordecai imports after installation, checks that required local-runtime build tools such as `ffmpeg` and `cmake` are present, and confirms that the default phone-starter model assets were actually downloaded.
+On Linux `x86_64`, the installer now preinstalls CPU-only PyTorch from the PyTorch CPU wheel index before installing `openai-whisper`, which keeps pip from selecting unsupported CUDA/NVIDIA wheel families in CPU-only phone or VM runtimes.
+
+It now also verifies the Python runtime dependency graph with `pip check`, validates the core Mordecai imports after installation, checks that required local-runtime build tools such as `ffmpeg` and `cmake` are present, verifies that the installed Whisper stack is CPU-only, and confirms that the default phone-starter model assets were actually downloaded.
 
 If you want a fresh runtime reinstall without losing models or state, set `MORDECAI_FORCE_REINSTALL=true` before running `scripts/proot-setup.sh`. That path wipes only the backend checkout, `env/`, `tools/`, and copied `scripts/`, then rebuilds them while preserving `data/models`, `data/state`, logs, and caches.
 
