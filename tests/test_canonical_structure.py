@@ -120,6 +120,10 @@ def test_phase1_installer_runs_post_install_backend_smoke_check():
 
     assert 'run_post_install_smoke_check()' in installer
     assert 'write_install_verification_report()' in installer
+    assert 'installer_version() {' in installer
+    assert 'installer_commit() {' in installer
+    assert 'installer_version_value="$(installer_version)"' in installer
+    assert 'installer_commit_value="$(installer_commit)"' in installer
     assert 'Running post-install backend smoke check...' in installer
     assert 'http://127.0.0.1:${service_port}/api/status' in installer
     assert 'http://127.0.0.1:${service_port}/api/runtime/provider-registry' in installer
@@ -127,9 +131,13 @@ def test_phase1_installer_runs_post_install_backend_smoke_check():
     assert 'http://127.0.0.1:${service_port}/api/voice/engines' in installer
     assert 'install-verification-report.json' in installer
     assert "'report': 'mordecai-install-verification'" in installer
+    assert "'timestamp_utc': datetime.now(timezone.utc).isoformat()" in installer
+    assert "'installer_version': os.environ['INSTALLER_VERSION']" in installer
+    assert "'installer_commit': os.environ['INSTALLER_COMMIT']" in installer
     assert "'result': os.environ['SMOKE_RESULT']" in installer
     assert "'detail': os.environ['SMOKE_DETAIL']" in installer
     assert "'backend_log_tail': os.environ['BACKEND_LOG_TAIL'].splitlines()" in installer
+    assert 'rev-parse HEAD' in installer
     assert 'tail -n 20 "${backend_log_file}"' in installer
     assert 'Backend already running; preserving the existing process for smoke validation.' in installer
     assert 'started_here="true"' in installer

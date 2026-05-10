@@ -250,6 +250,18 @@ repair_llama_cpp_checkout() {
   run_in_distro "rm -rf '${LLAMA_CPP_DIR}' '${LLAMA_CPP_BUILD_DIR}'"
 }
 
+installer_version() {
+  awk -F'"' '/^version = "/ { print $2; exit }' "${BACKEND_DIR}/pyproject.toml"
+}
+
+installer_commit() {
+  if [ -d "${BACKEND_DIR}/.git" ] && git -C "${BACKEND_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C "${BACKEND_DIR}" rev-parse HEAD
+    return
+  fi
+  printf '%s\n' 'unknown'
+}
+
 write_install_verification_report() {
   local report_file="$1"
   local backend_log_file="$2"
@@ -263,6 +275,8 @@ write_install_verification_report() {
   local already_running="${10}"
   local started_here="${11}"
   local local_model_runtimes_enabled="${12}"
+  local installer_version_value="${13}"
+  local installer_commit_value="${14}"
   local backend_log_tail=""
 
   mkdir -p "${LOG_DIR}"
@@ -270,7 +284,7 @@ write_install_verification_report() {
     backend_log_tail="$(tail -n 20 "${backend_log_file}" 2>/dev/null || true)"
   fi
 
-  run_in_distro "REPORT_FILE='${report_file}' BACKEND_LOG_FILE='${backend_log_file}' SMOKE_RESULT='${smoke_result}' SMOKE_DETAIL='${smoke_detail}' SERVICE_PORT='${service_port}' STATUS_URL='${status_url}' PROVIDER_REGISTRY_URL='${provider_registry_url}' TOOL_MANIFEST_URL='${tool_manifest_url}' VOICE_ENGINES_URL='${voice_engines_url}' BACKEND_WAS_RUNNING='${already_running}' BACKEND_STARTED_BY_SMOKE_CHECK='${started_here}' LOCAL_MODEL_RUNTIMES_ENABLED='${local_model_runtimes_enabled}' BACKEND_LOG_TAIL='${backend_log_tail}' '${ENV_DIR}/bin/python' -c \"import json, os, pathlib; report = {'report': 'mordecai-install-verification', 'result': os.environ['SMOKE_RESULT'], 'detail': os.environ['SMOKE_DETAIL'], 'service_port': int(os.environ['SERVICE_PORT']), 'status_url': os.environ['STATUS_URL'], 'provider_registry_url': os.environ['PROVIDER_REGISTRY_URL'], 'tool_manifest_url': os.environ['TOOL_MANIFEST_URL'], 'voice_engines_url': os.environ['VOICE_ENGINES_URL'], 'backend_was_running': os.environ['BACKEND_WAS_RUNNING'] == 'true', 'backend_started_by_smoke_check': os.environ['BACKEND_STARTED_BY_SMOKE_CHECK'] == 'true', 'local_model_runtimes_enabled': os.environ['LOCAL_MODEL_RUNTIMES_ENABLED'], 'backend_log_file': os.environ['BACKEND_LOG_FILE'], 'backend_log_tail': os.environ['BACKEND_LOG_TAIL'].splitlines()}; path = pathlib.Path(os.environ['REPORT_FILE']); path.parent.mkdir(parents=True, exist_ok=True); path.write_text(json.dumps(report, indent=2) + '\\n', encoding='utf-8')\""
+  run_in_distro "REPORT_FILE='${report_file}' BACKEND_LOG_FILE='${backend_log_file}' SMOKE_RESULT='${smoke_result}' SMOKE_DETAIL='${smoke_detail}' SERVICE_PORT='${service_port}' STATUS_URL='${status_url}' PROVIDER_REGISTRY_URL='${provider_registry_url}' TOOL_MANIFEST_URL='${tool_manifest_url}' VOICE_ENGINES_URL='${voice_engines_url}' BACKEND_WAS_RUNNING='${already_running}' BACKEND_STARTED_BY_SMOKE_CHECK='${started_here}' LOCAL_MODEL_RUNTIMES_ENABLED='${local_model_runtimes_enabled}' INSTALLER_VERSION='${installer_version_value}' INSTALLER_COMMIT='${installer_commit_value}' BACKEND_LOG_TAIL='${backend_log_tail}' '${ENV_DIR}/bin/python' -c \"import json, os, pathlib; from datetime import datetime, timezone; report = {'report': 'mordecai-install-verification', 'timestamp_utc': datetime.now(timezone.utc).isoformat(), 'installer_version': os.environ['INSTALLER_VERSION'], 'installer_commit': os.environ['INSTALLER_COMMIT'], 'result': os.environ['SMOKE_RESULT'], 'detail': os.environ['SMOKE_DETAIL'], 'service_port': int(os.environ['SERVICE_PORT']), 'status_url': os.environ['STATUS_URL'], 'provider_registry_url': os.environ['PROVIDER_REGISTRY_URL'], 'tool_manifest_url': os.environ['TOOL_MANIFEST_URL'], 'voice_engines_url': os.environ['VOICE_ENGINES_URL'], 'backend_was_running': os.environ['BACKEND_WAS_RUNNING'] == 'true', 'backend_started_by_smoke_check': os.environ['BACKEND_STARTED_BY_SMOKE_CHECK'] == 'true', 'local_model_runtimes_enabled': os.environ['LOCAL_MODEL_RUNTIMES_ENABLED'], 'backend_log_file': os.environ['BACKEND_LOG_FILE'], 'backend_log_tail': os.environ['BACKEND_LOG_TAIL'].splitlines()}; path = pathlib.Path(os.environ['REPORT_FILE']); path.parent.mkdir(parents=True, exist_ok=True); path.write_text(json.dumps(report, indent=2) + '\\n', encoding='utf-8')\""
 }
 
 run_post_install_smoke_check() {
@@ -287,11 +301,15 @@ run_post_install_smoke_check() {
   local started_here="false"
   local smoke_result="failed"
   local smoke_detail="Smoke check did not complete."
+  local installer_version_value
+  local installer_commit_value
   local attempt
   local curl_status
 
   printf '%s\n' 'Running post-install backend smoke check...'
-  trap 'smoke_exit=$?; write_install_verification_report "${report_file}" "${backend_log_file}" "${smoke_result}" "${smoke_detail}" "${service_port}" "${status_url}" "${provider_registry_url}" "${tool_manifest_url}" "${voice_engines_url}" "${already_running}" "${started_here}" "${INSTALL_LOCAL_MODEL_BINARIES}";
+  installer_version_value="$(installer_version)"
+  installer_commit_value="$(installer_commit)"
+  trap 'smoke_exit=$?; write_install_verification_report "${report_file}" "${backend_log_file}" "${smoke_result}" "${smoke_detail}" "${service_port}" "${status_url}" "${provider_registry_url}" "${tool_manifest_url}" "${voice_engines_url}" "${already_running}" "${started_here}" "${INSTALL_LOCAL_MODEL_BINARIES}" "${installer_version_value}" "${installer_commit_value}";
 if [ "${started_here}" = "true" ] && [ -x "${SCRIPT_DIR}/stop.sh" ]; then "${SCRIPT_DIR}/stop.sh" >/dev/null 2>&1 || true; fi
 return ${smoke_exit}' RETURN
 
