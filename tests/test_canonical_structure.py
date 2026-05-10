@@ -65,6 +65,7 @@ def test_phase1_installer_defaults_to_models_and_shell_apk():
     assert 'INSTALL_LOCAL_MODEL_BINARIES="${MORDECAI_INSTALL_LOCAL_MODEL_BINARIES:-true}"' in installer
     assert 'INSTALL_SHELL_APK="${MORDECAI_INSTALL_SHELL_APK:-true}"' in installer
     assert 'FORCE_REINSTALL="${MORDECAI_FORCE_REINSTALL:-false}"' in installer
+    assert 'APK_PACKAGE_NAME="${MORDECAI_APK_PACKAGE_NAME:-ai.mordecai.shell}"' in installer
     assert 'android-shell-latest' in installer
     assert 'termux-open --content-type application/vnd.android.package-archive' in installer
 
@@ -94,6 +95,25 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'" in installer
     assert "ln -sf '${ENV_DIR}/bin/piper' '${TOOLS_BIN_DIR}/piper'" in installer
     assert "${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'; else ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/main' '${TOOLS_BIN_DIR}/llama-cli'; fi" in installer
+
+
+def test_phase1_installer_only_reinstalls_shell_apk_when_newer_or_different():
+    installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
+
+    assert 'installed_shell_package_info() {' in installer
+    assert 'downloaded_shell_apk_info() {' in installer
+    assert 'installed_shell_apk_path() {' in installer
+    assert 'apk_sha256() {' in installer
+    assert 'should_install_shell_apk() {' in installer
+    assert 'dumpsys package "${APK_PACKAGE_NAME}"' in installer
+    assert 'aapt dump badging "${APK_DOWNLOAD_PATH}"' in installer
+    assert 'pm path "${APK_PACKAGE_NAME}"' in installer
+    assert 'sha256sum "${apk_path}"' in installer
+    assert 'Downloaded shell APK matches the installed app; skipping reinstall.' in installer
+    assert 'Downloaded shell APK is newer than the installed app; proceeding with update.' in installer
+    assert 'Downloaded shell APK version differs from the installed app; proceeding with update.' in installer
+    assert 'Downloaded shell APK differs from the installed app payload; proceeding with update.' in installer
+    assert 'if ! should_install_shell_apk; then' in installer
 
 
 def test_phase1_installer_supports_force_reinstall_without_wiping_models_or_state():

@@ -33,6 +33,7 @@ FORCE_REINSTALL="${MORDECAI_FORCE_REINSTALL:-false}"
 APK_RELEASE_TAG="${MORDECAI_APK_RELEASE_TAG:-android-shell-latest}"
 APK_ASSET_NAME="${MORDECAI_APK_ASSET_NAME:-android-shell-debug.apk}"
 APK_DOWNLOAD_URL="${MORDECAI_APK_DOWNLOAD_URL:-https://github.com/smokydastona/Mordecai-AI-Android/releases/download/${APK_RELEASE_TAG}/${APK_ASSET_NAME}}"
+APK_PACKAGE_NAME="${MORDECAI_APK_PACKAGE_NAME:-ai.mordecai.shell}"
 TORCH_CPU_INDEX_URL="${MORDECAI_TORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}"
 APK_DOWNLOAD_PATH="${CACHE_DIR}/${APK_ASSET_NAME}"
 TOOLS_BIN_DIR="${TOOLS_DIR}/bin"
@@ -455,12 +456,128 @@ download_shell_apk() {
   mv -f "${APK_DOWNLOAD_PATH}.tmp" "${APK_DOWNLOAD_PATH}"
 }
 
+installed_shell_package_info() {
+  local package_dump
+  local version_code
+  local version_name
+
+  package_dump="$(dumpsys package "${APK_PACKAGE_NAME}" 2>/dev/null || true)"
+  if [ -z "${package_dump}" ]; then
+    return 1
+  fi
+
+  version_code="$(printf '%s\n' "${package_dump}" | sed -n 's/.*versionCode=\([0-9][0-9]*\).*/\1/p' | head -n 1)"
+  version_name="$(printf '%s\n' "${package_dump}" | sed -n 's/.*versionName=\([^[:space:]]*\).*/\1/p' | head -n 1)"
+
+  if [ -z "${version_code}" ] && [ -z "${version_name}" ]; then
+    return 1
+  fi
+
+  printf '%s|%s\n' "${version_code}" "${version_name}"
+}
+
+downloaded_shell_apk_info() {
+  local badging
+  local version_code
+  local version_name
+
+  if ! command -v aapt >/dev/null 2>&1; then
+    return 1
+  fi
+
+  badging="$(aapt dump badging "${APK_DOWNLOAD_PATH}" 2>/dev/null || true)"
+  if [ -z "${badging}" ]; then
+    return 1
+  fi
+
+  version_code="$(printf '%s\n' "${badging}" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" | head -n 1)"
+  version_name="$(printf '%s\n' "${badging}" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -n 1)"
+
+  if [ -z "${version_code}" ] && [ -z "${version_name}" ]; then
+    return 1
+  fi
+
+  printf '%s|%s\n' "${version_code}" "${version_name}"
+}
+
+installed_shell_apk_path() {
+  pm path "${APK_PACKAGE_NAME}" 2>/dev/null | sed -n 's/^package://p' | head -n 1
+}
+
+apk_sha256() {
+  local apk_path="$1"
+  if [ ! -r "${apk_path}" ]; then
+    return 1
+  fi
+  sha256sum "${apk_path}" | awk '{ print $1 }'
+}
+
+should_install_shell_apk() {
+  local installed_info
+  local downloaded_info
+  local installed_version_code
+  local installed_version_name
+  local downloaded_version_code
+  local downloaded_version_name
+  local installed_apk_path
+  local installed_hash
+  local downloaded_hash
+
+  installed_info="$(installed_shell_package_info || true)"
+  if [ -z "${installed_info}" ]; then
+    printf '%s\n' 'Mordecai shell package is not currently installed; proceeding with APK install.'
+    return 0
+  fi
+
+  installed_version_code="${installed_info%%|*}"
+  installed_version_name="${installed_info#*|}"
+  printf 'Installed Mordecai shell package version: code=%s name=%s\n' "${installed_version_code:-unknown}" "${installed_version_name:-unknown}"
+
+  downloaded_info="$(downloaded_shell_apk_info || true)"
+  if [ -n "${downloaded_info}" ]; then
+    downloaded_version_code="${downloaded_info%%|*}"
+    downloaded_version_name="${downloaded_info#*|}"
+    printf 'Downloaded Mordecai shell APK version: code=%s name=%s\n' "${downloaded_version_code:-unknown}" "${downloaded_version_name:-unknown}"
+
+    if [ -n "${downloaded_version_code}" ] && [ -n "${installed_version_code}" ] && [ "${downloaded_version_code}" -gt "${installed_version_code}" ]; then
+      printf '%s\n' 'Downloaded shell APK is newer than the installed app; proceeding with update.'
+      return 0
+    fi
+
+    if [ "${downloaded_version_code}" != "${installed_version_code}" ] || [ "${downloaded_version_name}" != "${installed_version_name}" ]; then
+      printf '%s\n' 'Downloaded shell APK version differs from the installed app; proceeding with update.'
+      return 0
+    fi
+  fi
+
+  installed_apk_path="$(installed_shell_apk_path || true)"
+  installed_hash="$(apk_sha256 "${installed_apk_path}" 2>/dev/null || true)"
+  downloaded_hash="$(apk_sha256 "${APK_DOWNLOAD_PATH}" 2>/dev/null || true)"
+
+  if [ -n "${installed_hash}" ] && [ -n "${downloaded_hash}" ]; then
+    if [ "${installed_hash}" = "${downloaded_hash}" ]; then
+      printf '%s\n' 'Downloaded shell APK matches the installed app; skipping reinstall.'
+      return 1
+    fi
+
+    printf '%s\n' 'Downloaded shell APK differs from the installed app payload; proceeding with update.'
+    return 0
+  fi
+
+  printf '%s\n' 'Unable to prove the downloaded shell APK matches the installed app; proceeding with update to stay safe.'
+  return 0
+}
+
 install_shell_apk() {
   if [ "${INSTALL_SHELL_APK}" != "true" ]; then
     return
   fi
 
   download_shell_apk
+
+  if ! should_install_shell_apk; then
+    return
+  fi
 
   if command -v su >/dev/null 2>&1 && su -c true >/dev/null 2>&1; then
     if su -c "pm install -r '${APK_DOWNLOAD_PATH}'"; then

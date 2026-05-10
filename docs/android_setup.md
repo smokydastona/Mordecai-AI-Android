@@ -58,6 +58,8 @@ It now applies the same repair model to the backend checkout: an invalid or inco
 
 After provisioning finishes, the installer runs a backend smoke check by reusing an already-running backend when one exists, otherwise starting the shipped service once, probing `http://127.0.0.1:<port>/api/status`, asserting the runtime provider-registry, tool-manifest, and voice-engine APIs return the expected contract shape, verifying the managed local-runtime commands are available on `PATH` when enabled, and stopping the service only if the smoke check started it. The installer writes a JSON verification report under `data/logs/install-verification-report.json`; that artifact includes a UTC timestamp, the installer version, the checkout commit, and on failure the last few lines of `data/logs/backend.log`.
 
+The installer also treats the Android shell APK as an update surface instead of blindly reinstalling it. On reruns it queries the installed package version first, compares it to the downloaded APK version when APK metadata inspection is available, falls back to APK hash comparison when needed, and skips the install prompt when the downloaded APK is unchanged.
+
 Use the canonical installer from Termux:
 
 ```bash
