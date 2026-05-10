@@ -24,12 +24,14 @@ For the most capable local deployment path, the intended target remains a rooted
 - Planner history is now persisted and operator-visible through the dashboard and API, with per-record selection in the dashboard for full inspection after the latest response scrolls away, while the permanent avatar remains part of the operator surface
 - Formal Mordecai identity with wake words and personality modes
 - Policy engine that protects core safety files and execution surfaces, blocks destructive shell patterns, and enforces an outbound domain allowlist
+- Outbound policy now also blocks commerce/checkout endpoints and personal-data exfiltration patterns, even on otherwise allowlisted hosts
 - Safe HTTP client with per-minute request throttling and request logging
 - Git integration for local backups and optional pushes
 - Self-improvement manager that stages file changes in a sandbox workspace, runs tests there, supports rollback, previews diffs, and only applies candidates whose tests passed
 - Self-improvement perimeter with protected-path enforcement, hidden-persistence diff filters, sandboxed test gating, and rollback snapshots
 - Resource watchdog that reports CPU and memory usage
 - Android control hooks through `adb` for safe allowlisted actions when explicitly enabled
+- Direct Android screen injection for `tap`, `swipe`, and `type` is now policy-blocked so Mordecai cannot automate purchases or enter personal/payment data into arbitrary apps
 - Structured Android perception ingestion for app package, activity, visible text, clickable actions, clipboard hints, notifications, and parsed accessibility UI dumps so planning can reason over current screen context
 - Perception snapshots now also preserve focused-node metadata and notification action metadata when the shell producer can collect them
 - Canonical architecture foundations for a unified tool registry, replaceable provider contracts, and an observable event bus in `mordecai_core/`

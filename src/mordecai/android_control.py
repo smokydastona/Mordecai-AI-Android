@@ -56,6 +56,10 @@ class AndroidController:
         # Mode B actions require explicit enablement
         if action.startswith("mode_b_") and not self.settings.enable_mode_b:
             raise PermissionError("Mode B is disabled; set enable_mode_b=True to use rooted shell automation")
+
+        action_decision = self.policy.validate_android_action(action, arguments)
+        if not action_decision.allowed:
+            raise PermissionError(action_decision.reason)
         
         command = self._build_command(action, arguments)
         decision = self.policy.validate_command(" ".join(command))

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 from mordecai.config import Settings
 from mordecai.models import ImprovementFileChange, PolicyReport
@@ -16,6 +16,23 @@ class PolicyDecision:
 
 
 class PolicyEngine:
+    FORBIDDEN_ANDROID_ACTIONS = frozenset({"tap", "swipe", "type"})
+    FORBIDDEN_PURCHASE_PATH_PATTERNS = [
+        r"/(checkout|cart|payment|billing|invoice|subscribe|subscription|order)(/|$)",
+        r"/(buy|purchase|donate|tip)(/|$)",
+    ]
+    SENSITIVE_QUERY_KEY_PATTERNS = [
+        r"(^|_)(email|phone|address|ssn|social_security|card|card_number|credit_card|cvv|cvc|expiry|billing|shipping|dob|birthdate)(_|$)",
+    ]
+    SENSITIVE_FIELD_PATTERNS = [
+        r'"?(email|phone|address|ssn|social_security|card|card_number|credit_card|cvv|cvc|expiry|billing_address|shipping_address|full_name|first_name|last_name|dob|birthdate)"?\s*[:=]',
+    ]
+    SENSITIVE_VALUE_PATTERNS = [
+        r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}",
+        r"\b(?:\+?\d[\d\s().-]{7,}\d)\b",
+        r"\b\d{3}-\d{2}-\d{4}\b",
+        r"\b(?:\d[ -]*?){13,19}\b",
+    ]
     FORBIDDEN_COMMAND_PATTERNS = [
         r"\b(reboot|shutdown|poweroff|halt)\b",
         r"\bmkfs\b",
@@ -83,6 +100,43 @@ class PolicyEngine:
             return PolicyDecision(False, f"Domain '{parsed.hostname}' is not on the allowlist")
         return PolicyDecision(True, "allowed")
 
+    def validate_outbound_request(self, method: str, url: str, payload: object | None = None) -> PolicyDecision:
+        decision = self.validate_url(url)
+        if not decision.allowed:
+            return decision
+
+        parsed = urlparse(url)
+        normalized_path = parsed.path.lower()
+        for pattern in self.FORBIDDEN_PURCHASE_PATH_PATTERNS:
+            if re.search(pattern, normalized_path, flags=re.IGNORECASE):
+                return PolicyDecision(False, "Outbound commerce or checkout endpoints are blocked by policy")
+
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+            if any(re.search(pattern, key, flags=re.IGNORECASE) for pattern in self.SENSITIVE_QUERY_KEY_PATTERNS):
+                return PolicyDecision(False, "Outbound personal data fields are blocked by policy")
+            if self._contains_sensitive_value(value):
+                return PolicyDecision(False, "Outbound personal data values are blocked by policy")
+
+        if method.upper() not in {"GET", "HEAD"}:
+            if self._contains_sensitive_payload(payload):
+                return PolicyDecision(False, "Outbound personal data payloads are blocked by policy")
+            if self._contains_purchase_payload(payload):
+                return PolicyDecision(False, "Outbound purchase or payment payloads are blocked by policy")
+
+        return PolicyDecision(True, "allowed")
+
+    def validate_android_action(self, action: str, arguments: list[str]) -> PolicyDecision:
+        if action in self.FORBIDDEN_ANDROID_ACTIONS:
+            return PolicyDecision(
+                False,
+                "Direct screen input actions are blocked to prevent purchases and personal-data entry",
+            )
+        if action == "open_app" and arguments:
+            package = arguments[0].strip().lower()
+            if any(token in package for token in ("vending", "play", "store", "shop", "pay", "wallet", "amazon")):
+                return PolicyDecision(False, "Commerce-oriented app launches are blocked by policy")
+        return PolicyDecision(True, "allowed")
+
     def validate_command(self, command: str) -> PolicyDecision:
         for pattern in self.FORBIDDEN_COMMAND_PATTERNS:
             if re.search(pattern, command, flags=re.IGNORECASE):
@@ -124,6 +178,8 @@ class PolicyEngine:
             "android-automation",
             "daemon-mode",
             "root-only-behaviors",
+            "commerce-transactions",
+            "personal-data-exfiltration",
         ]
         allowed_features.append("permanent-avatar")
         if self.settings.allow_git_push:
@@ -147,3 +203,31 @@ class PolicyEngine:
     @staticmethod
     def _normalize_path(path: str) -> str:
         return Path(path).as_posix()
+
+    def _contains_sensitive_payload(self, payload: object | None) -> bool:
+        text = self._stringify_payload(payload)
+        if not text:
+            return False
+        if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in self.SENSITIVE_FIELD_PATTERNS):
+            return True
+        return self._contains_sensitive_value(text)
+
+    def _contains_purchase_payload(self, payload: object | None) -> bool:
+        text = self._stringify_payload(payload)
+        if not text:
+            return False
+        purchase_patterns = [
+            r'"?(card|card_number|credit_card|cvv|cvc|expiry|billing_address|shipping_address|payment_method|checkout_token|purchase|order_total|amount)"?\s*[:=]',
+        ]
+        return any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in purchase_patterns)
+
+    def _contains_sensitive_value(self, value: str) -> bool:
+        return any(re.search(pattern, value, flags=re.IGNORECASE) for pattern in self.SENSITIVE_VALUE_PATTERNS)
+
+    @staticmethod
+    def _stringify_payload(payload: object | None) -> str:
+        if payload is None:
+            return ""
+        if isinstance(payload, str):
+            return payload
+        return repr(payload)

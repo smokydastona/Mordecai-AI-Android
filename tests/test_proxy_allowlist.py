@@ -94,3 +94,31 @@ def test_proxy_download_file_allows_safe_redirect_chain(tmp_path):
     logged_hosts = [urlparse(record.url).hostname for record in store.read_proxy_records()]
     assert "huggingface.co" in logged_hosts
     assert "cdn-lfs.hf.co" in logged_hosts
+
+
+def test_proxy_blocks_sensitive_query_values_even_on_allowlisted_domain(tmp_path):
+    settings = Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai")
+    store = StateStore(settings.state_dir, settings.max_log_entries)
+    policy = PolicyEngine(settings)
+    proxy = SafeHttpClient(settings, policy, store)
+
+    try:
+        asyncio.run(proxy._gate_request("https://api.github.com/search/users?q=user@example.com", "GET"))
+    except PermissionError as exc:
+        assert "personal data" in str(exc).lower()
+    else:
+        raise AssertionError("Expected personal data query value to be blocked")
+
+
+def test_proxy_blocks_sensitive_post_payloads(tmp_path):
+    settings = Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai")
+    store = StateStore(settings.state_dir, settings.max_log_entries)
+    policy = PolicyEngine(settings)
+    proxy = SafeHttpClient(settings, policy, store)
+
+    try:
+        asyncio.run(proxy.gate_request("https://api.openai.com/v1/chat/completions", "POST", {"phone": "+1 555 123 4567"}))
+    except PermissionError as exc:
+        assert "personal data" in str(exc).lower()
+    else:
+        raise AssertionError("Expected personal data payload to be blocked")

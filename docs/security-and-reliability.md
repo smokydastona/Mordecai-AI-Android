@@ -124,6 +124,18 @@ with self._lock:
 
 ## Medium-Priority Issues Fixed
 
+### 13. Personal-Data Exfiltration And Purchase-Flow Gaps
+
+**Issue**: The outbound proxy previously enforced only a domain allowlist, and Android control still exposed generic `tap`, `swipe`, and `type` injection. That meant an allowlisted host could still receive personal data, and direct UI automation could still be used to progress a checkout flow.
+
+**Fix**:
+- Added payload-aware outbound policy validation for personal-data fields and values
+- Blocked commerce-oriented outbound paths such as checkout and payment endpoints, even when the host itself is allowlisted
+- Blocked direct Android `tap`, `swipe`, and `type` actions at the policy layer, leaving only safer navigation and allowlisted app-launch flows available
+- Added regression coverage for blocked checkout URLs, blocked personal-data payloads, blocked sensitive query values, and blocked direct Android input actions
+
+**Impact**: Mordecai can no longer use its managed network surface to send common personal data to the internet, and it can no longer use generic Android UI injection to complete purchases or enter payment details.
+
 ### 11. State Store Silent Failure Handling
 
 **Issue**: Persistence and state read failures were reduced to silent fallbacks or stderr warnings, which hid broken audit and rollback state.

@@ -192,52 +192,29 @@ class TestModeBAandroidController:
         with pytest.raises(PermissionError, match="Mode B is disabled"):
             controller.get_mode_b_state()
 
-    def test_tap_with_coordinate_validation(self, settings_mode_b_enabled, policy):
-        """Mode A: Tap validates coordinate bounds."""
+    def test_tap_is_blocked_by_transaction_safety_policy(self, settings_mode_b_enabled, policy):
+        """Mode A: Direct tap injection is blocked to prevent purchase flows."""
         controller = AndroidController(settings_mode_b_enabled, policy)
-        
-        # Valid coordinates
-        with patch("mordecai.android_control.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        policy.validate_android_action.return_value = PolicyDecision(allowed=False, reason="Direct screen input actions are blocked")
+
+        with pytest.raises(PermissionError, match="Direct screen input actions are blocked"):
             controller.perform("tap", ["100", "200"])
-            assert mock_run.called
-        
-        # Out of bounds
-        with pytest.raises(ValueError, match="Coordinates out of expected bounds"):
-            controller.perform("tap", ["3000", "100"])
 
-    def test_swipe_with_duration_validation(self, settings_mode_b_enabled, policy):
-        """Mode A: Swipe validates duration limits."""
+    def test_swipe_is_blocked_by_transaction_safety_policy(self, settings_mode_b_enabled, policy):
+        """Mode A: Direct swipe injection is blocked to prevent purchase flows."""
         controller = AndroidController(settings_mode_b_enabled, policy)
-        
-        # Valid swipe with duration
-        with patch("mordecai.android_control.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        policy.validate_android_action.return_value = PolicyDecision(allowed=False, reason="Direct screen input actions are blocked")
+
+        with pytest.raises(PermissionError, match="Direct screen input actions are blocked"):
             controller.perform("swipe", ["100", "200", "300", "400", "500"])
-            call_args = mock_run.call_args[0][0]
-            assert "500" in call_args
-        
-        # Duration too low
-        with pytest.raises(ValueError, match="Duration must be 100-5000ms"):
-            controller.perform("swipe", ["100", "200", "300", "400", "50"])
-        
-        # Duration too high
-        with pytest.raises(ValueError, match="Duration must be 100-5000ms"):
-            controller.perform("swipe", ["100", "200", "300", "400", "6000"])
 
-    def test_type_with_character_validation(self, settings_mode_b_enabled, policy):
-        """Mode A: Type validates input characters."""
+    def test_type_is_blocked_by_transaction_safety_policy(self, settings_mode_b_enabled, policy):
+        """Mode A: Direct text injection is blocked to prevent personal-data entry."""
         controller = AndroidController(settings_mode_b_enabled, policy)
-        
-        # Valid text
-        with patch("mordecai.android_control.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        policy.validate_android_action.return_value = PolicyDecision(allowed=False, reason="Direct screen input actions are blocked")
+
+        with pytest.raises(PermissionError, match="Direct screen input actions are blocked"):
             controller.perform("type", ["Hello World 123"])
-            assert mock_run.called
-        
-        # Invalid characters
-        with pytest.raises(ValueError, match="Text contains unsupported characters"):
-            controller.perform("type", ["test; rm -rf /"])
 
     def test_policy_enforcement(self, settings_mode_b_enabled):
         """Mode B: Policy engine decision is enforced."""

@@ -67,3 +67,37 @@ def test_policy_blocks_provider_surface_changes(tmp_path):
     ])
 
     assert not decision.allowed
+
+
+def test_policy_blocks_checkout_endpoints_even_when_domain_is_allowlisted(tmp_path):
+    settings = Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai")
+    policy = PolicyEngine(settings)
+
+    decision = policy.validate_outbound_request("POST", "https://api.openai.com/v1/checkout/session", payload={"amount": 10})
+
+    assert not decision.allowed
+    assert "commerce" in decision.reason.lower() or "checkout" in decision.reason.lower()
+
+
+def test_policy_blocks_personal_data_payloads(tmp_path):
+    settings = Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai")
+    policy = PolicyEngine(settings)
+
+    decision = policy.validate_outbound_request(
+        "POST",
+        "https://api.openai.com/v1/chat/completions",
+        payload={"email": "user@example.com", "message": "hello"},
+    )
+
+    assert not decision.allowed
+    assert "personal data" in decision.reason.lower()
+
+
+def test_policy_blocks_direct_android_input_actions(tmp_path):
+    settings = Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai", enable_android_control=True)
+    policy = PolicyEngine(settings)
+
+    decision = policy.validate_android_action("tap", ["100", "200"])
+
+    assert not decision.allowed
+    assert "blocked" in decision.reason.lower()

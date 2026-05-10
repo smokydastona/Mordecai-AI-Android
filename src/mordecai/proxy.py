@@ -158,7 +158,7 @@ class SafeHttpClient:
         async with self._client_factory() as client:
             current_url = url
             for _ in range(6):
-                await self._gate_request(current_url, method)
+                await self.gate_request(current_url, method, json)
                 response = await client.request(
                     method,
                     current_url,
@@ -178,7 +178,10 @@ class SafeHttpClient:
         raise RuntimeError(f"Too many redirects while requesting {url}")
 
     async def _gate_request(self, url: str, method: str) -> None:
-        decision = self.policy.validate_url(url)
+        await self.gate_request(url, method)
+
+    async def gate_request(self, url: str, method: str, payload: object | None = None) -> None:
+        decision = self.policy.validate_outbound_request(method, url, payload)
         self.store.append_proxy_record(
             ProxyRequestRecord(method=method, url=url, allowed=decision.allowed, reason=decision.reason)
         )
