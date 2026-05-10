@@ -70,6 +70,23 @@ def test_phase1_installer_defaults_to_models_and_shell_apk():
     assert 'termux-open --content-type application/vnd.android.package-archive' in installer
 
 
+def test_android_shell_build_supports_ci_version_stamping():
+    build_gradle = Path("android-shell/build.gradle.kts").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert 'providers.environmentVariable("MORDECAI_ANDROID_VERSION_CODE")' in build_gradle
+    assert 'providers.environmentVariable("MORDECAI_ANDROID_VERSION_NAME")' in build_gradle
+    assert 'versionCode = androidVersionCode' in build_gradle
+    assert 'versionName = androidVersionName' in build_gradle
+    assert 'Resolve Android shell version metadata' in workflow
+    assert 'MORDECAI_ANDROID_VERSION_CODE: ${{ steps.android_shell_version.outputs.version_code }}' in workflow
+    assert 'MORDECAI_ANDROID_VERSION_NAME: ${{ steps.android_shell_version.outputs.version_name }}' in workflow
+    assert 'version_code="${GITHUB_RUN_NUMBER}"' in workflow
+    assert 'version_name="${base_version}+build.${GITHUB_RUN_NUMBER}.${short_sha}"' in workflow
+    assert 'Version code: ${{ needs.android-shell.outputs.version_code }}' in workflow
+    assert 'Version name: ${{ needs.android-shell.outputs.version_name }}' in workflow
+
+
 def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     installer = Path("scripts/proot-setup.sh").read_text(encoding="utf-8")
 

@@ -3,6 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val androidVersionCode = providers.environmentVariable("MORDECAI_ANDROID_VERSION_CODE").orNull?.toIntOrNull() ?: 1
+val androidVersionName = providers.environmentVariable("MORDECAI_ANDROID_VERSION_NAME").orNull ?: "0.1.0"
+
 android {
     namespace = "ai.mordecai.shell"
     compileSdk = 35
@@ -11,8 +14,8 @@ android {
         applicationId = "ai.mordecai.shell"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = androidVersionCode
+        versionName = androidVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -35,6 +35,9 @@ jobs:
     name: Android Shell Build
     runs-on: ubuntu-latest
     needs: docs-sync
+    outputs:
+      version_code: ${{ steps.android_shell_version.outputs.version_code }}
+      version_name: ${{ steps.android_shell_version.outputs.version_name }}
 
     steps:
       - name: Checkout
@@ -60,7 +63,21 @@ jobs:
       - name: Verify Gradle wrapper
         run: ./gradlew --version
 
+      - name: Resolve Android shell version metadata
+        id: android_shell_version
+        shell: bash
+        run: |
+          base_version="$(python -c "from pathlib import Path; import re; content = Path('pyproject.toml').read_text(encoding='utf-8'); match = re.search(r'^version = \"([^\"]+)\"', content, re.MULTILINE); print(match.group(1) if match else (_ for _ in ()).throw(SystemExit('Unable to resolve project version from pyproject.toml')))")"
+          short_sha="${GITHUB_SHA::7}"
+          version_code="${GITHUB_RUN_NUMBER}"
+          version_name="${base_version}+build.${GITHUB_RUN_NUMBER}.${short_sha}"
+          printf 'version_code=%s\n' "$version_code" >> "$GITHUB_OUTPUT"
+          printf 'version_name=%s\n' "$version_name" >> "$GITHUB_OUTPUT"
+
       - name: Assemble Android shell debug APK
+        env:
+          MORDECAI_ANDROID_VERSION_CODE: ${{ steps.android_shell_version.outputs.version_code }}
+          MORDECAI_ANDROID_VERSION_NAME: ${{ steps.android_shell_version.outputs.version_name }}
         run: ./gradlew :android-shell:assembleDebug
 
       - name: Stage Android shell release asset
@@ -115,7 +132,7 @@ jobs:
           gh release delete android-shell-latest --yes --cleanup-tag || true
           gh release create android-shell-latest "${{ steps.resolve_android_shell_asset.outputs.apk_path }}" \
             --title "Android Shell Latest" \
-            --notes "Rolling Android shell debug APK for automated phone installs.\n\nCommit: ${{ github.sha }}" \
+            --notes "Rolling Android shell debug APK for automated phone installs.\n\nCommit: ${{ github.sha }}\nVersion code: ${{ needs.android-shell.outputs.version_code }}\nVersion name: ${{ needs.android-shell.outputs.version_name }}" \
             --target "${{ github.sha }}"
 
   test:

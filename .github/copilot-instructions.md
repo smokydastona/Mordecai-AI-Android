@@ -70,6 +70,7 @@ Non-negotiables:
 - CI enforces this through `scripts/check_docs_sync.py` and the `Documentation Sync Gate` job in `.github/workflows/ci.yml`.
 - The CI workflow also republishes a rolling `android-shell-latest` GitHub release asset from `main` so Termux installs have a stable APK URL; keep the release step aligned with the staged shell artifact name if the Android module output changes.
 - The CI release-publication job must resolve the downloaded Android shell APK path from the artifact directory before invoking `gh release create`, because `download-artifact` can preserve upload subdirectories.
+- The Android shell CI build must keep stamping monotonic APK version metadata into the Gradle build from workflow inputs so phone-side APK update checks can trust `versionCode` and `versionName` across pushes.
 
 ## Impact Radius Checklists
 

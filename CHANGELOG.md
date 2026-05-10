@@ -24,6 +24,7 @@
 
 ### Changed
 
+- The Android shell CI build now stamps each workflow run with a monotonically increasing APK `versionCode` derived from `github.run_number` plus a commit-tagged `versionName`, so phone-side APK update checks can rely on real version progression instead of a static manifest version.
 - The Phase 1 installer now checks the installed Android shell package version before reinstalling the APK, compares it to the downloaded APK version when `aapt` is available, falls back to installed-vs-downloaded APK hash comparison, and skips the install prompt entirely when the payload is unchanged.
 - The Phase 1 installer now forces the CPU-only PyTorch index for the Linux runtime generally, not just `x86_64`, so ARM/ARM64 Termux plus proot installs do not drift into unsupported NVIDIA CUDA dependency chains such as `nvidia-cusparselt-cu13`.
 - The Phase 1 installer now writes its smoke-check artifact as JSON at `data/logs/install-verification-report.json`, failed smoke checks automatically include the tail of `backend.log`, and each report now records a UTC timestamp plus the installer version and checkout commit so verification runs can be correlated across reruns.
