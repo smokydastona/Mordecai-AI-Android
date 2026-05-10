@@ -93,6 +93,7 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert 'install_local_model_binaries()' in installer
     assert 'ensure_runtime_tool_layout()' in installer
     assert 'repair_llama_cpp_checkout()' in installer
+    assert 'resolve_llama_cpp_cli_binary() {' in installer
     assert "run_in_distro \"mkdir -p '${TOOLS_DIR}' '${TOOLS_BIN_DIR}'\"" in installer
     assert "test -d '${LLAMA_CPP_DIR}/.git' && test -f '${LLAMA_CPP_DIR}/CMakeLists.txt'" in installer
     assert "git -C '${LLAMA_CPP_DIR}' rev-parse --is-inside-work-tree >/dev/null 2>&1" in installer
@@ -109,9 +110,13 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert 'assert torch.version.cuda is None' in installer
     assert "command -v ffmpeg >/dev/null" in installer
     assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\\$(nproc)" in installer
+    assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli -j\\$(nproc)" in installer
+    assert "'${LLAMA_CPP_BUILD_DIR}/bin/llama-run'" in installer
+    assert "find '${LLAMA_CPP_BUILD_DIR}' -type f" in installer
+    assert 'Default llama.cpp build did not expose a recognized CLI binary; attempting an explicit llama-cli target build...' in installer
     assert "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'" in installer
     assert "ln -sf '${ENV_DIR}/bin/piper' '${TOOLS_BIN_DIR}/piper'" in installer
-    assert "${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'; else ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/main' '${TOOLS_BIN_DIR}/llama-cli'; fi" in installer
+    assert "ln -sf '${llama_cpp_cli_binary}' '${TOOLS_BIN_DIR}/llama-cli'" in installer
 
 
 def test_phase1_installer_only_reinstalls_shell_apk_when_newer_or_different():

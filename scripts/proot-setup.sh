@@ -251,6 +251,10 @@ repair_llama_cpp_checkout() {
   run_in_distro "rm -rf '${LLAMA_CPP_DIR}' '${LLAMA_CPP_BUILD_DIR}'"
 }
 
+resolve_llama_cpp_cli_binary() {
+  run_in_distro "for candidate in '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${LLAMA_CPP_BUILD_DIR}/bin/llama-run' '${LLAMA_CPP_BUILD_DIR}/bin/main'; do if [ -x \"\${candidate}\" ]; then printf '%s\\n' \"\${candidate}\"; exit 0; fi; done; find '${LLAMA_CPP_BUILD_DIR}' -type f \\( -name 'llama-cli' -o -name 'llama-run' -o -name 'main' \\) -perm -111 | head -n 1"
+}
+
 installer_version() {
   awk -F'"' '/^version = "/ { print $2; exit }' "${BACKEND_DIR}/pyproject.toml"
 }
@@ -409,6 +413,8 @@ install_local_model_binaries() {
     return
   fi
 
+  local llama_cpp_cli_binary
+
   printf '%s\n' 'Installing phone-supported local model runtime binaries inside the Linux runtime...'
   ensure_runtime_tool_layout
   run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl ffmpeg cmake ninja-build pkg-config python3-dev git build-essential'
@@ -422,16 +428,26 @@ install_local_model_binaries() {
   run_in_distro "cmake -S '${LLAMA_CPP_DIR}' -B '${LLAMA_CPP_BUILD_DIR}' -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=OFF -DLLAMA_CURL=OFF"
   run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\$(nproc)"
 
+  llama_cpp_cli_binary="$(resolve_llama_cpp_cli_binary || true)"
+  if [ -z "${llama_cpp_cli_binary}" ]; then
+    printf '%s\n' 'Default llama.cpp build did not expose a recognized CLI binary; attempting an explicit llama-cli target build...'
+    run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli -j\$(nproc)" || true
+    llama_cpp_cli_binary="$(resolve_llama_cpp_cli_binary || true)"
+  fi
+
   run_in_distro "command -v ffmpeg >/dev/null"
   run_in_distro "command -v cmake >/dev/null"
   run_in_distro "command -v git >/dev/null"
   run_in_distro "test -x '${ENV_DIR}/bin/whisper'"
   run_in_distro "test -x '${ENV_DIR}/bin/piper'"
-  run_in_distro "if [ -x '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then true; elif [ -x '${LLAMA_CPP_BUILD_DIR}/bin/main' ]; then true; else echo 'llama.cpp CLI binary not found after build' >&2; exit 1; fi"
+  if [ -z "${llama_cpp_cli_binary}" ]; then
+    printf '%s\n' 'llama.cpp CLI binary not found after build' >&2
+    return 1
+  fi
 
   run_in_distro "ln -sf '${ENV_DIR}/bin/whisper' '${TOOLS_BIN_DIR}/whisper'"
   run_in_distro "ln -sf '${ENV_DIR}/bin/piper' '${TOOLS_BIN_DIR}/piper'"
-  run_in_distro "if [ -x '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' ]; then ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/llama-cli' '${TOOLS_BIN_DIR}/llama-cli'; else ln -sf '${LLAMA_CPP_BUILD_DIR}/bin/main' '${TOOLS_BIN_DIR}/llama-cli'; fi"
+  run_in_distro "ln -sf '${llama_cpp_cli_binary}' '${TOOLS_BIN_DIR}/llama-cli'"
 
   mkdir -p "${TOOLS_DIR}"
   cat > "${TOOLS_DIR}/local-model-runtime.txt" <<EOF
@@ -443,7 +459,7 @@ Commands:
 - ${TOOLS_BIN_DIR}/piper
 
 Backed by:
-- ${LLAMA_CPP_BUILD_DIR}/bin/llama-cli or ${LLAMA_CPP_BUILD_DIR}/bin/main
+- ${llama_cpp_cli_binary}
 - ${ENV_DIR}/bin/whisper
 - ${ENV_DIR}/bin/piper
 EOF

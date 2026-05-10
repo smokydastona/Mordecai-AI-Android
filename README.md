@@ -273,7 +273,7 @@ The one-command phone installer now also provisions the default phone-supported 
 - `openai-whisper` to provide the `whisper` CLI
 - `piper-tts` to provide the `piper` CLI
 
-The installer now tolerates both current and older `llama.cpp` CLI output layouts by linking either upstream `llama-cli` or legacy `main` to Mordecai's stable `tools/bin/llama-cli` path.
+The installer now tolerates current and legacy `llama.cpp` CLI output layouts by preferring upstream `llama-cli`, accepting `llama-run` or legacy `main` when needed, and linking the resolved binary to Mordecai's stable `tools/bin/llama-cli` path. If the default upstream build omits the expected front-end binary entirely, the installer makes one explicit `llama-cli` target build attempt before failing.
 
 On the Linux runtime used by the phone installer, the bootstrap now preinstalls CPU-only PyTorch from the PyTorch CPU wheel index before installing `openai-whisper`. That keeps pip from selecting unsupported CUDA/NVIDIA wheel families in CPU-only phone or VM runtimes, including ARM/ARM64 Termux plus proot installs where packages such as `nvidia-cusparselt-cu13` are not valid.
 
