@@ -109,6 +109,7 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert 'verify_voice_runtime_python_packages' in installer
     assert 'assert torch.version.cuda is None' in installer
     assert "command -v ffmpeg >/dev/null" in installer
+    assert "-DLLAMA_BUILD_SERVER=ON -DLLAMA_BUILD_WEBUI=OFF -DLLAMA_CURL=OFF" in installer
     assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\\$(nproc)" in installer
     assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli -j\\$(nproc)" in installer
     assert "'${LLAMA_CPP_BUILD_DIR}/bin/llama-run'" in installer

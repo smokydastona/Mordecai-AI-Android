@@ -44,7 +44,7 @@ The repository does not auto-provision a rooted Android VM from this workspace. 
 
 Phase 1 is the standard portable backend path for supported phones.
 
-The installer treats the `llama.cpp` CLI as a compatibility surface instead of assuming a single upstream target name. During local model runtime setup it builds the repository defaults, prefers `build/bin/llama-cli`, accepts `llama-run` or the older `main` when needed, and links the detected binary to Mordecai's stable `tools/bin/llama-cli` path. If the default build omits those front-ends, the installer makes one explicit `llama-cli` target build attempt before failing.
+The installer treats the `llama.cpp` CLI as a compatibility surface instead of assuming a single upstream target name. During local model runtime setup it enables the upstream server-backed CLI build while keeping the embedded web UI off, then prefers `build/bin/llama-cli`, accepts `llama-run` or the older `main` when needed, and links the detected binary to Mordecai's stable `tools/bin/llama-cli` path. If the default build still omits those front-ends, the installer makes one explicit `llama-cli` target build attempt before failing.
 
 The installer is incremental by default, but it now also supports `MORDECAI_FORCE_REINSTALL=true` for a fresh runtime rebuild that preserves user data. That path removes only the backend checkout, runtime environment, copied scripts, and managed tool checkout under the install root, then rebuilds them while keeping models, state, logs, and caches intact.
 

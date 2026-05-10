@@ -425,7 +425,7 @@ install_local_model_binaries() {
 
   repair_llama_cpp_checkout
   run_in_distro "if [ ! -d '${LLAMA_CPP_DIR}/.git' ]; then git clone --depth 1 https://github.com/ggml-org/llama.cpp '${LLAMA_CPP_DIR}'; else git -C '${LLAMA_CPP_DIR}' pull --ff-only; fi"
-  run_in_distro "cmake -S '${LLAMA_CPP_DIR}' -B '${LLAMA_CPP_BUILD_DIR}' -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=OFF -DLLAMA_CURL=OFF"
+  run_in_distro "cmake -S '${LLAMA_CPP_DIR}' -B '${LLAMA_CPP_BUILD_DIR}' -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=ON -DLLAMA_BUILD_WEBUI=OFF -DLLAMA_CURL=OFF"
   run_in_distro "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\$(nproc)"
 
   llama_cpp_cli_binary="$(resolve_llama_cpp_cli_binary || true)"
