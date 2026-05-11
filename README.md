@@ -6,6 +6,8 @@ This repository is the canonical home of the Mordecai Android runtime project. I
 
 Mordecai itself is a policy-bound AI runtime for Android phones. The current implementation provides a formal assistant identity, a restricted outbound network surface, a dashboard and HTTP API, git-backed backups, Android control hooks, a sandboxed self-improvement workflow, and a Phase 1 Termux installer for portable Mode A deployment.
 
+That portable installer now provisions `ccache` alongside the Linux `llama.cpp` build toolchain, which removes the avoidable missing-ccache warning during local runtime bootstrap and speeds up repeat builds on reruns.
+
 For the most capable local deployment path, the intended target remains a rooted Android VM or Linux chroot hosting Termux plus `proot-distro` Ubuntu, so Mordecai can run Linux-hosted AI runtimes such as Whisper and Piper while the Android shell supervises the localhost backend.
 
 ## Project hygiene

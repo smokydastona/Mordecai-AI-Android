@@ -105,6 +105,7 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert "'${ENV_DIR}/bin/python' -m pip install --index-url '${TORCH_CPU_INDEX_URL}' 'torch<3'" in installer
     assert "'${ENV_DIR}/bin/python' -m pip install openai-whisper piper-tts" in installer
     assert 'ggml-org/llama.cpp' in installer
+    assert 'apt-get install -y ca-certificates curl ffmpeg ccache cmake ninja-build pkg-config python3-dev git build-essential' in installer
     assert "'${ENV_DIR}/bin/python' -m pip check" in installer
     assert 'verify_voice_runtime_python_packages' in installer
     assert 'assert torch.version.cuda is None' in installer

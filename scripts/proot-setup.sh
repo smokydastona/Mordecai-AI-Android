@@ -417,7 +417,7 @@ install_local_model_binaries() {
 
   printf '%s\n' 'Installing phone-supported local model runtime binaries inside the Linux runtime...'
   ensure_runtime_tool_layout
-  run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl ffmpeg cmake ninja-build pkg-config python3-dev git build-essential'
+  run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl ffmpeg ccache cmake ninja-build pkg-config python3-dev git build-essential'
   run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
   install_voice_runtime_python_packages
   run_in_distro "'${ENV_DIR}/bin/python' -m pip check"
