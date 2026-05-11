@@ -233,7 +233,7 @@ def test_first_boot_script_exports_runtime_contracts_and_verifies_policy():
     assert '/api/runtime/provider-registry' in first_boot
     assert '/api/runtime/tool-manifest' in first_boot
     assert '/api/policy' in first_boot
-    assert 'REQUIRED_PROXY_HOSTS="api.github.com github.com hf.co huggingface.co"' in first_boot
+    assert 'REQUIRED_PROXY_HOSTS="api.github.com github.com hf.co huggingface.co cas-bridge.xethub.hf.co"' in first_boot
 
 
 def test_debugging_guide_exists_with_scenario_matrix():

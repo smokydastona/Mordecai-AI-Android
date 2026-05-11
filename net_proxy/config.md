@@ -28,7 +28,7 @@ Current examples include:
 
 - model providers such as `api.openai.com`, `api.anthropic.com`, `generativelanguage.googleapis.com`, and `openrouter.ai`
 - search and code-search hosts such as `api.duckduckgo.com`, `duckduckgo.com`, `html.duckduckgo.com`, `api.github.com`, and `github.com`
-- package and documentation hosts such as `pypi.org`, `docs.python.org`, and `huggingface.co`
+- package and documentation hosts such as `pypi.org`, `docs.python.org`, `huggingface.co`, and the Hugging Face Xet bridge host `cas-bridge.xethub.hf.co` used by managed model downloads
 
 Requests outside this allowlist must not be treated as normal outbound traffic.
 

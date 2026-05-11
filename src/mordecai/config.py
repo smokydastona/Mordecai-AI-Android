@@ -51,6 +51,7 @@ class Settings(BaseSettings):
             "github.com",
             "hf.co",
             "huggingface.co",
+            "cas-bridge.xethub.hf.co",
             "cdn-lfs.hf.co",
             "cdn-lfs-us-1.hf.co",
             "cdn-lfs-eu-1.hf.co",

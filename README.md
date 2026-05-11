@@ -376,6 +376,10 @@ The installer can also add an optional debugging toolkit when you set `MORDECAI_
 - `POST /api/improvement/rollback/{candidate_id}` restores backed-up files for a previously applied candidate.
 - `GET /api/android/diagnostics` and `POST /api/android/diagnostics/{category}` expose persisted and on-demand Android diagnostics for Mode B operators, including battery, logcat, process-memory, and thermal snapshots.
 
+## Network surface
+
+- The default outbound allowlist includes the Hugging Face Xet bridge host `cas-bridge.xethub.hf.co` because current managed model downloads can redirect there from `huggingface.co` during bundle installation.
+
 ## Operator dashboard
 
 - The dashboard now surfaces policy-audit history, provider-health status, request-latency summaries, planner execution timelines, filtered proxy activity, Android diagnostics, and candidate test output in addition to the earlier runtime trace and capability views.

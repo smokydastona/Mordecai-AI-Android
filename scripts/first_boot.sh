@@ -26,7 +26,7 @@ CONTRACTS_DIR="${STATE_DIR}/contracts"
 POLICY_REPORT_PATH="${STATE_DIR}/policy-report.json"
 PROVIDER_REGISTRY_PATH="${CONTRACTS_DIR}/provider-registry.json"
 TOOL_MANIFEST_PATH="${CONTRACTS_DIR}/tool-manifest.json"
-REQUIRED_PROXY_HOSTS="api.github.com github.com hf.co huggingface.co"
+REQUIRED_PROXY_HOSTS="api.github.com github.com hf.co huggingface.co cas-bridge.xethub.hf.co"
 
 run_in_distro() {
   local command="$1"
