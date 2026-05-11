@@ -12,7 +12,11 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import ai.mordecai.shell.coordinator.ShellCoordinator
+import ai.mordecai.shell.state.ShellState
 import ai.mordecai.shell.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
 
@@ -23,33 +27,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var commandClient: TermuxCommandClient
-    private lateinit var backendSupervisor: BackendSupervisor
+    private lateinit var shellCoordinator: ShellCoordinator
     private lateinit var prefs: android.content.SharedPreferences
-    private val rootDetector = RootDetector()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        commandClient = TermuxCommandClient(this)
+        shellCoordinator = ShellCoordinator.get(this)
         prefs = getSharedPreferences("mordecai-shell-prefs", Context.MODE_PRIVATE)
-        backendSupervisor = BackendSupervisor(commandClient) {
-            prefs.getString(MordecaiShellService.PREF_BACKEND_URL, BackendSupervisor.DEFAULT_BASE_URL) ?: BackendSupervisor.DEFAULT_BASE_URL
-        }
 
         configureWebView(binding.dashboardView)
         bindUi()
-        refreshStatus()
+        observeShellState()
         updateWelcomeState()
-        binding.dashboardView.loadUrl(currentBackendUrl())
+        binding.dashboardView.loadUrl(shellCoordinator.currentBackendUrl())
+        lifecycleScope.launch {
+            shellCoordinator.performStartup()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        refreshStatus()
-        binding.dashboardView.loadUrl(currentBackendUrl())
+        binding.dashboardView.loadUrl(shellCoordinator.currentBackendUrl())
+        lifecycleScope.launch {
+            shellCoordinator.performStartup()
+        }
     }
 
     private fun bindUi() {
@@ -57,21 +61,23 @@ class MainActivity : AppCompatActivity() {
             openSettings()
         }
         binding.buttonInstall.setOnClickListener {
-            handleCommand(commandClient.installRuntime())
+            handleCommand(shellCoordinator.installRuntime())
         }
         binding.buttonStart.setOnClickListener {
-            handleCommand(backendSupervisor.startRuntime())
-            binding.dashboardView.loadUrl(currentBackendUrl())
+            handleCommand(shellCoordinator.startRuntime())
+            binding.dashboardView.loadUrl(shellCoordinator.currentBackendUrl())
         }
         binding.buttonStop.setOnClickListener {
-            handleCommand(backendSupervisor.stopRuntime())
+            handleCommand(shellCoordinator.stopRuntime())
         }
         binding.buttonUpdate.setOnClickListener {
-            handleCommand(backendSupervisor.updateRuntime())
+            handleCommand(shellCoordinator.updateRuntime())
         }
         binding.buttonRefresh.setOnClickListener {
             binding.dashboardView.reload()
-            refreshStatus()
+            lifecycleScope.launch {
+                shellCoordinator.performStartup()
+            }
         }
         binding.buttonOpenTermux.setOnClickListener {
             openTermux()
@@ -86,19 +92,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun refreshStatus() {
-        val termuxInstalled = commandClient.isTermuxInstalled()
-        val rooted = rootDetector.isRootAvailable()
-        binding.textTermuxStatus.text = if (termuxInstalled) getString(R.string.termux_detected) else getString(R.string.termux_missing)
-        binding.textRootStatus.text = if (rooted) getString(R.string.root_available) else getString(R.string.root_unavailable)
-
+    private fun observeShellState() {
         lifecycleScope.launch {
-            val snapshot = backendSupervisor.checkHealth()
-            binding.textBackendStatus.text = if (snapshot.reachable) {
-                getString(R.string.backend_online)
-            } else {
-                getString(R.string.backend_offline, snapshot.status)
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                shellCoordinator.state.collect { renderShellState(it) }
             }
+        }
+    }
+
+    private fun renderShellState(state: ShellState) {
+        binding.textTermuxStatus.text = if (state.termuxInstalled) getString(R.string.termux_detected) else getString(R.string.termux_missing)
+        binding.textRootStatus.text = if (state.advancedModeAllowed) getString(R.string.root_available) else getString(R.string.root_unavailable)
+        binding.textBackendStatus.text = if (state.backendReachable) {
+            getString(R.string.backend_online)
+        } else {
+            getString(R.string.backend_offline, state.backendStatusText)
+        }
+        binding.textAccessibilityStatus.text = if (state.accessibilityEnabled) {
+            getString(R.string.accessibility_enabled)
+        } else {
+            getString(R.string.accessibility_disabled)
         }
     }
 
@@ -128,14 +141,11 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun currentBackendUrl(): String {
-        val raw = prefs.getString(MordecaiShellService.PREF_BACKEND_URL, BackendSupervisor.DEFAULT_BASE_URL).orEmpty().trim()
-        return if (raw.isBlank()) BackendSupervisor.DEFAULT_BASE_URL else raw.removeSuffix("/")
-    }
-
     private fun handleCommand(result: TermuxCommandClient.CommandResult) {
         toast(result.message)
-        refreshStatus()
+        lifecycleScope.launch {
+            shellCoordinator.performStartup()
+        }
     }
 
     private fun openTermux() {

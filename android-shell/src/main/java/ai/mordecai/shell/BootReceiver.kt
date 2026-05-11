@@ -3,6 +3,7 @@ package ai.mordecai.shell
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import ai.mordecai.shell.coordinator.ShellCoordinator
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -10,8 +11,7 @@ class BootReceiver : BroadcastReceiver() {
         if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) {
             return
         }
-        val prefs = context.getSharedPreferences("mordecai-shell-prefs", Context.MODE_PRIVATE)
-        if (prefs.getBoolean(MordecaiShellService.PREF_SERVICE_ENABLED, false)) {
+        if (ShellCoordinator.get(context).isServiceEnabled()) {
             MordecaiShellService.start(context)
         }
     }

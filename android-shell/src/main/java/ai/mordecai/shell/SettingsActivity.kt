@@ -13,7 +13,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import ai.mordecai.shell.coordinator.ShellCoordinator
+import ai.mordecai.shell.state.ShellState
 import ai.mordecai.shell.accessibility.MordecaiAccessibilityService
 import ai.mordecai.shell.databinding.ActivitySettingsBinding
 import kotlinx.coroutines.launch
@@ -69,10 +73,8 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivitySettingsBinding
-    private lateinit var commandClient: TermuxCommandClient
-    private lateinit var backendSupervisor: BackendSupervisor
+    private lateinit var shellCoordinator: ShellCoordinator
     private lateinit var prefs: android.content.SharedPreferences
-    private val rootDetector = RootDetector()
     private val pendingPermissionSteps = ArrayDeque<PermissionStep>()
     private var permissionDialogVisible = false
     private var awaitingPermissionContinuation = false
@@ -93,13 +95,11 @@ class SettingsActivity : AppCompatActivity() {
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        commandClient = TermuxCommandClient(this)
+        shellCoordinator = ShellCoordinator.get(this)
         prefs = getSharedPreferences("mordecai-shell-prefs", Context.MODE_PRIVATE)
-        backendSupervisor = BackendSupervisor(commandClient) {
-            prefs.getString(MordecaiShellService.PREF_BACKEND_URL, BackendSupervisor.DEFAULT_BASE_URL) ?: BackendSupervisor.DEFAULT_BASE_URL
-        }
 
         bindUi()
+        observeShellState()
         refreshStatus()
 
         if (intent.getBooleanExtra(EXTRA_START_PERMISSION_ONBOARDING, false)) {
@@ -112,6 +112,9 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshStatus()
+        lifecycleScope.launch {
+            shellCoordinator.refreshState()
+        }
         if (awaitingPermissionContinuation) {
             awaitingPermissionContinuation = false
             showNextPermissionStep()
@@ -166,7 +169,7 @@ class SettingsActivity : AppCompatActivity() {
             } else {
                 stopService(Intent(this, MordecaiShellService::class.java).setAction(MordecaiShellService.ACTION_STOP))
             }
-            prefs.edit().putBoolean(MordecaiShellService.PREF_SERVICE_ENABLED, checked).apply()
+            shellCoordinator.setServiceEnabled(checked)
         }
 
         binding.switchWake.setOnCheckedChangeListener { _, checked ->
@@ -174,7 +177,7 @@ class SettingsActivity : AppCompatActivity() {
                 return@setOnCheckedChangeListener
             }
             requestRuntimePermissions()
-            prefs.edit().putBoolean(MordecaiShellService.PREF_WAKE_ENABLED, checked).apply()
+            shellCoordinator.setWakeEnabled(checked)
             if (binding.switchService.isChecked) {
                 MordecaiShellService.start(this)
             }
@@ -184,27 +187,26 @@ class SettingsActivity : AppCompatActivity() {
             if (updatingUi) {
                 return@setOnCheckedChangeListener
             }
-            if (!rootDetector.isRootAvailable()) {
+            if (!shellCoordinator.state.value.advancedModeAllowed) {
                 binding.switchAdvanced.isChecked = false
                 toast(getString(R.string.advanced_mode_requires_root))
                 return@setOnCheckedChangeListener
             }
-            prefs.edit().putBoolean(MordecaiShellService.PREF_ADVANCED_ENABLED, checked).apply()
-            handleCommand(backendSupervisor.setAdvancedMode(checked))
+            handleCommand(shellCoordinator.setAdvancedMode(checked))
         }
 
         binding.switchAutoStart.setOnCheckedChangeListener { _, checked ->
             if (updatingUi) {
                 return@setOnCheckedChangeListener
             }
-            prefs.edit().putBoolean(MordecaiShellService.PREF_AUTO_START, checked).apply()
+            shellCoordinator.setAutoStartEnabled(checked)
         }
 
         binding.switchOverlay.setOnCheckedChangeListener { _, checked ->
             if (updatingUi) {
                 return@setOnCheckedChangeListener
             }
-            prefs.edit().putBoolean(MordecaiShellService.PREF_LOCKSCREEN_OVERLAY, checked).apply()
+            shellCoordinator.setOverlayEnabled(checked)
             val connected = MordecaiAccessibilityService.refreshOverlay(this)
             if (checked && !MordecaiAccessibilityService.isEnabled(this)) {
                 toast(getString(R.string.accessibility_required_message))
@@ -219,41 +221,34 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun refreshStatus() {
         updatingUi = true
-        binding.inputBackendUrl.setText(prefs.getString(MordecaiShellService.PREF_BACKEND_URL, BackendSupervisor.DEFAULT_BASE_URL))
-        binding.inputWakePhrase.setText(prefs.getString(MordecaiShellService.PREF_WAKE_PHRASE, MordecaiShellService.DEFAULT_WAKE_PHRASE))
+        binding.inputBackendUrl.setText(shellCoordinator.currentBackendUrl())
+        binding.inputWakePhrase.setText(shellCoordinator.currentWakePhrase())
         binding.inputCloudBaseUrl.setText(prefs.getString(PREF_CLOUD_BASE_URL, "https://api.openai.com/v1"))
         binding.inputCloudApiKey.setText(prefs.getString(PREF_CLOUD_API_KEY, ""))
         binding.inputCloudModel.setText(prefs.getString(PREF_CLOUD_MODEL, "gpt-4.1-mini"))
         binding.inputLocalBaseUrl.setText(prefs.getString(PREF_LOCAL_BASE_URL, "http://127.0.0.1:11434/v1"))
         binding.inputLocalApiKey.setText(prefs.getString(PREF_LOCAL_API_KEY, "local-token"))
         binding.inputLocalModel.setText(prefs.getString(PREF_LOCAL_MODEL, "llama3.1"))
-        binding.textAccessibilityStatus.text = if (MordecaiAccessibilityService.isEnabled(this)) {
-            getString(R.string.accessibility_enabled)
-        } else {
-            getString(R.string.accessibility_disabled)
-        }
         binding.switchService.isChecked = prefs.getBoolean(MordecaiShellService.PREF_SERVICE_ENABLED, false)
         binding.switchWake.isChecked = prefs.getBoolean(MordecaiShellService.PREF_WAKE_ENABLED, false)
         binding.switchAutoStart.isChecked = prefs.getBoolean(MordecaiShellService.PREF_AUTO_START, true)
         binding.switchOverlay.isChecked = prefs.getBoolean(MordecaiShellService.PREF_LOCKSCREEN_OVERLAY, true)
-        val rooted = rootDetector.isRootAvailable()
-        binding.switchAdvanced.isEnabled = rooted
-        binding.switchAdvanced.isChecked = prefs.getBoolean(MordecaiShellService.PREF_ADVANCED_ENABLED, false) && rooted
+        val shellState = shellCoordinator.state.value
+        binding.switchAdvanced.isEnabled = shellState.advancedModeAllowed
+        binding.switchAdvanced.isChecked = shellState.advancedModeEnabled
         when (prefs.getString(PREF_MODEL_PROFILE_MODE, PROFILE_RULE_BASED)) {
             PROFILE_CLOUD -> binding.radioProviderCloud.isChecked = true
             PROFILE_LOCAL -> binding.radioProviderLocal.isChecked = true
             else -> binding.radioProviderRuleBased.isChecked = true
         }
         updateAiProfileVisibility()
-        updateStatusSummary()
+        renderShellState(shellState)
         updatingUi = false
     }
 
     private fun persistTextSettings() {
-        prefs.edit()
-            .putString(MordecaiShellService.PREF_BACKEND_URL, currentBackendUrl())
-            .putString(MordecaiShellService.PREF_WAKE_PHRASE, currentWakePhrase())
-            .apply()
+        shellCoordinator.saveBackendUrl(currentBackendUrl())
+        shellCoordinator.saveWakePhrase(currentWakePhrase())
     }
 
     private fun persistAiSettings() {
@@ -279,11 +274,11 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val result = if (mode == PROFILE_RULE_BASED) {
-            backendSupervisor.configureAiProvider(PROFILE_RULE_BASED, "", "", "")
+            shellCoordinator.configureAiProvider(PROFILE_RULE_BASED, "", "", "")
         } else if (mode == PROFILE_CLOUD) {
-            backendSupervisor.configureAiProvider(PROFILE_CLOUD, currentCloudBaseUrl(), currentCloudApiKey(), currentCloudModel())
+            shellCoordinator.configureAiProvider(PROFILE_CLOUD, currentCloudBaseUrl(), currentCloudApiKey(), currentCloudModel())
         } else {
-            backendSupervisor.configureAiProvider(PROFILE_LOCAL, currentLocalBaseUrl(), currentLocalApiKey(), currentLocalModel())
+            shellCoordinator.configureAiProvider(PROFILE_LOCAL, currentLocalBaseUrl(), currentLocalApiKey(), currentLocalModel())
         }
         handleCommand(result)
         binding.textAiConfigStatus.text = result.message
@@ -324,22 +319,23 @@ class SettingsActivity : AppCompatActivity() {
         binding.localProfileFields.visibility = if (mode == PROFILE_LOCAL) View.VISIBLE else View.GONE
     }
 
-    private fun updateStatusSummary() {
-        val termuxInstalled = commandClient.isTermuxInstalled()
-        val rooted = rootDetector.isRootAvailable()
-        val microphoneGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val notificationsGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    private fun renderShellState(state: ShellState) {
+        binding.textAccessibilityStatus.text = if (state.accessibilityEnabled) {
+            getString(R.string.accessibility_enabled)
         } else {
-            true
+            getString(R.string.accessibility_disabled)
         }
-        binding.textSummaryTermux.text = if (termuxInstalled) SUMMARY_TERMUX_READY else SUMMARY_TERMUX_MISSING
-        binding.textSummaryRoot.text = if (rooted) SUMMARY_ROOT_READY else SUMMARY_ROOT_UNAVAILABLE
-        binding.textSummaryAccessibility.text = if (MordecaiAccessibilityService.isEnabled(this)) SUMMARY_ACCESSIBILITY_READY else SUMMARY_ACCESSIBILITY_MISSING
-        binding.textSummaryMicrophone.text = if (microphoneGranted) SUMMARY_MICROPHONE_READY else SUMMARY_MICROPHONE_MISSING
-        binding.textSummaryNotifications.text = if (notificationsGranted) SUMMARY_NOTIFICATIONS_READY else SUMMARY_NOTIFICATIONS_MISSING
-        binding.textSummaryService.text = if (prefs.getBoolean(MordecaiShellService.PREF_SERVICE_ENABLED, false)) SUMMARY_SERVICE_ENABLED else SUMMARY_SERVICE_DISABLED
-
+        binding.textSummaryBackend.text = if (state.backendReachable) {
+            "Backend online: provider=${state.backendProvider ?: SUMMARY_UNKNOWN_PROVIDER}"
+        } else {
+            "Backend offline: ${state.backendStatusText.ifBlank { SUMMARY_BACKEND_UNAVAILABLE }}"
+        }
+        binding.textSummaryTermux.text = if (state.termuxInstalled) SUMMARY_TERMUX_READY else SUMMARY_TERMUX_MISSING
+        binding.textSummaryRoot.text = if (state.advancedModeAllowed) SUMMARY_ROOT_READY else SUMMARY_ROOT_UNAVAILABLE
+        binding.textSummaryAccessibility.text = if (state.accessibilityEnabled) SUMMARY_ACCESSIBILITY_READY else SUMMARY_ACCESSIBILITY_MISSING
+        binding.textSummaryMicrophone.text = if (state.microphonePermissionGranted) SUMMARY_MICROPHONE_READY else SUMMARY_MICROPHONE_MISSING
+        binding.textSummaryNotifications.text = if (state.notificationPermissionGranted) SUMMARY_NOTIFICATIONS_READY else SUMMARY_NOTIFICATIONS_MISSING
+        binding.textSummaryService.text = if (state.shellServiceEnabled) SUMMARY_SERVICE_ENABLED else SUMMARY_SERVICE_DISABLED
         val mode = prefs.getString(PREF_MODEL_PROFILE_MODE, PROFILE_RULE_BASED) ?: PROFILE_RULE_BASED
         val modelSummary = when (mode) {
             PROFILE_CLOUD -> "Active model profile: cloud (${prefs.getString(PREF_CLOUD_MODEL, "gpt-4.1-mini")})"
@@ -347,13 +343,20 @@ class SettingsActivity : AppCompatActivity() {
             else -> SUMMARY_MODEL_RULE_BASED
         }
         binding.textSummaryModel.text = modelSummary
+        updatingUi = true
+        binding.switchService.isChecked = state.shellServiceEnabled
+        binding.switchWake.isChecked = state.wakeEnabled
+        binding.switchAutoStart.isChecked = prefs.getBoolean(MordecaiShellService.PREF_AUTO_START, true)
+        binding.switchOverlay.isChecked = state.overlayEnabled
+        binding.switchAdvanced.isEnabled = state.advancedModeAllowed
+        binding.switchAdvanced.isChecked = state.advancedModeEnabled
+        updatingUi = false
+    }
 
+    private fun observeShellState() {
         lifecycleScope.launch {
-            val status = backendSupervisor.runtimeStatus()
-            binding.textSummaryBackend.text = if (status.ok) {
-                "Backend online: provider=${status.provider ?: SUMMARY_UNKNOWN_PROVIDER}"
-            } else {
-                "Backend offline: ${status.error ?: SUMMARY_BACKEND_UNAVAILABLE}"
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                shellCoordinator.state.collect { renderShellState(it) }
             }
         }
     }
@@ -438,7 +441,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun handleCommand(result: TermuxCommandClient.CommandResult) {
         toast(result.message)
-        refreshStatus()
+        lifecycleScope.launch {
+            shellCoordinator.refreshState()
+        }
     }
 
     private fun openAccessibilitySettings() {

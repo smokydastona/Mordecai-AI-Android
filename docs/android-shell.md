@@ -21,7 +21,10 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 - `WakePhraseManager` listens for the configured wake phrase and triggers backend startup when it is heard
 - `SpeechCommandProcessor` now emits partial transcript updates while capturing the next spoken command and streams the final command into the backend voice-session API instead of only dispatching through chat
 - `SpeechOutput` now reports playback completion back into the backend voice-session state so background sessions can move out of speaking mode explicitly
+- `VoiceSessionController` now owns the shared background voice-session lifecycle for both the foreground shell service and the accessibility overlay path, removing duplicated session caching, transcript forwarding, interruption events, playback-finished reporting, and last-reply persistence logic
 - `TermuxCommandClient` invokes the Phase 1 scripts through the Termux run-command API
+- `BackendSupervisor` now acts as a temporary compatibility facade over a pure localhost HTTP client (`ShellBackendClient`) and a runtime command gateway (`RuntimeCommandGateway`), so transport and Termux lifecycle work can be separated before coordinator/startup refactors land
+- `ShellCoordinator` now owns the shared Android shell state snapshot while `StartupOrchestrator` performs bounded backend startup recovery and verification, so the main activity, settings screen, boot receiver, foreground shell service, and accessibility overlay consume one coordinated runtime/status view
 - `RootDetector` gates advanced mode toggles so Mode B activation remains explicit
 - `MordecaiTileService` gives the shell a quick-settings entrypoint for voice command activation
 - `MordecaiAccessibilityService` exposes a lock-screen-safe accessibility overlay, can own voice command capture when accessibility mode is enabled, and now streams continuous perception snapshots to the backend from active windows and notification events
@@ -70,3 +73,5 @@ The Android shell is the native app layer that supervises the portable Termux-ba
 ## Debugging
 
 For phone-specific service, overlay, battery, and APK-install debugging, use `docs/debugging-guide.md` as the primary operations guide. Perfetto is the highest-value Android-side tool for shell startup latency, overlay churn, and battery analysis, while the optional installer debug toolkit focuses on backend and network debugging inside the Linux runtime.
+
+For the next-stage native shell cleanup, see `docs/android-shell-refactor-plan.md` for the coordinator/startup split, the duplication audit across the long-lived services, and the proposed extraction boundaries.

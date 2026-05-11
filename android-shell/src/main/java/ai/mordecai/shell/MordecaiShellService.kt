@@ -15,29 +15,33 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import ai.mordecai.shell.accessibility.MordecaiAccessibilityService
+import ai.mordecai.shell.coordinator.ShellCoordinator
+import ai.mordecai.shell.state.ShellState
+import ai.mordecai.shell.voice.VoiceSessionController
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MordecaiShellService : LifecycleService() {
+    private lateinit var shellCoordinator: ShellCoordinator
     private lateinit var prefs: android.content.SharedPreferences
     private lateinit var backendSupervisor: BackendSupervisor
+    private lateinit var voiceSessionController: VoiceSessionController
     private lateinit var speechOutput: SpeechOutput
     private var wakePhraseManager: WakePhraseManager? = null
     private var commandProcessor: SpeechCommandProcessor? = null
     private var pollingJob: Job? = null
-    private var voiceSessionId: String? = null
 
     override fun onCreate() {
         super.onCreate()
+        shellCoordinator = ShellCoordinator.get(this)
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        backendSupervisor = BackendSupervisor(TermuxCommandClient(this)) {
-            prefs.getString(PREF_BACKEND_URL, BackendSupervisor.DEFAULT_BASE_URL) ?: BackendSupervisor.DEFAULT_BASE_URL
-        }
+        backendSupervisor = shellCoordinator.backendSupervisor
+        voiceSessionController = shellCoordinator.createVoiceSessionController()
         speechOutput = SpeechOutput(this) {
             lifecycleScope.launch {
-                val sessionId = voiceSessionId ?: return@launch
-                backendSupervisor.postVoiceSessionEvent(sessionId, "", isFinal = false, playbackFinished = true, autoExecute = false)
+                voiceSessionController.onPlaybackFinished("shell-service")
+                shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.SHELL_SERVICE)
             }
         }
         createChannel()
@@ -46,6 +50,7 @@ class MordecaiShellService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                shellCoordinator.setServiceEnabled(false)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return Service.START_NOT_STICKY
@@ -58,7 +63,7 @@ class MordecaiShellService : LifecycleService() {
         startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.notification_starting)))
         startWakePhraseIfEnabled()
         startPolling()
-        prefs.edit().putBoolean(PREF_SERVICE_ENABLED, true).apply()
+        shellCoordinator.setServiceEnabled(true)
         return Service.START_STICKY
     }
 
@@ -67,7 +72,8 @@ class MordecaiShellService : LifecycleService() {
         wakePhraseManager?.stop()
         commandProcessor?.stop()
         speechOutput.shutdown()
-        prefs.edit().putBoolean(PREF_SERVICE_ENABLED, false).apply()
+        shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.SHELL_SERVICE)
+        shellCoordinator.setServiceEnabled(false)
         super.onDestroy()
     }
 
@@ -77,17 +83,14 @@ class MordecaiShellService : LifecycleService() {
         pollingJob?.cancel()
         pollingJob = lifecycleScope.launch {
             while (true) {
-                val snapshot = backendSupervisor.checkHealth()
-                val content = if (snapshot.reachable) {
+                val snapshot = shellCoordinator.performStartup()
+                val content = if (snapshot.backendReachable) {
                     getString(R.string.notification_backend_online)
                 } else {
                     getString(R.string.notification_backend_offline)
                 }
                 val manager = getSystemService(NotificationManager::class.java)
                 manager.notify(NOTIFICATION_ID, buildNotification(content))
-                if (!snapshot.reachable && prefs.getBoolean(PREF_AUTO_START, true)) {
-                    backendSupervisor.startRuntime()
-                }
                 delay(15_000)
             }
         }
@@ -105,15 +108,14 @@ class MordecaiShellService : LifecycleService() {
             context = this,
             phrase = phrase,
             onWakePhraseHeard = {
-                backendSupervisor.startRuntime()
+                shellCoordinator.startRuntime()
                 val manager = getSystemService(NotificationManager::class.java)
                 manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_wake_phrase_heard)))
                 listenForVoiceCommand(manualTrigger = false)
             },
             onWakeTranscript = { transcript ->
                 lifecycleScope.launch {
-                    val sessionId = ensureVoiceSessionId("shell-service") ?: return@launch
-                    backendSupervisor.postVoiceSessionEvent(sessionId, transcript, isFinal = false, autoExecute = false)
+                    voiceSessionController.postPartialTranscript("shell-service", transcript)
                 }
             },
         )
@@ -121,18 +123,15 @@ class MordecaiShellService : LifecycleService() {
     }
 
     private fun listenForVoiceCommand(manualTrigger: Boolean) {
-        lifecycleScope.launch {
-            val sessionId = ensureVoiceSessionId("shell-service")
-            if (sessionId != null) {
-                speechOutput.interrupt()
-                backendSupervisor.postVoiceSessionEvent(sessionId, "", isFinal = false, interrupt = true, autoExecute = false)
-                backendSupervisor.postVoiceSessionEvent(sessionId, currentWakePhrase(), isFinal = false, autoExecute = false)
-            }
-        }
         if (MordecaiAccessibilityService.requestVoiceCommand(manualTrigger)) {
             val manager = getSystemService(NotificationManager::class.java)
             manager.notify(NOTIFICATION_ID, buildNotification(getString(R.string.notification_overlay_active)))
             return
+        }
+        shellCoordinator.setActiveVoiceSurface(ShellState.ActiveVoiceSurface.SHELL_SERVICE)
+        lifecycleScope.launch {
+            speechOutput.interrupt()
+            voiceSessionController.prepareForCommand("shell-service", currentWakePhrase())
         }
         commandProcessor?.stop()
         val manager = getSystemService(NotificationManager::class.java)
@@ -141,46 +140,30 @@ class MordecaiShellService : LifecycleService() {
             context = this,
             onCommandHeard = { command ->
                 lifecycleScope.launch {
-                    val sessionId = ensureVoiceSessionId("shell-service")
-                    val result = if (sessionId != null) {
-                        backendSupervisor.postVoiceSessionEvent(sessionId, command, isFinal = true, autoExecute = true)
-                    } else {
-                        null
-                    }
+                    val result = voiceSessionController.submitFinalCommand("shell-service", command)
                     val spokenReply = result?.lastResponse ?: result?.planResponse
                     if (result?.ok == true && !spokenReply.isNullOrBlank()) {
                         speechOutput.speak(spokenReply)
-                        prefs.edit().putString(PREF_LAST_REPLY, spokenReply).apply()
                         manager.notify(NOTIFICATION_ID, buildNotification(spokenReply))
                     } else {
+                        shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.SHELL_SERVICE)
                         val errorMessage = result?.error ?: getString(R.string.notification_command_failed)
                         manager.notify(NOTIFICATION_ID, buildNotification(errorMessage))
                     }
                 }
             },
             onFailure = { error ->
+                shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.SHELL_SERVICE)
                 val message = if (manualTrigger) error else getString(R.string.notification_command_timeout)
                 manager.notify(NOTIFICATION_ID, buildNotification(message))
             },
             onTranscript = { transcript ->
                 lifecycleScope.launch {
-                    val sessionId = ensureVoiceSessionId("shell-service") ?: return@launch
-                    backendSupervisor.postVoiceSessionEvent(sessionId, transcript, isFinal = false, autoExecute = false)
+                    voiceSessionController.postPartialTranscript("shell-service", transcript)
                 }
             },
         )
         commandProcessor?.startListening()
-    }
-
-    private suspend fun ensureVoiceSessionId(label: String): String? {
-        if (!voiceSessionId.isNullOrBlank()) {
-            return voiceSessionId
-        }
-        val snapshot = backendSupervisor.startVoiceSession(label, background = true)
-        if (snapshot.ok) {
-            voiceSessionId = snapshot.sessionId
-        }
-        return voiceSessionId
     }
 
     private fun currentWakePhrase(): String {

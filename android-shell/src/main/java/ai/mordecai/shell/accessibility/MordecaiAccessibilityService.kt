@@ -14,8 +14,10 @@ import ai.mordecai.shell.MordecaiShellService
 import ai.mordecai.shell.R
 import ai.mordecai.shell.SpeechCommandProcessor
 import ai.mordecai.shell.SpeechOutput
-import ai.mordecai.shell.TermuxCommandClient
+import ai.mordecai.shell.coordinator.ShellCoordinator
 import ai.mordecai.shell.overlay.MordecaiOverlay
+import ai.mordecai.shell.state.ShellState
+import ai.mordecai.shell.voice.VoiceSessionController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,26 +37,26 @@ class MordecaiAccessibilityService : AccessibilityService() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private lateinit var shellCoordinator: ShellCoordinator
     private lateinit var prefs: android.content.SharedPreferences
     private lateinit var backendSupervisor: BackendSupervisor
+    private lateinit var voiceSessionController: VoiceSessionController
     private lateinit var speechOutput: SpeechOutput
     private lateinit var overlay: MordecaiOverlay
     private var commandProcessor: SpeechCommandProcessor? = null
-    private var voiceSessionId: String? = null
     private var lastPerceptionSignature: String? = null
     private var lastPerceptionDispatchAt: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
+        shellCoordinator = ShellCoordinator.get(this)
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        backendSupervisor = BackendSupervisor(TermuxCommandClient(this)) {
-            prefs.getString(MordecaiShellService.PREF_BACKEND_URL, BackendSupervisor.DEFAULT_BASE_URL)
-                ?: BackendSupervisor.DEFAULT_BASE_URL
-        }
+        backendSupervisor = shellCoordinator.backendSupervisor
+        voiceSessionController = shellCoordinator.createVoiceSessionController()
         speechOutput = SpeechOutput(this) {
             scope.launch {
-                val sessionId = voiceSessionId ?: return@launch
-                backendSupervisor.postVoiceSessionEvent(sessionId, "", isFinal = false, playbackFinished = true, autoExecute = false)
+                voiceSessionController.onPlaybackFinished("accessibility-overlay")
+                shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.ACCESSIBILITY_OVERLAY)
             }
         }
         overlay = MordecaiOverlay(this, onListenRequested = {
@@ -99,6 +101,7 @@ class MordecaiAccessibilityService : AccessibilityService() {
         commandProcessor?.stop()
         overlay.hide()
         speechOutput.shutdown()
+        shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.ACCESSIBILITY_OVERLAY)
         scope.cancel()
         super.onDestroy()
     }
@@ -113,13 +116,10 @@ class MordecaiAccessibilityService : AccessibilityService() {
 
     private fun listenForVoiceCommand(manualTrigger: Boolean) {
         syncOverlayVisibility()
+        shellCoordinator.setActiveVoiceSurface(ShellState.ActiveVoiceSurface.ACCESSIBILITY_OVERLAY)
         scope.launch {
-            val sessionId = ensureVoiceSessionId("accessibility-overlay")
-            if (sessionId != null) {
-                speechOutput.interrupt()
-                backendSupervisor.postVoiceSessionEvent(sessionId, "", isFinal = false, interrupt = true, autoExecute = false)
-                backendSupervisor.postVoiceSessionEvent(sessionId, currentWakePhrase(), isFinal = false, autoExecute = false)
-            }
+            speechOutput.interrupt()
+            voiceSessionController.prepareForCommand("accessibility-overlay", currentWakePhrase())
         }
         commandProcessor?.stop()
         overlay.showStatus(
@@ -145,13 +145,9 @@ class MordecaiAccessibilityService : AccessibilityService() {
                         title = getString(R.string.overlay_processing_title),
                         message = command,
                     )
-                    val sessionId = ensureVoiceSessionId("accessibility-overlay")
-                    val result = if (sessionId != null) {
-                        backendSupervisor.postVoiceSessionEvent(sessionId, command, isFinal = true, autoExecute = true)
-                    } else {
-                        null
-                    }
+                    val result = voiceSessionController.submitFinalCommand("accessibility-overlay", command)
                     if (result?.ok != true) {
+                        shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.ACCESSIBILITY_OVERLAY)
                         overlay.showStatus(
                             title = getString(R.string.overlay_error_title),
                             message = result?.error ?: getString(R.string.notification_command_failed),
@@ -161,7 +157,6 @@ class MordecaiAccessibilityService : AccessibilityService() {
                     val avatar = backendSupervisor.avatar()
                     val spokenReply = (result.lastResponse ?: result.planResponse).orEmpty().ifBlank { getString(R.string.notification_empty_reply) }
                     speechOutput.speak(spokenReply)
-                    prefs.edit().putString(MordecaiShellService.PREF_LAST_REPLY, spokenReply).apply()
                     overlay.showReply(
                         reply = spokenReply,
                         emotion = avatar.emotion,
@@ -170,6 +165,7 @@ class MordecaiAccessibilityService : AccessibilityService() {
                 }
             },
             onFailure = { error ->
+                shellCoordinator.clearActiveVoiceSurface(ShellState.ActiveVoiceSurface.ACCESSIBILITY_OVERLAY)
                 val message = if (manualTrigger) error else getString(R.string.notification_command_timeout)
                 overlay.showStatus(
                     title = getString(R.string.overlay_error_title),
@@ -178,8 +174,7 @@ class MordecaiAccessibilityService : AccessibilityService() {
             },
             onTranscript = { transcript ->
                 scope.launch {
-                    val sessionId = ensureVoiceSessionId("accessibility-overlay") ?: return@launch
-                    backendSupervisor.postVoiceSessionEvent(sessionId, transcript, isFinal = false, autoExecute = false)
+                    voiceSessionController.postPartialTranscript("accessibility-overlay", transcript)
                 }
             },
         )
@@ -301,17 +296,6 @@ class MordecaiAccessibilityService : AccessibilityService() {
             }
         }
         return null
-    }
-
-    private suspend fun ensureVoiceSessionId(label: String): String? {
-        if (!voiceSessionId.isNullOrBlank()) {
-            return voiceSessionId
-        }
-        val snapshot = backendSupervisor.startVoiceSession(label, background = true)
-        if (snapshot.ok) {
-            voiceSessionId = snapshot.sessionId
-        }
-        return voiceSessionId
     }
 
     private fun currentWakePhrase(): String {
