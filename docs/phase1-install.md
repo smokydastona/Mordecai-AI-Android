@@ -67,7 +67,7 @@ What this does:
 - writes the PID file to `data/logs/backend.pid`
 - writes runtime output to `data/logs/backend.log`
 
-The first-boot verifier goes further than `start.sh`. It exports `provider-registry.json` and `tool-manifest.json` into `$HOME/mordecai/data/state/contracts/`, saves the live policy report, and verifies the baseline proxy allowlist hosts used by the shipped install path.
+The first-boot verifier goes further than `start.sh`. It exports `provider-registry.json` and `tool-manifest.json` into `$HOME/mordecai/data/state/contracts/`, saves the live policy report, and verifies the baseline proxy allowlist hosts used by the shipped install path, including the Hugging Face Xet bridge host `cas-bridge.xethub.hf.co` that current managed model bundle downloads can redirect through.
 
 ## 4. Open The Dashboard
 

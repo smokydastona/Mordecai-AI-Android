@@ -142,7 +142,7 @@ Then open the resulting trace in `speedscope` or another compatible viewer.
 ### Guarded Outbound Requests Fail
 
 1. Check `GET /api/proxy/logs` to see the allow or deny reason, then narrow with query, method, domain, or decision filters.
-2. Confirm the target host and any redirect host are both on the allowlist.
+2. Confirm the target host and any redirect host are both on the allowlist. Managed Hugging Face downloads can currently redirect through `cas-bridge.xethub.hf.co` as well as the direct `huggingface.co` host.
 3. Check `GET /api/policy/audits` if the failure reason suggests a policy block rather than a transport or DNS failure.
 4. Use `mitmproxy` only in a controlled development environment where rerouting traffic is acceptable.
 
@@ -162,7 +162,7 @@ Then open the resulting trace in `speedscope` or another compatible viewer.
 
 1. Confirm free space under `$HOME/mordecai/data/models` and `$HOME/mordecai/data/cache`.
 2. Confirm the matching runtime binaries exist in `$HOME/mordecai/tools/bin` for `llama-cli`, `whisper`, and `piper`.
-2. Check the latest proxy log entries for a blocked redirect or rate-limited host.
+2. Check the latest proxy log entries for a blocked redirect or rate-limited host. Current managed bundle installs can hop from `huggingface.co` to `cas-bridge.xethub.hf.co` before the asset download starts.
 3. Re-run the model installer explicitly:
 
 ```bash
