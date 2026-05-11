@@ -103,6 +103,7 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert "runtime_platform=\"$(runtime_python_platform)\"" in installer
     assert "printf '%s' \"${runtime_platform}\" | grep -qi '^linux-'" in installer
     assert "'${ENV_DIR}/bin/python' -m pip install --index-url '${TORCH_CPU_INDEX_URL}' 'torch<3'" in installer
+    assert "'${ENV_DIR}/bin/python' -m pip install --upgrade pip 'setuptools<82' wheel" in installer
     assert "'${ENV_DIR}/bin/python' -m pip install openai-whisper piper-tts" in installer
     assert 'ggml-org/llama.cpp' in installer
     assert 'apt-get install -y ca-certificates curl ffmpeg ccache cmake ninja-build pkg-config python3-dev git build-essential' in installer

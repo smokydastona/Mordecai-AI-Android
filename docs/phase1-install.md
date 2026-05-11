@@ -41,7 +41,9 @@ If you want to override the pinned profile, set `MORDECAI_PROOT_DISTRO` before r
 
 The installer now prefetches Mordecai's recommended on-device model bundle by default. Set `MORDECAI_INSTALL_DEFAULT_MODELS=false` before running `proot-setup.sh` if you need to skip that download. The default bundle installs the `Qwen2.5 3B` GGUF chat model and the recommended Piper English voice files into `$HOME/mordecai/data/models`.
 
-The installer now also provisions the default phone-supported local runtime binaries by default. Set `MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=false` before running `proot-setup.sh` if you need to skip that step. This default runtime path installs `openai-whisper`, `piper-tts`, and builds `llama.cpp`, and it now includes `ccache` in the Linux toolchain so the one-command flow avoids the missing-cache warning and reruns rebuild faster.
+The installer now also provisions the default phone-supported local runtime binaries by default. Set `MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=false` before running `proot-setup.sh` if you need to skip that step. This default runtime path installs `openai-whisper`, `piper-tts`, and builds `llama.cpp`, includes `ccache` in the Linux toolchain so the one-command flow avoids the missing-cache warning and reruns rebuild faster, and keeps `setuptools` below the current CPU-only `torch` incompatibility ceiling so reruns still pass `pip check` after the local voice stack is installed.
+
+Managed model bundle downloads remain behind the proxy and policy layers, but the signed Hugging Face/Xet query parameters used by those downloads are now treated as download metadata rather than user data, so the installer no longer false-positives on the signed redirect URL while fetching the default bundle.
 
 The installer also downloads the latest published `android-shell-latest` APK release asset by default. On rooted phones it attempts a silent `pm install -r`. On standard phones it launches the normal Android package installer so you can approve the install prompt. Set `MORDECAI_INSTALL_SHELL_APK=false` before running `proot-setup.sh` if you want to skip the shell app install step.
 

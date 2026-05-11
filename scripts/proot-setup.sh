@@ -418,7 +418,7 @@ install_local_model_binaries() {
   printf '%s\n' 'Installing phone-supported local model runtime binaries inside the Linux runtime...'
   ensure_runtime_tool_layout
   run_in_distro 'export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y ca-certificates curl ffmpeg ccache cmake ninja-build pkg-config python3-dev git build-essential'
-  run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
+  run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip 'setuptools<82' wheel"
   install_voice_runtime_python_packages
   run_in_distro "'${ENV_DIR}/bin/python' -m pip check"
   verify_voice_runtime_python_packages
@@ -709,7 +709,7 @@ if printf '%s' "${runtime_platform}" | grep -qi 'android'; then
   run_in_distro "python3 -m venv '${ENV_DIR}'"
 fi
 
-run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip setuptools wheel"
+run_in_distro "'${ENV_DIR}/bin/python' -m pip install --upgrade pip 'setuptools<82' wheel"
 run_in_distro "'${ENV_DIR}/bin/python' -m pip install -e '${BACKEND_DIR}'"
 verify_runtime_python_install
 

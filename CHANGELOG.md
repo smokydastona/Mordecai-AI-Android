@@ -25,6 +25,8 @@
 
 ### Changed
 
+- The portable installer now upgrades `pip` and `wheel` while constraining `setuptools<82`, matching the current CPU-only `torch` wheel requirement used by the local voice/runtime bootstrap so reruns no longer fail `pip check` after voice packages are installed.
+- The outbound policy now treats signed Hugging Face/Xet download query parameters as download metadata on the approved model-host allowlist, preventing false personal-data blocks during managed local-model bundle installs while keeping general personal-data query and payload protections intact.
 - The portable `proot-setup.sh` installer now installs `ccache` before configuring `llama.cpp`, which removes the avoidable compiler-cache warning during local runtime bootstrap and improves repeat build performance on reruns.
 - The default outbound allowlist and first-boot verifier now include `cas-bridge.xethub.hf.co`, matching the current Hugging Face redirect path used by managed local-model bundle downloads during Termux or proot installs.
 - The Phase 1 installer now enables the upstream `llama.cpp` server-backed CLI build while keeping its embedded web UI off, then resolves the usable front-end defensively by preferring `llama-cli`, accepting `llama-run` or legacy `main`, and making one explicit `llama-cli` target build attempt before failing when an upstream checkout still omits the expected binary.

@@ -93,6 +93,18 @@ def test_policy_blocks_personal_data_payloads(tmp_path):
     assert "personal data" in decision.reason.lower()
 
 
+def test_policy_allows_signed_huggingface_download_query_values(tmp_path):
+    settings = Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai")
+    policy = PolicyEngine(settings)
+
+    decision = policy.validate_outbound_request(
+        "GET",
+        "https://cas-bridge.xethub.hf.co/reconstruction/model.bin?X-Xet-Signed-Range=bytes%3D0-2810182656&Expires=1760000000&Signature=abc123&download=true",
+    )
+
+    assert decision.allowed
+
+
 def test_policy_blocks_direct_android_input_actions(tmp_path):
     settings = Settings(workspace_dir=tmp_path, state_dir=tmp_path / ".mordecai", enable_android_control=True)
     policy = PolicyEngine(settings)

@@ -22,6 +22,14 @@ class PolicyDecision:
 
 
 class PolicyEngine:
+    SAFE_DOWNLOAD_QUERY_HOSTS = frozenset({
+        "huggingface.co",
+        "hf.co",
+        "cas-bridge.xethub.hf.co",
+        "cdn-lfs.hf.co",
+        "cdn-lfs-us-1.hf.co",
+        "cdn-lfs-eu-1.hf.co",
+    })
     FORBIDDEN_ANDROID_ACTIONS = frozenset({"tap", "swipe", "type"})
     FORBIDDEN_PURCHASE_PATH_PATTERNS = [
         r"/(checkout|cart|payment|billing|invoice|subscribe|subscription|order)(/|$)",
@@ -29,6 +37,15 @@ class PolicyEngine:
     ]
     SENSITIVE_QUERY_KEY_PATTERNS = [
         r"(^|_)(email|phone|address|ssn|social_security|card|card_number|credit_card|cvv|cvc|expiry|billing|shipping|dob|birthdate)(_|$)",
+    ]
+    SAFE_DOWNLOAD_QUERY_KEY_PATTERNS = [
+        r"^download$",
+        r"^expires$",
+        r"^policy$",
+        r"^signature$",
+        r"^key-pair-id$",
+        r"^x-amz-[a-z0-9-]+$",
+        r"^x-xet-[a-z0-9-]+$",
     ]
     SENSITIVE_FIELD_PATTERNS = [
         r'"?(email|phone|address|ssn|social_security|card|card_number|credit_card|cvv|cvc|expiry|billing_address|shipping_address|full_name|first_name|last_name|dob|birthdate)"?\s*[:=]',
@@ -135,6 +152,8 @@ class PolicyEngine:
                     f"{method.upper()} {url}",
                     PolicyDecision(False, "Outbound personal data fields are blocked by policy"),
                 )
+            if self._is_safe_download_query_parameter(parsed.hostname, key):
+                continue
             if self._contains_sensitive_value(value):
                 return self._record_decision(
                     "outbound-request",
@@ -281,6 +300,11 @@ class PolicyEngine:
 
     def _contains_sensitive_value(self, value: str) -> bool:
         return any(re.search(pattern, value, flags=re.IGNORECASE) for pattern in self.SENSITIVE_VALUE_PATTERNS)
+
+    def _is_safe_download_query_parameter(self, hostname: str | None, key: str) -> bool:
+        if hostname not in self.SAFE_DOWNLOAD_QUERY_HOSTS:
+            return False
+        return any(re.search(pattern, key, flags=re.IGNORECASE) for pattern in self.SAFE_DOWNLOAD_QUERY_KEY_PATTERNS)
 
     @staticmethod
     def _stringify_payload(payload: object | None) -> str:
