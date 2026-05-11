@@ -38,19 +38,31 @@ class SafeHttpClient:
         return response.text
 
     async def fetch_json(self, url: str) -> Any:
-        response = await self._request("GET", url, headers={"Accept": "application/json"})
-        return response.json()
+        return await self.request_json("GET", url)
 
-    async def post_json(self, url: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> Any:
+    async def request_json(
+        self,
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> Any:
         request_headers = {
             "User-Agent": "Mordecai/0.1",
             "Accept": "application/json",
-            "Content-Type": "application/json",
         }
+        if payload is not None:
+            request_headers["Content-Type"] = "application/json"
         if headers:
             request_headers.update(headers)
-        response = await self._request("POST", url, headers=request_headers, json=payload)
+        response = await self._request(method.upper(), url, headers=request_headers, json=payload)
         return response.json()
+
+    async def post_json(self, url: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> Any:
+        return await self.request_json("POST", url, payload=payload, headers=headers)
+
+    async def put_json(self, url: str, payload: dict[str, Any], headers: dict[str, str] | None = None) -> Any:
+        return await self.request_json("PUT", url, payload=payload, headers=headers)
 
     async def download_file(
         self,

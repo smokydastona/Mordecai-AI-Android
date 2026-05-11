@@ -7,6 +7,7 @@ from mordecai.agent import MordecaiRuntime
 from mordecai.android_control import AndroidController
 from mordecai.bootstrap import build_runtime
 from mordecai.git_tools import GitService
+from mordecai.home_automation import HomeAutomationService
 from mordecai.policy import PolicyEngine
 from mordecai.proxy import SafeHttpClient
 from mordecai.self_improvement import SelfImprovementManager
@@ -20,6 +21,7 @@ from providers.android_control import AndroidControlToolProvider
 from providers.accessibility import AccessibilityToolProvider
 from providers.cloud_llm import CloudLLMToolProvider
 from providers.git_ops import GitOpsToolProvider
+from providers.home_automation import HomeAutomationToolProvider
 from providers.local_llm import LocalLLMToolProvider
 from providers.shell_ops import ShellToolProvider
 
@@ -167,6 +169,10 @@ def _build_tool_registry(
         LocalLLMToolProvider(runtime.provider_router.catalog),
         CloudLLMToolProvider(runtime.provider_router),
     ]
+    if runtime.settings.enable_home_automation:
+        home_automation = HomeAutomationService(runtime.settings, proxy)
+        if home_automation.is_configured():
+            providers.append(HomeAutomationToolProvider(home_automation, runtime.settings))
     if runtime.settings.enable_android_control:
         providers.extend(
             [

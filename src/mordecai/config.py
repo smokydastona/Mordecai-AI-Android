@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -35,10 +36,24 @@ class Settings(BaseSettings):
     mode: str = "mode-a"
     enable_android_control: bool = False
     enable_mode_b: bool = False
+    enable_home_automation: bool = False
     enable_advanced_self_improvement: bool = False
     enable_daemon_mode: bool = False
     allow_git_push: bool = False
     auto_apply_improvements: bool = False
+    home_automation_mode: str = "both"
+    home_automation_require_confirmation: bool = True
+    home_automation_timeout_seconds: float = 10.0
+    home_assistant_base_url: str | None = None
+    home_assistant_access_token: str | None = None
+    home_assistant_allowed_hosts: list[str] = Field(default_factory=list)
+    home_assistant_allowed_entity_ids: list[str] = Field(default_factory=list)
+    home_assistant_allowed_scene_ids: list[str] = Field(default_factory=list)
+    philips_hue_bridge_url: str | None = None
+    philips_hue_application_key: str | None = None
+    philips_hue_allowed_hosts: list[str] = Field(default_factory=list)
+    philips_hue_allowed_light_ids: list[str] = Field(default_factory=list)
+    philips_hue_allowed_scene_ids: list[str] = Field(default_factory=list)
     system_prompt_path: Path | None = None
     allowed_domains: list[str] = Field(
         default_factory=lambda: [
@@ -64,6 +79,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "Settings":
+        self.home_automation_mode = self._normalize_home_automation_mode(self.home_automation_mode)
+        self.home_assistant_base_url = self._normalize_url(self.home_assistant_base_url)
+        self.philips_hue_bridge_url = self._normalize_url(self.philips_hue_bridge_url)
+        self.home_assistant_allowed_hosts = self._normalize_host_list(self.home_assistant_allowed_hosts)
+        self.philips_hue_allowed_hosts = self._normalize_host_list(self.philips_hue_allowed_hosts)
+        self.home_assistant_allowed_entity_ids = self._normalize_identifier_list(self.home_assistant_allowed_entity_ids)
+        self.home_assistant_allowed_scene_ids = self._normalize_identifier_list(self.home_assistant_allowed_scene_ids)
+        self.philips_hue_allowed_light_ids = self._normalize_identifier_list(self.philips_hue_allowed_light_ids)
+        self.philips_hue_allowed_scene_ids = self._normalize_identifier_list(self.philips_hue_allowed_scene_ids)
+        self.allowed_domains = self._merge_allowed_domains(
+            self.allowed_domains,
+            self.home_assistant_allowed_hosts,
+            self.philips_hue_allowed_hosts,
+        )
         workspace_dir = self._normalize_path(self.workspace_dir) if self.workspace_dir else Path.cwd().resolve()
         workspace_dir.mkdir(parents=True, exist_ok=True)
         install_root = self._normalize_path(self.install_root) if self.install_root else self._default_install_root(workspace_dir)
@@ -107,6 +136,73 @@ class Settings(BaseSettings):
     @staticmethod
     def _normalize_path(path: Path) -> Path:
         return Path(path).expanduser().resolve()
+
+    @staticmethod
+    def _normalize_url(url: str | None) -> str | None:
+        if url is None:
+            return None
+        normalized = url.strip().rstrip("/")
+        return normalized or None
+
+    @staticmethod
+    def _normalize_host_list(hosts: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for host in hosts:
+            value = host.strip().lower()
+            if value and value not in normalized:
+                normalized.append(value)
+        return normalized
+
+    @staticmethod
+    def _normalize_identifier_list(values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            cleaned = value.strip()
+            if cleaned and cleaned not in normalized:
+                normalized.append(cleaned)
+        return normalized
+
+    @staticmethod
+    def _normalize_home_automation_mode(mode: str) -> str:
+        normalized = mode.strip().lower()
+        allowed = {"home-assistant", "philips-hue", "both"}
+        if normalized not in allowed:
+            raise ValueError(f"Unsupported home automation mode: {mode}")
+        return normalized
+
+    @staticmethod
+    def _merge_allowed_domains(existing: list[str], *host_lists: list[str]) -> list[str]:
+        merged: list[str] = []
+        for entry in existing:
+            normalized = entry.strip().lower()
+            if normalized and normalized not in merged:
+                merged.append(normalized)
+        for host_list in host_lists:
+            for host in host_list:
+                normalized = host.strip().lower()
+                if normalized and normalized not in merged:
+                    merged.append(normalized)
+        return merged
+
+    def configured_home_automation_backends(self) -> tuple[str, ...]:
+        if not self.enable_home_automation:
+            return ()
+        backends: list[str] = []
+        if self.home_automation_mode in {"home-assistant", "both"} and self.home_assistant_base_url and self.home_assistant_access_token:
+            backends.append("home-assistant")
+        if self.home_automation_mode in {"philips-hue", "both"} and self.philips_hue_bridge_url and self.philips_hue_application_key:
+            backends.append("philips-hue")
+        return tuple(backends)
+
+    def configured_home_automation_hosts(self) -> tuple[str, ...]:
+        hosts: list[str] = []
+        for url in (self.home_assistant_base_url, self.philips_hue_bridge_url):
+            if not url:
+                continue
+            hostname = urlparse(url).hostname
+            if hostname and hostname not in hosts:
+                hosts.append(hostname)
+        return tuple(hosts)
 
     @staticmethod
     def _default_install_root(workspace_dir: Path) -> Path:

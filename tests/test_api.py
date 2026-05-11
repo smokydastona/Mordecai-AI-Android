@@ -258,6 +258,124 @@ def test_agent_plan_can_select_allowlisted_app_launch_action(tmp_path, monkeypat
     assert any(step["arguments"]["arguments"] == ["com.termux"] for step in android_steps)
 
 
+def test_home_automation_tools_execute_through_api(tmp_path, monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "GET" and request.url.host == "ha.internal" and path == "/api/states":
+            return httpx.Response(
+                200,
+                json=[
+                    {"entity_id": "light.kitchen", "state": "off", "attributes": {"friendly_name": "Kitchen"}},
+                    {"entity_id": "scene.relax", "state": "scening", "attributes": {"friendly_name": "Relax"}},
+                ],
+                request=request,
+            )
+        if request.method == "GET" and request.url.host == "ha.internal" and path == "/api/states/light.kitchen":
+            test_home_automation_tools_execute_through_api.state = getattr(test_home_automation_tools_execute_through_api, "state", "off")
+            return httpx.Response(
+                200,
+                json={"entity_id": "light.kitchen", "state": test_home_automation_tools_execute_through_api.state, "attributes": {"friendly_name": "Kitchen"}},
+                request=request,
+            )
+        if request.method == "POST" and request.url.host == "ha.internal" and path == "/api/services/light/turn_on":
+            test_home_automation_tools_execute_through_api.state = "on"
+            return httpx.Response(200, json={"result": "ok"}, request=request)
+        if request.method == "GET" and request.url.host == "192.168.1.20" and path == "/clip/v2/resource/light":
+            return httpx.Response(
+                200,
+                json={"data": [{"id": "light-1", "metadata": {"name": "Desk"}, "on": {"on": True}}]},
+                request=request,
+            )
+        if request.method == "GET" and request.url.host == "192.168.1.20" and path == "/clip/v2/resource/light/light-1":
+            test_home_automation_tools_execute_through_api.hue_state = getattr(
+                test_home_automation_tools_execute_through_api,
+                "hue_state",
+                True,
+            )
+            return httpx.Response(
+                200,
+                json={"data": [{"id": "light-1", "metadata": {"name": "Desk"}, "on": {"on": test_home_automation_tools_execute_through_api.hue_state}}]},
+                request=request,
+            )
+        if request.method == "GET" and request.url.host == "192.168.1.20" and path == "/clip/v2/resource/scene":
+            return httpx.Response(
+                200,
+                json={"data": [{"id": "scene-1", "metadata": {"name": "Movie"}}]},
+                request=request,
+            )
+        if request.method == "GET" and request.url.host == "192.168.1.20" and path == "/clip/v2/resource/scene/scene-1":
+            return httpx.Response(
+                200,
+                json={"data": [{"id": "scene-1", "metadata": {"name": "Movie"}}]},
+                request=request,
+            )
+        if request.method == "PUT" and request.url.host == "192.168.1.20" and path == "/clip/v2/resource/light/light-1":
+            body = request.read().decode("utf-8")
+            test_home_automation_tools_execute_through_api.hue_state = '"on":true' in body.lower()
+            return httpx.Response(200, json={"data": [{"id": "light-1"}]}, request=request)
+        if request.method == "PUT" and request.url.host == "192.168.1.20" and path == "/clip/v2/resource/scene/scene-1":
+            return httpx.Response(200, json={"data": [{"id": "scene-1"}]}, request=request)
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    monkeypatch.setenv("MORDECAI_ENABLE_HOME_AUTOMATION", "true")
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_BASE_URL", "https://ha.internal")
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ACCESS_TOKEN", "secret")
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ALLOWED_HOSTS", '["ha.internal"]')
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ALLOWED_ENTITY_IDS", '["light.kitchen"]')
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ALLOWED_SCENE_IDS", '["scene.relax"]')
+    monkeypatch.setenv("MORDECAI_PHILIPS_HUE_BRIDGE_URL", "https://192.168.1.20")
+    monkeypatch.setenv("MORDECAI_PHILIPS_HUE_APPLICATION_KEY", "secret")
+    monkeypatch.setenv("MORDECAI_PHILIPS_HUE_ALLOWED_HOSTS", '["192.168.1.20"]')
+    monkeypatch.setenv("MORDECAI_PHILIPS_HUE_ALLOWED_LIGHT_IDS", '["light-1"]')
+    monkeypatch.setenv("MORDECAI_PHILIPS_HUE_ALLOWED_SCENE_IDS", '["scene-1"]')
+    monkeypatch.setattr(
+        "mordecai.proxy.SafeHttpClient._default_client_factory",
+        lambda self: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False, timeout=self.settings.proxy_timeout_seconds),
+    )
+    client = build_test_client(tmp_path, monkeypatch)
+
+    list_response = client.post(
+        "/api/tools/execute",
+        json={"tool": "home.list_entities", "granted_permissions": ["network", "home-automation"]},
+    )
+    toggle_response = client.post(
+        "/api/tools/execute",
+        json={
+            "tool": "home.toggle_light",
+            "arguments": {"entity_id": "light.kitchen"},
+            "granted_permissions": ["network", "home-automation"],
+            "safe_mode": False,
+        },
+    )
+    scene_response = client.post(
+        "/api/tools/execute",
+        json={
+            "tool": "home.activate_scene",
+            "arguments": {"scene_id": "scene-1"},
+            "granted_permissions": ["network", "home-automation"],
+            "safe_mode": False,
+        },
+    )
+    hue_toggle_response = client.post(
+        "/api/tools/execute",
+        json={
+            "tool": "home.toggle_light",
+            "arguments": {"entity_id": "philips-hue:light-1"},
+            "granted_permissions": ["network", "home-automation"],
+            "safe_mode": False,
+        },
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.json()["output"]["entity_count"] == 2
+    assert toggle_response.status_code == 200
+    assert toggle_response.json()["output"]["current_state"] == "on"
+    assert scene_response.status_code == 200
+    assert scene_response.json()["output"]["scene"]["backend"] == "philips-hue"
+    assert hue_toggle_response.status_code == 200
+    assert hue_toggle_response.json()["output"]["current_state"] == "off"
+
+
 def test_agent_plan_history_endpoint_returns_saved_plans(tmp_path, monkeypatch):
     client = build_test_client(tmp_path, monkeypatch)
 

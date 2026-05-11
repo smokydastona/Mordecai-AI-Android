@@ -72,9 +72,13 @@ The planner now sits directly on this execution layer instead of bypassing it. T
 
 Planner selection now includes Android workflows when the corresponding tool is present, including allowlisted app launching and notification/navigation actions instead of remaining limited to repository and network tasks.
 
+That same execution layer now also carries a policy-gated home automation provider. Home Assistant and Philips Hue are integrated as explicit tool manifests rather than direct runtime reach-through, so listing lights or scenes and triggering allowlisted light or scene actions still travels through the same permission, safe-mode, confirmation, timeout, and telemetry surfaces as the rest of the runtime.
+
 ### 7. Policy layer
 
 Protected paths, command guards, outbound allowlists, rate limits, and permission gating. This is the hard boundary that keeps experimentation from escaping into unsafe control.
+
+The home automation provider extends this layer without bypassing it. Home Assistant instance hosts and Hue bridge hosts remain explicit allowlist entries, and backend credentials ride through authenticated request headers while all traffic still flows through the safe proxy boundary. The current slice intentionally limits device scope to explicit light and scene allowlists instead of wildcard device discovery.
 
 ### 8. Model and voice layer
 
@@ -124,6 +128,7 @@ The runtime also exposes managed local model assets and bundles. Model downloads
 - `src/mordecai/` holds the working runtime implementation and HTTP/dashboard surface.
 - `mordecai_core/` holds execution primitives, eventing, runtime composition, and provider contracts.
 - `providers/` holds concrete tool providers such as Android control, git operations, and local/cloud LLM execution.
+- `src/mordecai/home_automation.py` holds the Home Assistant and Philips Hue backend clients plus the normalized response layer for home automation tools.
 - `tests/` is the enforcement layer for API behavior, tool contracts, proxy allowlists, policy protection, and sandboxed self-modification.
 - `prompts/system_prompt.txt` defines the active operator-facing directive surface.
 - `scripts/proot-setup.sh` is the canonical public installer for the portable Termux backend.

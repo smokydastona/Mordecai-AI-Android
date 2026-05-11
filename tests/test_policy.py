@@ -113,3 +113,20 @@ def test_policy_blocks_direct_android_input_actions(tmp_path):
 
     assert not decision.allowed
     assert "blocked" in decision.reason.lower()
+
+
+def test_home_automation_allowed_hosts_extend_proxy_allowlist(tmp_path):
+    settings = Settings(
+        workspace_dir=tmp_path,
+        state_dir=tmp_path / ".mordecai",
+        enable_home_automation=True,
+        home_assistant_allowed_hosts=["ha.internal"],
+        philips_hue_allowed_hosts=["192.168.1.20"],
+    )
+    policy = PolicyEngine(settings)
+
+    ha_decision = policy.validate_outbound_request("GET", "https://ha.internal/api/states")
+    hue_decision = policy.validate_outbound_request("GET", "https://192.168.1.20/clip/v2/resource/light")
+
+    assert ha_decision.allowed
+    assert hue_decision.allowed

@@ -122,3 +122,32 @@ def test_proxy_blocks_sensitive_post_payloads(tmp_path):
         assert "personal data" in str(exc).lower()
     else:
         raise AssertionError("Expected personal data payload to be blocked")
+
+
+def test_proxy_request_json_supports_put_for_allowlisted_home_automation_hosts(tmp_path):
+    settings = Settings(
+        workspace_dir=tmp_path,
+        state_dir=tmp_path / ".mordecai",
+        enable_home_automation=True,
+        philips_hue_allowed_hosts=["192.168.1.20"],
+    )
+    store = StateStore(settings.state_dir, settings.max_log_entries)
+    policy = PolicyEngine(settings)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PUT"
+        assert request.url.host == "192.168.1.20"
+        return httpx.Response(200, json={"data": [{"id": "light-1"}]}, request=request)
+
+    proxy = SafeHttpClient(
+        settings,
+        policy,
+        store,
+        client_factory=lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False),
+    )
+
+    payload = asyncio.run(
+        proxy.put_json("https://192.168.1.20/clip/v2/resource/light/light-1", {"on": {"on": True}})
+    )
+
+    assert payload["data"][0]["id"] == "light-1"

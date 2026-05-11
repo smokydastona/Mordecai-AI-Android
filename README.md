@@ -30,6 +30,7 @@ For the most capable local deployment path, the intended target remains a rooted
 - Policy engine that protects core safety files and execution surfaces, blocks destructive shell patterns, and enforces an outbound domain allowlist
 - Outbound policy now also blocks commerce/checkout endpoints and personal-data exfiltration patterns, even on otherwise allowlisted hosts
 - Safe HTTP client with per-minute request throttling and request logging
+- Policy-gated home automation tools for Home Assistant and direct Philips Hue, with explicit backend config, allowlisted lights/scenes only, and normalized entity/scene records exposed through the shared tool execution surface
 - Git integration for local backups and optional pushes
 - Self-improvement manager that stages file changes in a sandbox workspace, runs tests there, supports rollback, previews diffs, and only applies candidates whose tests passed
 - Self-improvement perimeter with protected-path enforcement, hidden-persistence diff filters, sandboxed test gating, and rollback snapshots
@@ -323,6 +324,44 @@ Notes:
 - The default allowlist includes common model API hosts such as `api.openai.com`, `api.anthropic.com`, `generativelanguage.googleapis.com`, and `openrouter.ai`.
 - If `MORDECAI_OPENAI_*` values are unset, Mordecai falls back to the built-in rule-based provider.
 
+## Home automation configuration
+
+Mordecai now supports two explicitly configured smart-home backends through the same tool registry and safe proxy surface used by other runtime actions:
+
+- Home Assistant REST API
+- Philips Hue CLIP v2 bridge API
+
+This feature is off by default and does not auto-discover devices, bridges, or cloud routes. You must explicitly enable it, configure the backend URLs and credentials, and add the backend hosts or bridge IPs to the dedicated allowlist settings. State-changing actions remain high-risk tools with confirmation metadata and are disabled in safe mode.
+
+Set these environment values in `.env` to enable both backends:
+
+```text
+MORDECAI_ENABLE_HOME_AUTOMATION=true
+MORDECAI_HOME_AUTOMATION_MODE=both
+MORDECAI_HOME_AUTOMATION_REQUIRE_CONFIRMATION=true
+
+MORDECAI_HOME_ASSISTANT_BASE_URL=https://ha.internal
+MORDECAI_HOME_ASSISTANT_ACCESS_TOKEN=your-home-assistant-token
+MORDECAI_HOME_ASSISTANT_ALLOWED_HOSTS=["ha.internal"]
+MORDECAI_HOME_ASSISTANT_ALLOWED_ENTITY_IDS=["light.kitchen","light.desk"]
+MORDECAI_HOME_ASSISTANT_ALLOWED_SCENE_IDS=["scene.relax","scene.movie"]
+
+MORDECAI_PHILIPS_HUE_BRIDGE_URL=https://192.168.1.20
+MORDECAI_PHILIPS_HUE_APPLICATION_KEY=your-hue-application-key
+MORDECAI_PHILIPS_HUE_ALLOWED_HOSTS=["192.168.1.20"]
+MORDECAI_PHILIPS_HUE_ALLOWED_LIGHT_IDS=["a1b2c3d4-light-id"]
+MORDECAI_PHILIPS_HUE_ALLOWED_SCENE_IDS=["e5f6g7h8-scene-id"]
+```
+
+Notes:
+
+- Host allowlisting remains explicit. Configuring a backend URL alone does not bypass the outbound proxy policy.
+- The current slice intentionally supports only allowlisted light and scene listing plus allowlisted light toggles and scene activation.
+- The generic tool execution API is the primary operator surface for this feature. The runtime manifest will surface `home.list_entities`, `home.list_scenes`, `home.toggle_light`, and `home.activate_scene` when the feature is configured.
+- Backend failures are surfaced explicitly in tool results instead of silently falling back to whichever backend still responds.
+
+See `docs/home_automation.md` for backend-specific setup details and example tool calls.
+
 ## Android deployment notes
 
 This codebase is designed to run inside the sandboxed Linux layer described in the blueprint, such as Termux plus proot Ubuntu on the target phone. `scripts/proot-setup.sh` is now the canonical public installer entry point for the portable Phase 1 backend, while `sandbox/proot-setup.sh` remains a compatibility wrapper for older references. The native shell app in `android-shell/` supervises that localhost backend from Android.
@@ -355,6 +394,7 @@ The installer can also add an optional debugging toolkit when you set `MORDECAI_
 - `docs/android_setup.md`
 - `docs/android-shell.md`
 - `docs/debugging-guide.md`
+- `docs/home_automation.md`
 - `docs/phase1-contract.md`
 - `docs/phase1-install.md`
 - `docs/modeA-vs-modeB.md`

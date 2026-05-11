@@ -219,6 +219,31 @@ def test_runtime_components_expose_tool_registry_and_provider_catalog():
     assert "rule-based" in components.provider_catalog.names()
 
 
+def test_runtime_components_register_home_automation_tools_when_configured(tmp_path, monkeypatch):
+    monkeypatch.setenv("MORDECAI_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("MORDECAI_STATE_DIR", str(tmp_path / ".mordecai"))
+    monkeypatch.setenv("MORDECAI_ENABLE_HOME_AUTOMATION", "true")
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_BASE_URL", "https://ha.internal")
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ACCESS_TOKEN", "secret")
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ALLOWED_HOSTS", '["ha.internal"]')
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ALLOWED_ENTITY_IDS", '["light.kitchen"]')
+    monkeypatch.setenv("MORDECAI_HOME_ASSISTANT_ALLOWED_SCENE_IDS", '["scene.relax"]')
+
+    from mordecai.config import get_settings
+    from mordecai.bootstrap import build_runtime
+
+    get_settings.cache_clear()
+    build_runtime.cache_clear()
+    get_runtime_components.cache_clear()
+    components = get_runtime_components()
+
+    tool_names = [manifest.tool for manifest in components.tool_registry.list_tools()]
+    assert "home.list_entities" in tool_names
+    assert "home.list_scenes" in tool_names
+    assert "home.toggle_light" in tool_names
+    assert "home.activate_scene" in tool_names
+
+
 def test_runtime_components_execute_tools_and_discover_capabilities():
     components = get_runtime_components()
 

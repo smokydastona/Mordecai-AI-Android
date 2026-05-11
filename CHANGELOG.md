@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Policy-Gated Home Automation Provider**: Added first-class Home Assistant and direct Philips Hue integration through a new `provider.home-automation` tool family. The runtime now exposes `home.list_entities`, `home.list_scenes`, `home.toggle_light`, and `home.activate_scene`, normalizes backend responses into stable entity and scene records, and keeps state-changing actions behind explicit confirmation metadata plus safe-mode denial.
 - **Android Shell Coordinator And Startup State**: Added `ShellState`, `ShellCoordinator`, and `StartupOrchestrator` so the Android shell now maintains one shared runtime/status snapshot, performs bounded backend startup recovery through a dedicated startup flow, and lets the main activity, settings screen, boot receiver, foreground shell service, and accessibility overlay path consume coordinated shell state instead of recomputing it independently.
 - **Android Shell Voice/Transport Seams**: Added `VoiceSessionController` to centralize the shared background voice-session lifecycle used by both `MordecaiShellService` and `MordecaiAccessibilityService`, and split shell transport into `ShellBackendClient` for localhost HTTP calls plus `RuntimeCommandGateway` for Termux runtime commands while keeping `BackendSupervisor` as a compatibility facade.
 - **Android Shell Refactor Design Note**: Added `docs/android-shell-refactor-plan.md` to capture a concrete `ShellCoordinator` plus `StartupOrchestrator` plan, the exact duplicated voice-session responsibilities across `MordecaiShellService` and `MordecaiAccessibilityService`, and a Stratos-inspired cleanup direction for operator-driven updates, typed shell config, and explicit shell/backend contract boundaries.
@@ -28,6 +29,7 @@
 
 ### Changed
 
+- The runtime configuration now supports explicit home-automation backend settings for Home Assistant and Philips Hue, including per-backend host allowlists, explicit entity and scene allowlists, backend selection mode, and a dedicated timeout and confirmation setting. The safe proxy now supports generic JSON requests, including `PUT`, so local Hue CLIP v2 control still flows through the outbound policy gate instead of bypassing the proxy layer.
 - The shipped `start.sh` launcher now waits for the backend `/health` endpoint before reporting success and prints the recent backend log tail if startup fails, so Termux installs surface actionable runtime startup errors instead of repeated blind connection failures during the smoke check.
 - The portable installer now tries a targeted `llama-cli` plus `llama-server` build before falling back to the broader default `llama.cpp` build, which reduces phone install time on current upstream checkouts while preserving compatibility with older layouts.
 - The portable installer now upgrades `pip` and `wheel` while constraining `setuptools<82`, matching the current CPU-only `torch` wheel requirement used by the local voice/runtime bootstrap so reruns no longer fail `pip check` after voice packages are installed.
