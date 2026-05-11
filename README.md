@@ -8,6 +8,8 @@ Mordecai itself is a policy-bound AI runtime for Android phones. The current imp
 
 That portable installer now provisions `ccache` alongside the Linux `llama.cpp` build toolchain, keeps `setuptools` below the current CPU-only `torch` incompatibility ceiling used by the local voice stack, avoids false policy blocks on the signed Hugging Face/Xet download URLs used by managed model bundle installs, and now tries a targeted `llama-cli` plus `llama-server` build before falling back to the broader upstream default build for compatibility.
 
+The shipped `start.sh` launcher now waits for the backend `/health` endpoint before declaring success and prints the recent backend log tail if startup fails, so phone-side bootstrap issues surface as concrete runtime errors instead of repeated blind connection failures.
+
 For the most capable local deployment path, the intended target remains a rooted Android VM or Linux chroot hosting Termux plus `proot-distro` Ubuntu, so Mordecai can run Linux-hosted AI runtimes such as Whisper and Piper while the Android shell supervises the localhost backend.
 
 ## Project hygiene

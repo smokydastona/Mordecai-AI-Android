@@ -25,6 +25,7 @@
 
 ### Changed
 
+- The shipped `start.sh` launcher now waits for the backend `/health` endpoint before reporting success and prints the recent backend log tail if startup fails, so Termux installs surface actionable runtime startup errors instead of repeated blind connection failures during the smoke check.
 - The portable installer now tries a targeted `llama-cli` plus `llama-server` build before falling back to the broader default `llama.cpp` build, which reduces phone install time on current upstream checkouts while preserving compatibility with older layouts.
 - The portable installer now upgrades `pip` and `wheel` while constraining `setuptools<82`, matching the current CPU-only `torch` wheel requirement used by the local voice/runtime bootstrap so reruns no longer fail `pip check` after voice packages are installed.
 - The outbound policy now treats signed Hugging Face/Xet download query parameters as download metadata on the approved model-host allowlist, preventing false personal-data blocks during managed local-model bundle installs while keeping general personal-data query and payload protections intact.

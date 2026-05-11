@@ -228,6 +228,12 @@ def test_start_script_exports_local_runtime_bin_path():
 
     assert 'TOOLS_BIN_DIR="${TOOLS_DIR}/bin"' in start_script
     assert 'export PATH="${TOOLS_BIN_DIR}:${ENV_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' in start_script
+    assert 'HEALTH_URL="http://${SERVICE_HOST}:${SERVICE_PORT}/health"' in start_script
+    assert 'wait_for_backend_start() {' in start_script
+    assert 'curl -fsS "${HEALTH_URL}" >/dev/null 2>&1' in start_script
+    assert 'Mordecai exited before becoming healthy. Recent backend log output:' in start_script
+    assert 'Mordecai did not become healthy at %s within the startup window. Recent backend log output:' in start_script
+    assert 'Health check: %s\\n' in start_script
 
 
 def test_first_boot_script_exports_runtime_contracts_and_verifies_policy():

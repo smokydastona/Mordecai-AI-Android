@@ -45,6 +45,8 @@ The installer now also provisions the default phone-supported local runtime bina
 
 Managed model bundle downloads remain behind the proxy and policy layers, but the signed Hugging Face/Xet query parameters used by those downloads are now treated as download metadata rather than user data, so the installer no longer false-positives on the signed redirect URL while fetching the default bundle.
 
+The shipped `start.sh` launcher now waits for `http://127.0.0.1:<port>/health` before reporting success. If the backend exits early or never becomes reachable inside the startup window, the script prints the recent `data/logs/backend.log` tail directly so Termux installs fail with actionable startup context instead of only repeated curl connection errors.
+
 The installer also downloads the latest published `android-shell-latest` APK release asset by default. On rooted phones it attempts a silent `pm install -r`. On standard phones it launches the normal Android package installer so you can approve the install prompt. Set `MORDECAI_INSTALL_SHELL_APK=false` before running `proot-setup.sh` if you want to skip the shell app install step.
 
 If you want the installer to provision the optional Mordecai debugging toolkit inside the Linux runtime, set `MORDECAI_INSTALL_DEBUG_TOOLKIT=true` before running `proot-setup.sh`. That toolkit installs `py-spy`, `viztracer`, `mitmproxy`, and core Linux debugging utilities such as `strace`, `lsof`, and `procps`.

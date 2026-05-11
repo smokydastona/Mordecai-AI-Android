@@ -23,6 +23,9 @@ TOOLS_BIN_DIR="${TOOLS_DIR}/bin"
 PROOT_DISTRO="${MORDECAI_PROOT_DISTRO:-ubuntu-24.04}"
 PID_FILE="${LOG_DIR}/backend.pid"
 LOG_FILE="${LOG_DIR}/backend.log"
+SERVICE_HOST="${MORDECAI_SERVICE_HOST:-127.0.0.1}"
+SERVICE_PORT="${MORDECAI_SERVICE_PORT:-8000}"
+HEALTH_URL="http://${SERVICE_HOST}:${SERVICE_PORT}/health"
 
 run_in_distro() {
   local command="$1"
@@ -59,7 +62,7 @@ fi
 if [ -f "${PID_FILE}" ]; then
   existing_pid="$(cat "${PID_FILE}")"
   if [ -n "${existing_pid}" ] && kill -0 "${existing_pid}" 2>/dev/null; then
-    printf 'Mordecai is already running at http://127.0.0.1:%s (pid %s).\n' "${MORDECAI_SERVICE_PORT:-8000}" "${existing_pid}"
+    printf 'Mordecai is already running at http://%s:%s (pid %s).\n' "${SERVICE_HOST}" "${SERVICE_PORT}" "${existing_pid}"
     exit 0
   fi
   rm -f "${PID_FILE}"
@@ -71,8 +74,8 @@ export MORDECAI_DATA_DIR="${DATA_DIR}"
 export MORDECAI_STATE_DIR="${STATE_DIR}"
 export MORDECAI_LOG_DIR="${LOG_DIR}"
 export MORDECAI_MODE="${MORDECAI_MODE:-mode-a}"
-export MORDECAI_SERVICE_HOST="${MORDECAI_SERVICE_HOST:-127.0.0.1}"
-export MORDECAI_SERVICE_PORT="${MORDECAI_SERVICE_PORT:-8000}"
+export MORDECAI_SERVICE_HOST="${SERVICE_HOST}"
+export MORDECAI_SERVICE_PORT="${SERVICE_PORT}"
 export MORDECAI_ENABLE_ANDROID_CONTROL="${MORDECAI_ENABLE_ANDROID_CONTROL:-false}"
 export MORDECAI_ENABLE_ADVANCED_SELF_IMPROVEMENT="${MORDECAI_ENABLE_ADVANCED_SELF_IMPROVEMENT:-false}"
 export MORDECAI_ENABLE_DAEMON_MODE="${MORDECAI_ENABLE_DAEMON_MODE:-false}"
@@ -98,7 +101,37 @@ nohup proot-distro login "${PROOT_DISTRO}" --shared-tmp -- /usr/bin/env \
   /bin/bash -lc "cd '${BACKEND_DIR}' && '${ENV_DIR}/bin/python' -m mordecai.main" >> "${LOG_FILE}" 2>&1 &
 echo "$!" > "${PID_FILE}"
 
-printf 'Mordecai started (pid %s).\n' "$(cat "${PID_FILE}")"
-printf 'Dashboard: http://127.0.0.1:%s\n' "${MORDECAI_SERVICE_PORT}"
+wait_for_backend_start() {
+  local pid="$1"
+  local attempt
+  for attempt in $(seq 1 30); do
+    if [ -n "${pid}" ] && ! kill -0 "${pid}" 2>/dev/null; then
+      printf '%s\n' 'Mordecai exited before becoming healthy. Recent backend log output:' >&2
+      tail -n 40 "${LOG_FILE}" >&2 || true
+      rm -f "${PID_FILE}"
+      return 1
+    fi
+    if curl -fsS "${HEALTH_URL}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  printf 'Mordecai did not become healthy at %s within the startup window. Recent backend log output:\n' "${HEALTH_URL}" >&2
+  tail -n 40 "${LOG_FILE}" >&2 || true
+  return 1
+}
+
+backend_pid="$(cat "${PID_FILE}")"
+if ! wait_for_backend_start "${backend_pid}"; then
+  if [ -n "${backend_pid}" ] && kill -0 "${backend_pid}" 2>/dev/null; then
+    kill "${backend_pid}" >/dev/null 2>&1 || true
+  fi
+  rm -f "${PID_FILE}"
+  exit 1
+fi
+
+printf 'Mordecai started (pid %s).\n' "${backend_pid}"
+printf 'Dashboard: http://%s:%s\n' "${SERVICE_HOST}" "${SERVICE_PORT}"
 printf 'Runtime layer: %s (%s)\n' 'proot-distro' "${PROOT_DISTRO}"
+printf 'Health check: %s\n' "${HEALTH_URL}"
 printf 'Log file: %s\n' "${LOG_FILE}"
