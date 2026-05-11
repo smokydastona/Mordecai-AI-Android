@@ -112,6 +112,8 @@ def test_phase1_installer_provisions_phone_supported_local_model_runtimes():
     assert 'assert torch.version.cuda is None' in installer
     assert "command -v ffmpeg >/dev/null" in installer
     assert "-DGGML_NATIVE=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_SERVER=ON -DLLAMA_BUILD_WEBUI=OFF -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF" in installer
+    assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli llama-server -j\\$(nproc)" in installer
+    assert 'Targeted llama.cpp build did not complete; retrying with the broader default build for compatibility with this upstream checkout...' in installer
     assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' -j\\$(nproc)" in installer
     assert "cmake --build '${LLAMA_CPP_BUILD_DIR}' --target llama-cli -j\\$(nproc)" in installer
     assert "'${LLAMA_CPP_BUILD_DIR}/bin/llama-run'" in installer
