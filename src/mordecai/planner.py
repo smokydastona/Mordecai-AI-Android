@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import re
+from time import perf_counter
 from uuid import uuid4
 
-from mordecai.models import AgentPlanRecord, AgentPlanRequest, AgentPlanResponse, AgentPlanStep, RuntimeFailure, RuntimeEvent
+from mordecai.models import AgentPlanRecord, AgentPlanRequest, AgentPlanResponse, AgentPlanStep, RuntimeFailure, RuntimeEvent, ToolExecutionTimelineRecord
 from mordecai.perception import PerceptionService
 from mordecai_core.runtime import RuntimeComponents
 from mordecai_core.tool_registry import RuntimeContext
@@ -92,6 +93,7 @@ class PlannerService:
         for step in plan.steps:
             if not step.tool_name:
                 continue
+            started = perf_counter()
             result = self.components.execute_tool(
                 step.tool_name,
                 arguments=step.arguments,
@@ -104,13 +106,34 @@ class PlannerService:
                     execution_metadata={"goal": plan.goal, "planner_step_id": step.step_id},
                 ),
             )
+            duration_ms = (perf_counter() - started) * 1000
             if result.status == "completed":
                 step.status = "completed"
                 step.result = result.output
-                continue
-            step.status = result.status
-            step.error = RuntimeFailure.model_validate(result.error.model_dump(mode="json")) if result.error else None
-            break
+            else:
+                step.status = result.status
+                step.error = RuntimeFailure.model_validate(result.error.model_dump(mode="json")) if result.error else None
+            self.components.store.append_timeline(
+                ToolExecutionTimelineRecord(
+                    timeline_id=uuid4().hex[:12],
+                    session_id=request.session_id,
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    step_title=step.title,
+                    tool_name=step.tool_name,
+                    status=step.status,
+                    duration_ms=duration_ms,
+                    attempts=getattr(result, "attempts", 1),
+                    error=step.error,
+                    metadata={
+                        "goal": plan.goal,
+                        "arguments": step.arguments,
+                        "rationale": step.rationale,
+                    },
+                )
+            )
+            if result.status != "completed":
+                break
 
         plan.executed = True
         plan.final_response = self._compose_response(plan)

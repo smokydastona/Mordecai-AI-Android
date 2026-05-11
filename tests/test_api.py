@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 import tarfile
+from unittest.mock import MagicMock, patch
 
 import httpx
 from fastapi.testclient import TestClient
@@ -39,6 +40,9 @@ def test_dashboard_alias_endpoint(tmp_path, monkeypatch):
 
     assert response.status_code == 200
     assert "Mordecai Console" in response.text
+    assert "Provider Health" in response.text
+    assert "Policy Audit" in response.text
+    assert "Android Diagnostics" in response.text
 
 
 def test_dashboard_renders_bundle_details_and_approval_toggle(tmp_path, monkeypatch):
@@ -763,11 +767,15 @@ def test_events_and_proxy_logs_endpoints(tmp_path, monkeypatch):
     client.post("/api/chat", json={"message": "github search fastapi"})
     events_response = client.get("/api/events")
     proxy_response = client.get("/api/proxy/logs")
+    filtered_response = client.get("/api/proxy/logs?domain=api.github.com&allowed=true")
 
     assert events_response.status_code == 200
     assert proxy_response.status_code == 200
+    assert filtered_response.status_code == 200
     assert any(event["category"] == "proxy" for event in events_response.json())
     assert proxy_response.json()
+    assert all("api.github.com" in item["url"] for item in filtered_response.json())
+    assert all(item["allowed"] is True for item in filtered_response.json())
 
 
 def test_runtime_trace_and_capabilities_endpoints(tmp_path, monkeypatch):
@@ -776,17 +784,109 @@ def test_runtime_trace_and_capabilities_endpoints(tmp_path, monkeypatch):
     client.post("/api/chat", json={"message": "Status report, Mordecai."})
     trace_response = client.get("/api/runtime/trace")
     capabilities_response = client.get("/api/runtime/capabilities")
+    provider_health_response = client.get("/api/runtime/provider-health")
+    latency_response = client.get("/api/runtime/latency")
 
     assert trace_response.status_code == 200
     assert capabilities_response.status_code == 200
+    assert provider_health_response.status_code == 200
+    assert latency_response.status_code == 200
     trace_payload = trace_response.json()
     capabilities_payload = capabilities_response.json()
     assert "events" in trace_payload
+    assert "policy_audits" in trace_payload
+    assert "latency_summary" in trace_payload
+    assert "provider_health" in trace_payload
     assert any(event["name"].startswith("provider.") for event in trace_payload["events"])
     assert "providers" in capabilities_payload
+    assert "provider_health" in capabilities_payload
     assert "openai-compatible" in capabilities_payload["providers"]
     assert any(tool["tool"] == "filesystem.write" for tool in capabilities_payload["tools"])
     assert any(profile["name"] == "ollama-local" for profile in capabilities_payload["local_models"])
+    assert any(record["provider"] == "rule-based" for record in provider_health_response.json())
+    assert latency_response.json()["summary"]["request_count"] >= 1
+
+
+def test_policy_audit_endpoint_records_denials(tmp_path, monkeypatch):
+    monkeypatch.setenv("MORDECAI_ENABLE_ANDROID_CONTROL", "true")
+    get_settings.cache_clear()
+    build_runtime.cache_clear()
+    get_runtime_components.cache_clear()
+    client = build_test_client(tmp_path, monkeypatch)
+
+    with patch("mordecai.android_control.shutil.which", return_value="/usr/bin/adb"):
+        response = client.post("/api/android/action", json={"action": "tap", "arguments": ["100", "200"]})
+
+    assert response.status_code == 403
+    audit_response = client.get("/api/policy/audits?allowed=false&surface=android-action")
+    assert audit_response.status_code == 200
+    payload = audit_response.json()
+    assert payload
+    assert payload[-1]["surface"] == "android-action"
+    assert payload[-1]["allowed"] is False
+
+
+def test_runtime_latency_and_timelines_endpoints(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    plan_response = client.post(
+        "/api/agent/plan",
+        json={
+            "goal": "Check git status for this repo",
+            "auto_execute": True,
+            "granted_permissions": ["git"],
+            "session_id": "timeline-test",
+        },
+    )
+    latency_response = client.get("/api/runtime/latency?path=/api/agent/plan")
+    timeline_response = client.get("/api/runtime/timelines?session_id=timeline-test")
+
+    assert plan_response.status_code == 200
+    assert latency_response.status_code == 200
+    assert timeline_response.status_code == 200
+    assert latency_response.json()["summary"]["request_count"] >= 1
+    assert any(record["tool_name"] == "git.status" for record in timeline_response.json())
+
+
+def test_improvement_candidate_test_output_endpoint(tmp_path, monkeypatch):
+    client = build_test_client(tmp_path, monkeypatch)
+
+    propose_response = client.post(
+        "/api/improvement/propose",
+        json={
+            "description": "Add a safe note file",
+            "changes": [{"path": "notes.txt", "content": "hello from candidate\n"}],
+            "run_tests": False,
+        },
+    )
+
+    assert propose_response.status_code == 200
+    candidate_id = propose_response.json()["candidate_id"]
+    output_response = client.get(f"/api/improvement/candidates/{candidate_id}/test-output")
+
+    assert output_response.status_code == 200
+    assert output_response.json()["candidate_id"] == candidate_id
+    assert output_response.json()["test_output"] == "Not run"
+
+
+def test_android_diagnostics_endpoints(tmp_path, monkeypatch):
+    monkeypatch.setenv("MORDECAI_ENABLE_ANDROID_CONTROL", "true")
+    monkeypatch.setenv("MORDECAI_ENABLE_MODE_B", "true")
+    get_settings.cache_clear()
+    build_runtime.cache_clear()
+    get_runtime_components.cache_clear()
+    client = build_test_client(tmp_path, monkeypatch)
+
+    with patch("mordecai.android_control.shutil.which", return_value="/usr/bin/adb"), patch("mordecai.android_control.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="Current Battery Service state:\n  level: 87\n  status: 2\n", stderr="")
+        collect_response = client.post("/api/android/diagnostics/battery")
+        list_response = client.get("/api/android/diagnostics?category=battery")
+
+    assert collect_response.status_code == 200
+    assert collect_response.json()["category"] == "battery"
+    assert list_response.status_code == 200
+    assert list_response.json()
+    assert list_response.json()[-1]["category"] == "battery"
 
 
 def test_tool_execution_endpoint_runs_registered_tool(tmp_path, monkeypatch):

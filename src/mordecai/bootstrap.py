@@ -18,6 +18,7 @@ def build_runtime() -> tuple[MordecaiRuntime, SafeHttpClient, GitService, SelfIm
     ensure_state_dirs(settings)
     store = StateStore(settings.state_dir, settings.max_log_entries)
     policy = PolicyEngine(settings)
+    policy.attach_store(store)
     proxy = SafeHttpClient(settings, policy, store)
     git_service = GitService(settings.workspace_dir)
     improvement_manager = SelfImprovementManager(settings, policy, store)
@@ -31,5 +32,5 @@ def build_runtime() -> tuple[MordecaiRuntime, SafeHttpClient, GitService, SelfIm
         improvement_manager=improvement_manager,
         watchdog=Watchdog(settings),
     )
-    android = AndroidController(settings, policy)
+    android = AndroidController(settings, policy, store=store)
     return runtime, proxy, git_service, improvement_manager, android, policy, store

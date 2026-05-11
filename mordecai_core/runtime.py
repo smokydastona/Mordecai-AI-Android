@@ -61,6 +61,7 @@ class RuntimeComponents:
             "providers": self.provider_catalog.capabilities_matrix(),
             "tools": self.tool_registry.capability_manifest(),
             "local_models": LocalModelService(self.runtime.settings).capability_manifest(),
+            "provider_health": [record.model_dump(mode="json") for record in self.runtime.provider_router.health_snapshot()],
         }
 
     def trace_snapshot(self, limit: int = 25) -> dict[str, object]:
@@ -76,6 +77,11 @@ class RuntimeComponents:
             "events": events,
             "executions": [record.model_dump(mode="json") for record in self.store.read_tool_executions()[-limit:]],
             "provider_decisions": self.runtime.provider_router.recent_decisions()[-limit:],
+            "policy_audits": [record.model_dump(mode="json") for record in self.store.read_policy_audits()[-limit:]],
+            "latency_records": [record.model_dump(mode="json") for record in self.store.read_request_latencies()[-limit:]],
+            "latency_summary": self.store.summarize_request_latencies().model_dump(mode="json"),
+            "timelines": [record.model_dump(mode="json") for record in self.store.read_timelines()[-limit:]],
+            "provider_health": [record.model_dump(mode="json") for record in self.store.read_provider_health()],
         }
 
 

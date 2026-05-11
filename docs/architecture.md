@@ -209,6 +209,23 @@ The runtime now also exposes explicit planning, perception, and voice-session AP
 - Android perception: `/api/android/perception`, `/api/android/perception/latest`, `/api/android/perception/history`
 - voice sessions: `/api/voice/sessions`, `/api/voice/sessions/{session_id}`, `/api/voice/sessions/{session_id}/events`
 
+The diagnostics surface now also exposes explicit observability APIs:
+
+- provider health: `/api/runtime/provider-health`
+- request latency and path summaries: `/api/runtime/latency`
+- planner and tool execution timelines: `/api/runtime/timelines`
+- policy audit trail: `/api/policy/audits`
+- filtered proxy logs: `/api/proxy/logs`
+- candidate test-output evidence: `/api/improvement/candidates/{candidate_id}/test-output`
+- Android diagnostics: `/api/android/diagnostics`, `/api/android/diagnostics/{category}`
+
+These endpoints follow the same runtime contract principles as the provider registry and tool manifest:
+
+- the data is explicit and operator-visible rather than hidden in logs or prompts
+- the records are persisted through the shared state-store layer so restarts do not erase the debugging trail
+- Android diagnostics stay additive and Mode B-gated rather than becoming a hidden dependency of the Mode A runtime
+- provider readiness, policy decisions, and execution timings remain inspectable without bypassing the existing policy or tool layers
+
 ## First-boot flow
 
 Phase 1 now has a formal first-boot verifier in `scripts/first_boot.sh`. That entrypoint exists to turn the install contract into an observable startup contract:

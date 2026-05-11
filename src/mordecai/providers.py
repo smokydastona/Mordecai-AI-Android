@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
+
+from mordecai.models import ProviderHealthRecord
 
 from mordecai.config import Settings
 from mordecai_core.events import EventBus
@@ -27,6 +31,8 @@ class ProviderRouter:
             ]
         )
         self._recent_decisions: list[dict[str, Any]] = []
+        self._health_cache: list[ProviderHealthRecord] = []
+        self._health_cache_at: datetime | None = None
 
     async def generate(self, system_prompt: str, message: str, context: str) -> ProviderReply:
         request = ProviderRequest(system_prompt=system_prompt, message=message, context=context)
@@ -56,6 +62,65 @@ class ProviderRouter:
 
     def preferred_provider_name(self) -> str:
         return self._preferred_provider_name()
+
+    def health_snapshot(self, *, refresh: bool = False) -> list[ProviderHealthRecord]:
+        now = datetime.now(UTC)
+        if not refresh and self._health_cache_at is not None and now - self._health_cache_at < timedelta(minutes=5):
+            return list(self._health_cache)
+
+        preferred = self._preferred_provider_name()
+        records = [
+            ProviderHealthRecord(
+                provider="rule-based",
+                healthy=True,
+                status="ready",
+                details={
+                    "local": True,
+                    "preferred": preferred == "rule-based",
+                    "reason": "Local fallback provider is always available.",
+                },
+                checked_at=now,
+            )
+        ]
+
+        missing = []
+        if not self.settings.openai_api_key:
+            missing.append("openai_api_key")
+        if not self.settings.openai_base_url:
+            missing.append("openai_base_url")
+        if not self.settings.openai_model:
+            missing.append("openai_model")
+        host = urlparse(self.settings.openai_base_url).hostname if self.settings.openai_base_url else None
+        allowlisted = host in self.settings.allowed_domains if host else False
+        healthy = not missing and allowlisted
+        status = "ready" if healthy else "degraded"
+        records.append(
+            ProviderHealthRecord(
+                provider="openai-compatible",
+                healthy=healthy,
+                status=status,
+                details={
+                    "preferred": preferred == "openai-compatible",
+                    "base_url": self.settings.openai_base_url,
+                    "model": self.settings.openai_model,
+                    "allowlisted_host": allowlisted,
+                    "hostname": host,
+                    "missing_config": missing,
+                },
+                checked_at=now,
+            )
+        )
+
+        for record in records:
+            self.proxy.store.save_provider_health(record)
+            if self.event_bus is not None:
+                self.event_bus.publish(
+                    "provider.health",
+                    {"provider": record.provider, "healthy": record.healthy, "status": record.status},
+                )
+        self._health_cache = records
+        self._health_cache_at = now
+        return list(records)
 
     def _preferred_provider_name(self) -> str:
         required_fields = [self.settings.openai_api_key, self.settings.openai_base_url, self.settings.openai_model]

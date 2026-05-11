@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import re
+from bisect import insort
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from mordecai.models import AgentPlanRecord, AndroidPerceptionSnapshot, ConversationEntry, GoalRecord, ImprovementBackupRecord, ImprovementCandidate, MemoryRecord, MemorySearchResult, ProxyRequestRecord, RoutineRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord, VoiceSessionRecord
+from mordecai.models import AgentPlanRecord, AndroidDiagnosticRecord, AndroidPerceptionSnapshot, ConversationEntry, GoalRecord, ImprovementBackupRecord, ImprovementCandidate, MemoryRecord, MemorySearchResult, PolicyAuditRecord, ProviderHealthRecord, ProxyRequestRecord, RequestLatencyRecord, RequestLatencySummary, RoutineRecord, RuntimeEvent, RuntimeFailure, ToolExecutionRecord, ToolExecutionTimelineRecord, VoiceSessionRecord
 
 
 class StateStoreError(RuntimeError):
@@ -32,6 +33,11 @@ class StateStore:
         self._perception_path = state_dir / "perception.json"
         self._voice_sessions_path = state_dir / "voice_sessions.json"
         self._plans_path = state_dir / "plans.json"
+        self._policy_audits_path = state_dir / "policy_audits.json"
+        self._provider_health_path = state_dir / "provider_health.json"
+        self._request_latency_path = state_dir / "request_latency.json"
+        self._timelines_path = state_dir / "timelines.json"
+        self._android_diagnostics_path = state_dir / "android_diagnostics.json"
         for path, default in (
             (self._conversation_path, []),
             (self._proxy_log_path, []),
@@ -45,6 +51,11 @@ class StateStore:
             (self._perception_path, []),
             (self._voice_sessions_path, []),
             (self._plans_path, []),
+            (self._policy_audits_path, []),
+            (self._provider_health_path, []),
+            (self._request_latency_path, []),
+            (self._timelines_path, []),
+            (self._android_diagnostics_path, []),
         ):
             if not path.exists():
                 path.write_text(json.dumps(default, indent=2), encoding="utf-8")
@@ -192,6 +203,124 @@ class StateStore:
         with self._lock:
             return [ProxyRequestRecord.model_validate(item) for item in self._load(self._proxy_log_path)]
 
+    def filter_proxy_records(
+        self,
+        *,
+        query: str | None = None,
+        allowed: bool | None = None,
+        method: str | None = None,
+        domain: str | None = None,
+        limit: int | None = None,
+    ) -> list[ProxyRequestRecord]:
+        records = self.read_proxy_records()
+        if query:
+            lowered = query.lower()
+            records = [record for record in records if lowered in record.url.lower() or lowered in record.reason.lower()]
+        if allowed is not None:
+            records = [record for record in records if record.allowed is allowed]
+        if method:
+            normalized_method = method.upper()
+            records = [record for record in records if record.method.upper() == normalized_method]
+        if domain:
+            records = [record for record in records if domain.lower() in record.url.lower()]
+        return records[-limit:] if limit is not None else records
+
+    def append_policy_audit(self, record: PolicyAuditRecord) -> None:
+        with self._lock:
+            payload = self._load(self._policy_audits_path)
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._policy_audits_path, payload)
+
+    def read_policy_audits(self) -> list[PolicyAuditRecord]:
+        with self._lock:
+            return [PolicyAuditRecord.model_validate(item) for item in self._load(self._policy_audits_path)]
+
+    def save_provider_health(self, record: ProviderHealthRecord) -> None:
+        with self._lock:
+            payload = self._load(self._provider_health_path)
+            payload = [item for item in payload if item["provider"] != record.provider]
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._provider_health_path, payload)
+
+    def read_provider_health(self) -> list[ProviderHealthRecord]:
+        with self._lock:
+            return [ProviderHealthRecord.model_validate(item) for item in self._load(self._provider_health_path)]
+
+    def append_request_latency(self, record: RequestLatencyRecord) -> None:
+        with self._lock:
+            payload = self._load(self._request_latency_path)
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._request_latency_path, payload)
+
+    def read_request_latencies(self) -> list[RequestLatencyRecord]:
+        with self._lock:
+            return [RequestLatencyRecord.model_validate(item) for item in self._load(self._request_latency_path)]
+
+    def summarize_request_latencies(self, path: str | None = None) -> RequestLatencySummary:
+        records = self.read_request_latencies()
+        if path is not None:
+            records = [record for record in records if record.path == path]
+        if not records:
+            return RequestLatencySummary()
+        durations = sorted(record.duration_ms for record in records)
+        total = sum(durations)
+        return RequestLatencySummary(
+            request_count=len(durations),
+            p50_ms=self._percentile(durations, 0.5),
+            p95_ms=self._percentile(durations, 0.95),
+            p99_ms=self._percentile(durations, 0.99),
+            max_ms=durations[-1],
+            average_ms=round(total / len(durations), 4),
+        )
+
+    def append_timeline(self, record: ToolExecutionTimelineRecord) -> None:
+        with self._lock:
+            payload = self._load(self._timelines_path)
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._timelines_path, payload)
+
+    def read_timelines(self) -> list[ToolExecutionTimelineRecord]:
+        with self._lock:
+            return [ToolExecutionTimelineRecord.model_validate(item) for item in self._load(self._timelines_path)]
+
+    def filter_timelines(
+        self,
+        *,
+        session_id: str | None = None,
+        plan_id: str | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[ToolExecutionTimelineRecord]:
+        records = self.read_timelines()
+        if session_id:
+            records = [record for record in records if record.session_id == session_id]
+        if plan_id:
+            records = [record for record in records if record.plan_id == plan_id]
+        if status:
+            records = [record for record in records if record.status == status]
+        return records[-limit:] if limit is not None else records
+
+    def append_android_diagnostic(self, record: AndroidDiagnosticRecord) -> None:
+        with self._lock:
+            payload = self._load(self._android_diagnostics_path)
+            payload.append(record.model_dump(mode="json"))
+            self._save(self._android_diagnostics_path, payload)
+
+    def read_android_diagnostics(self) -> list[AndroidDiagnosticRecord]:
+        with self._lock:
+            return [AndroidDiagnosticRecord.model_validate(item) for item in self._load(self._android_diagnostics_path)]
+
+    def filter_android_diagnostics(
+        self,
+        *,
+        category: str | None = None,
+        limit: int | None = None,
+    ) -> list[AndroidDiagnosticRecord]:
+        records = self.read_android_diagnostics()
+        if category:
+            records = [record for record in records if record.category == category]
+        return records[-limit:] if limit is not None else records
+
     def save_candidate(self, candidate: ImprovementCandidate) -> None:
         with self._lock:
             payload = self._load(self._candidates_path)
@@ -202,6 +331,12 @@ class StateStore:
     def read_candidates(self) -> list[ImprovementCandidate]:
         with self._lock:
             return [ImprovementCandidate.model_validate(item) for item in self._load(self._candidates_path)]
+
+    def get_candidate(self, candidate_id: str) -> ImprovementCandidate | None:
+        for candidate in self.read_candidates():
+            if candidate.candidate_id == candidate_id:
+                return candidate
+        return None
 
     def append_event(self, event: RuntimeEvent) -> None:
         with self._lock:
@@ -275,3 +410,12 @@ class StateStore:
     def read_routines(self) -> list[RoutineRecord]:
         with self._lock:
             return [RoutineRecord.model_validate(item) for item in self._load(self._routines_path)]
+
+    @staticmethod
+    def _percentile(values: list[float], ratio: float) -> float:
+        if not values:
+            return 0.0
+        if len(values) == 1:
+            return round(values[0], 4)
+        index = max(0, min(len(values) - 1, round((len(values) - 1) * ratio)))
+        return round(values[index], 4)

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlparse
+from uuid import uuid4
 
 from mordecai.config import Settings
-from mordecai.models import ImprovementFileChange, PolicyReport
+from mordecai.models import ImprovementFileChange, PolicyAuditRecord, PolicyReport
+
+if TYPE_CHECKING:
+    from mordecai.store import StateStore
 
 
 @dataclass(frozen=True)
@@ -67,6 +73,7 @@ class PolicyEngine:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        self.store: StateStore | None = None
         self.protected_paths = frozenset({
             "src/mordecai/agent.py",
             "src/mordecai/android_control.py",
@@ -92,56 +99,95 @@ class PolicyEngine:
             "providers/",
         )
 
-    def validate_url(self, url: str) -> PolicyDecision:
+    def attach_store(self, store: StateStore) -> None:
+        self.store = store
+
+    def validate_url(self, url: str, *, audit: bool = True) -> PolicyDecision:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"}:
-            return PolicyDecision(False, "Only http and https URLs are allowed")
+            decision = PolicyDecision(False, "Only http and https URLs are allowed")
+            return self._record_decision("url", url, decision) if audit else decision
         if parsed.hostname not in self.settings.allowed_domains:
-            return PolicyDecision(False, f"Domain '{parsed.hostname}' is not on the allowlist")
-        return PolicyDecision(True, "allowed")
+            decision = PolicyDecision(False, f"Domain '{parsed.hostname}' is not on the allowlist")
+            return self._record_decision("url", url, decision) if audit else decision
+        decision = PolicyDecision(True, "allowed")
+        return self._record_decision("url", url, decision) if audit else decision
 
     def validate_outbound_request(self, method: str, url: str, payload: object | None = None) -> PolicyDecision:
-        decision = self.validate_url(url)
+        decision = self.validate_url(url, audit=False)
         if not decision.allowed:
-            return decision
+            return self._record_decision("outbound-request", f"{method.upper()} {url}", decision)
 
         parsed = urlparse(url)
         normalized_path = parsed.path.lower()
         for pattern in self.FORBIDDEN_PURCHASE_PATH_PATTERNS:
             if re.search(pattern, normalized_path, flags=re.IGNORECASE):
-                return PolicyDecision(False, "Outbound commerce or checkout endpoints are blocked by policy")
+                return self._record_decision(
+                    "outbound-request",
+                    f"{method.upper()} {url}",
+                    PolicyDecision(False, "Outbound commerce or checkout endpoints are blocked by policy"),
+                )
 
         for key, value in parse_qsl(parsed.query, keep_blank_values=True):
             if any(re.search(pattern, key, flags=re.IGNORECASE) for pattern in self.SENSITIVE_QUERY_KEY_PATTERNS):
-                return PolicyDecision(False, "Outbound personal data fields are blocked by policy")
+                return self._record_decision(
+                    "outbound-request",
+                    f"{method.upper()} {url}",
+                    PolicyDecision(False, "Outbound personal data fields are blocked by policy"),
+                )
             if self._contains_sensitive_value(value):
-                return PolicyDecision(False, "Outbound personal data values are blocked by policy")
+                return self._record_decision(
+                    "outbound-request",
+                    f"{method.upper()} {url}",
+                    PolicyDecision(False, "Outbound personal data values are blocked by policy"),
+                )
 
         if method.upper() not in {"GET", "HEAD"}:
             if self._contains_sensitive_payload(payload):
-                return PolicyDecision(False, "Outbound personal data payloads are blocked by policy")
+                return self._record_decision(
+                    "outbound-request",
+                    f"{method.upper()} {url}",
+                    PolicyDecision(False, "Outbound personal data payloads are blocked by policy"),
+                )
             if self._contains_purchase_payload(payload):
-                return PolicyDecision(False, "Outbound purchase or payment payloads are blocked by policy")
+                return self._record_decision(
+                    "outbound-request",
+                    f"{method.upper()} {url}",
+                    PolicyDecision(False, "Outbound purchase or payment payloads are blocked by policy"),
+                )
 
-        return PolicyDecision(True, "allowed")
+        return self._record_decision("outbound-request", f"{method.upper()} {url}", PolicyDecision(True, "allowed"))
 
     def validate_android_action(self, action: str, arguments: list[str]) -> PolicyDecision:
         if action in self.FORBIDDEN_ANDROID_ACTIONS:
-            return PolicyDecision(
-                False,
-                "Direct screen input actions are blocked to prevent purchases and personal-data entry",
+            return self._record_decision(
+                "android-action",
+                action,
+                PolicyDecision(
+                    False,
+                    "Direct screen input actions are blocked to prevent purchases and personal-data entry",
+                ),
             )
         if action == "open_app" and arguments:
             package = arguments[0].strip().lower()
             if any(token in package for token in ("vending", "play", "store", "shop", "pay", "wallet", "amazon")):
-                return PolicyDecision(False, "Commerce-oriented app launches are blocked by policy")
-        return PolicyDecision(True, "allowed")
+                return self._record_decision(
+                    "android-action",
+                    action,
+                    PolicyDecision(False, "Commerce-oriented app launches are blocked by policy"),
+                    {"package": package},
+                )
+        return self._record_decision("android-action", action, PolicyDecision(True, "allowed"), {"arguments": arguments})
 
     def validate_command(self, command: str) -> PolicyDecision:
         for pattern in self.FORBIDDEN_COMMAND_PATTERNS:
             if re.search(pattern, command, flags=re.IGNORECASE):
-                return PolicyDecision(False, f"Command blocked by policy pattern: {pattern}")
-        return PolicyDecision(True, "allowed")
+                return self._record_decision(
+                    "command",
+                    command,
+                    PolicyDecision(False, f"Command blocked by policy pattern: {pattern}"),
+                )
+        return self._record_decision("command", command, PolicyDecision(True, "allowed"))
 
     def validate_file_changes(self, changes: list[ImprovementFileChange]) -> PolicyDecision:
         touched = {self._normalize_path(change.path) for change in changes}
@@ -149,8 +195,12 @@ class PolicyEngine:
             path for path in touched if path in self.protected_paths or any(path.startswith(prefix) for prefix in self.protected_prefixes)
         )
         if blocked:
-            return PolicyDecision(False, f"Protected paths cannot be changed: {', '.join(blocked)}")
-        return PolicyDecision(True, "allowed")
+            return self._record_decision(
+                "file-change",
+                ", ".join(sorted(touched)),
+                PolicyDecision(False, f"Protected paths cannot be changed: {', '.join(blocked)}"),
+            )
+        return self._record_decision("file-change", ", ".join(sorted(touched)), PolicyDecision(True, "allowed"))
 
     def validate_change_content(self, changes: list[ImprovementFileChange]) -> PolicyDecision:
         blocked: list[str] = []
@@ -164,8 +214,16 @@ class PolicyEngine:
                     blocked.append(f"{normalized_path} (blocked diff pattern: {pattern})")
                     break
         if blocked:
-            return PolicyDecision(False, f"Diff filters blocked changes: {', '.join(blocked)}")
-        return PolicyDecision(True, "allowed")
+            return self._record_decision(
+                "diff-content",
+                ", ".join(self._normalize_path(change.path) for change in changes),
+                PolicyDecision(False, f"Diff filters blocked changes: {', '.join(blocked)}"),
+            )
+        return self._record_decision(
+            "diff-content",
+            ", ".join(self._normalize_path(change.path) for change in changes),
+            PolicyDecision(True, "allowed"),
+        )
 
     def report(self) -> PolicyReport:
         allowed_features = [
@@ -231,3 +289,24 @@ class PolicyEngine:
         if isinstance(payload, str):
             return payload
         return repr(payload)
+
+    def _record_decision(
+        self,
+        surface: str,
+        target: str,
+        decision: PolicyDecision,
+        metadata: dict[str, object] | None = None,
+    ) -> PolicyDecision:
+        if self.store is not None:
+            self.store.append_policy_audit(
+                PolicyAuditRecord(
+                    audit_id=uuid4().hex[:12],
+                    surface=surface,
+                    target=target,
+                    allowed=decision.allowed,
+                    reason=decision.reason,
+                    metadata=metadata or {},
+                    created_at=datetime.now(UTC),
+                )
+            )
+        return decision

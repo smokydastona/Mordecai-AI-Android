@@ -5,8 +5,10 @@ import hashlib
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from time import perf_counter
 from typing import Any
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import quote_plus, urljoin, urlparse
+from uuid import uuid4
 
 import httpx
 
@@ -61,20 +63,24 @@ class SafeHttpClient:
     ) -> Path:
         destination.parent.mkdir(parents=True, exist_ok=True)
         temp_path = destination.with_name(f"{destination.name}.download")
+        request_id = uuid4().hex[:12]
+        started = perf_counter()
         if temp_path.exists():
             temp_path.unlink()
 
         headers = {"User-Agent": "Mordecai/0.1", "Accept": "application/octet-stream"}
         async with self._client_factory() as client:
             current_url = url
+            redirect_count = 0
             for _ in range(6):
-                await self._gate_request(current_url, "GET")
+                await self._gate_request(current_url, "GET", request_id=request_id)
                 async with client.stream("GET", current_url, headers=headers, follow_redirects=False) as response:
                     if response.status_code in {301, 302, 303, 307, 308}:
                         location = response.headers.get("location")
                         if not location:
                             raise RuntimeError("Redirect response did not include a location header")
                         current_url = urljoin(str(response.request.url), location)
+                        redirect_count += 1
                         continue
                     response.raise_for_status()
 
@@ -108,6 +114,22 @@ class SafeHttpClient:
                     temp_path.replace(destination)
                     if executable:
                         destination.chmod(0o755)
+                    duration_ms = (perf_counter() - started) * 1000
+                    self.store.append_proxy_record(
+                        ProxyRequestRecord(
+                            request_id=request_id,
+                            method="GET",
+                            url=current_url,
+                            allowed=True,
+                            reason="downloaded",
+                            status_code=response.status_code,
+                            latency_ms=duration_ms,
+                            response_bytes=total_bytes,
+                            redirect_count=redirect_count,
+                            tags=[urlparse(current_url).hostname or ""],
+                        )
+                    )
+                    self.store.append_event(RuntimeEvent(category="proxy", detail=f"GET {current_url} -> {response.status_code}"))
                     return destination
 
         raise RuntimeError(f"Too many redirects while downloading {url}")
@@ -155,10 +177,14 @@ class SafeHttpClient:
         if headers:
             request_headers.update(headers)
 
+        request_id = uuid4().hex[:12]
+        started = perf_counter()
+
         async with self._client_factory() as client:
             current_url = url
+            redirect_count = 0
             for _ in range(6):
-                await self.gate_request(current_url, method, json)
+                await self.gate_request(current_url, method, json, request_id=request_id)
                 response = await client.request(
                     method,
                     current_url,
@@ -171,22 +197,47 @@ class SafeHttpClient:
                     if not location:
                         response.raise_for_status()
                     current_url = urljoin(str(response.request.url), location)
+                    redirect_count += 1
                     continue
                 response.raise_for_status()
+                duration_ms = (perf_counter() - started) * 1000
+                content_length = len(response.content or b"")
+                self.store.append_proxy_record(
+                    ProxyRequestRecord(
+                        request_id=request_id,
+                        method=method.upper(),
+                        url=current_url,
+                        allowed=True,
+                        reason="allowed",
+                        status_code=response.status_code,
+                        latency_ms=duration_ms,
+                        response_bytes=content_length,
+                        redirect_count=redirect_count,
+                        tags=[urlparse(current_url).hostname or ""],
+                    )
+                )
+                self.store.append_event(RuntimeEvent(category="proxy", detail=f"{method.upper()} {current_url} -> {response.status_code}"))
                 return response
 
         raise RuntimeError(f"Too many redirects while requesting {url}")
 
-    async def _gate_request(self, url: str, method: str) -> None:
-        await self.gate_request(url, method)
+    async def _gate_request(self, url: str, method: str, *, request_id: str | None = None) -> None:
+        await self.gate_request(url, method, request_id=request_id)
 
-    async def gate_request(self, url: str, method: str, payload: object | None = None) -> None:
+    async def gate_request(self, url: str, method: str, payload: object | None = None, *, request_id: str | None = None) -> None:
         decision = self.policy.validate_outbound_request(method, url, payload)
-        self.store.append_proxy_record(
-            ProxyRequestRecord(method=method, url=url, allowed=decision.allowed, reason=decision.reason)
-        )
-        self.store.append_event(RuntimeEvent(category="proxy", detail=f"{method} {url} -> {decision.reason}"))
         if not decision.allowed:
+            self.store.append_proxy_record(
+                ProxyRequestRecord(
+                    request_id=request_id,
+                    method=method.upper(),
+                    url=url,
+                    allowed=False,
+                    reason=decision.reason,
+                    tags=[urlparse(url).hostname or ""],
+                )
+            )
+            self.store.append_event(RuntimeEvent(category="proxy", detail=f"{method.upper()} {url} -> {decision.reason}"))
             raise PermissionError(decision.reason)
         async with self._lock:
             now = datetime.now(UTC)
@@ -194,5 +245,26 @@ class SafeHttpClient:
             while self._request_times and self._request_times[0] < cutoff:
                 self._request_times.popleft()
             if len(self._request_times) >= self.settings.max_requests_per_minute:
+                self.store.append_proxy_record(
+                    ProxyRequestRecord(
+                        request_id=request_id,
+                        method=method.upper(),
+                        url=url,
+                        allowed=False,
+                        reason="Outbound request rate limit exceeded",
+                        tags=[urlparse(url).hostname or ""],
+                    )
+                )
+                self.store.append_event(RuntimeEvent(category="proxy", detail=f"{method.upper()} {url} -> rate-limit"))
                 raise RuntimeError("Outbound request rate limit exceeded")
             self._request_times.append(now)
+        self.store.append_proxy_record(
+            ProxyRequestRecord(
+                request_id=request_id,
+                method=method.upper(),
+                url=url,
+                allowed=True,
+                reason=decision.reason,
+                tags=[urlparse(url).hostname or ""],
+            )
+        )

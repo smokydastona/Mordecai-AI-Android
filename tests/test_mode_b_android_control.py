@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from mordecai.android_control import AndroidController
 from mordecai.config import Settings
 from mordecai.policy import PolicyEngine, PolicyDecision
+from mordecai.store import StateStore
 
 
 class TestModeBAandroidController:
@@ -245,3 +246,35 @@ class TestModeBAandroidController:
 
             controller.perform("recents", [])
             assert mock_run.call_args[0][0] == ["adb", "shell", "input", "keyevent", "KEYCODE_APP_SWITCH"]
+
+    def test_collect_battery_diagnostic_persists_record(self, tmp_path, settings_mode_b_enabled, policy):
+        store = StateStore(tmp_path / ".mordecai", 20)
+        controller = AndroidController(settings_mode_b_enabled, policy, store=store)
+
+        with patch("mordecai.android_control.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="Current Battery Service state:\n  level: 91\n  status: 2\n", stderr="")
+            record = controller.collect_diagnostic("battery")
+
+        assert record.category == "battery"
+        assert "level=91" in record.summary
+        assert controller.list_diagnostics(category="battery", limit=5)[-1].category == "battery"
+
+    def test_collect_logcat_diagnostic_filters_output(self, tmp_path, settings_mode_b_enabled, policy):
+        store = StateStore(tmp_path / ".mordecai", 20)
+        controller = AndroidController(settings_mode_b_enabled, policy, store=store)
+        logcat = "Mordecai started\nNoise line\nMordecai warning\n"
+
+        with patch("mordecai.android_control.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout=logcat, stderr="")
+            record = controller.collect_diagnostic("logcat", filter_text="Mordecai", limit=50)
+
+        assert record.category == "logcat"
+        assert record.details["line_count"] == 2
+        assert all("Mordecai" in line for line in record.details["preview"])
+
+    def test_collect_process_memory_requires_allowlisted_package(self, tmp_path, settings_mode_b_enabled, policy):
+        store = StateStore(tmp_path / ".mordecai", 20)
+        controller = AndroidController(settings_mode_b_enabled, policy, store=store)
+
+        with pytest.raises(PermissionError, match="not allowlisted"):
+            controller.collect_diagnostic("process-memory", package="com.example.blocked")

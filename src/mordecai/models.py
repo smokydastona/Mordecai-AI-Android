@@ -204,10 +204,78 @@ class VoiceSessionEventResponse(BaseModel):
 
 
 class ProxyRequestRecord(BaseModel):
+    request_id: str | None = None
     method: str
     url: str
     allowed: bool
     reason: str
+    status_code: int | None = None
+    latency_ms: float | None = None
+    response_bytes: int | None = None
+    redirect_count: int = 0
+    tags: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class PolicyAuditRecord(BaseModel):
+    audit_id: str
+    surface: str
+    target: str
+    allowed: bool
+    reason: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ProviderHealthRecord(BaseModel):
+    provider: str
+    healthy: bool
+    status: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    checked_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class RequestLatencyRecord(BaseModel):
+    request_id: str
+    method: str
+    path: str
+    status_code: int
+    duration_ms: float
+    provider: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class RequestLatencySummary(BaseModel):
+    request_count: int = 0
+    p50_ms: float = 0.0
+    p95_ms: float = 0.0
+    p99_ms: float = 0.0
+    max_ms: float = 0.0
+    average_ms: float = 0.0
+
+
+class ToolExecutionTimelineRecord(BaseModel):
+    timeline_id: str
+    session_id: str
+    plan_id: str | None = None
+    step_id: str | None = None
+    step_title: str
+    tool_name: str | None = None
+    status: str
+    duration_ms: float
+    attempts: int = 0
+    error: RuntimeFailure | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class AndroidDiagnosticRecord(BaseModel):
+    diagnostic_id: str
+    category: str
+    source: str
+    summary: str
+    details: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

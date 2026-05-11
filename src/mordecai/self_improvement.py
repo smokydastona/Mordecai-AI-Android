@@ -119,6 +119,20 @@ class SelfImprovementManager:
     def list_backups(self) -> list[ImprovementBackupRecord]:
         return self.store.read_backup_records()
 
+    def get_candidate(self, candidate_id: str) -> ImprovementCandidate:
+        candidate = self.store.get_candidate(candidate_id)
+        if candidate is None:
+            raise KeyError(f"Unknown candidate '{candidate_id}'")
+        return candidate
+
+    def get_candidate_test_output(self, candidate_id: str) -> dict[str, str | bool | None]:
+        candidate = self.get_candidate(candidate_id)
+        return {
+            "candidate_id": candidate.candidate_id,
+            "tests_passed": candidate.tests_passed,
+            "test_output": candidate.test_output,
+        }
+
     def rollback_candidate(self, candidate_id: str) -> ImprovementCandidate:
         candidate = self._get_candidate(candidate_id)
         backup_root = self.settings.state_dir / "backups" / candidate_id
@@ -138,10 +152,7 @@ class SelfImprovementManager:
         return candidate
 
     def _get_candidate(self, candidate_id: str) -> ImprovementCandidate:
-        for candidate in self.store.read_candidates():
-            if candidate.candidate_id == candidate_id:
-                return candidate
-        raise KeyError(f"Unknown candidate '{candidate_id}'")
+        return self.get_candidate(candidate_id)
 
     def _prepare_candidate_workspace(self, candidate_root: Path) -> Path:
         workspace_copy = candidate_root / "workspace"

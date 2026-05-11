@@ -361,11 +361,23 @@ The installer can also add an optional debugging toolkit when you set `MORDECAI_
 ## Diagnostics surface
 
 - `GET /api/events` returns recent runtime events such as candidate creation, apply, rollback, and proxy activity.
-- `GET /api/proxy/logs` returns the outbound request log with allow / deny decisions.
+- `GET /api/proxy/logs` returns the outbound request log with allow / deny decisions, plus query, decision, method, and domain filters for operator triage.
 - `GET /api/runtime/trace` returns recent execution and provider-routing events from the modular runtime surface.
-- `GET /api/runtime/trace` also returns persisted tool execution history so completed tool chains survive process restarts.
-- `GET /api/runtime/capabilities` returns the provider capability matrix plus tool permission and sandbox metadata.
+- `GET /api/runtime/trace` also returns persisted tool execution history, policy audits, request-latency samples and summary statistics, execution timelines, and provider-health snapshots so completed tool chains survive process restarts.
+- `GET /api/runtime/capabilities` returns the provider capability matrix plus tool permission, sandbox metadata, and cached provider-health status.
+- `GET /api/runtime/provider-health` returns cached readiness snapshots for built-in providers.
+- `GET /api/runtime/latency` returns recent request-latency records, percentile summaries, and per-path rollups.
+- `GET /api/runtime/timelines` returns persisted planner or tool execution timeline records with step-level status and duration data.
+- `GET /api/policy/audits` returns structured policy decisions so blocked commands, paths, URLs, and Android actions remain operator-visible.
 - `GET /api/avatar` returns the immutable avatar style, current emotion, and all protected frame assets.
 - `POST /api/tools/execute` is the operator and agent execution spine for registered tools.
 - `GET /api/improvement/backups` lists rollback metadata for applied candidates.
+- `GET /api/improvement/candidates/{candidate_id}/test-output` returns preserved test stdout or stderr for sandbox candidates.
 - `POST /api/improvement/rollback/{candidate_id}` restores backed-up files for a previously applied candidate.
+- `GET /api/android/diagnostics` and `POST /api/android/diagnostics/{category}` expose persisted and on-demand Android diagnostics for Mode B operators, including battery, logcat, process-memory, and thermal snapshots.
+
+## Operator dashboard
+
+- The dashboard now surfaces policy-audit history, provider-health status, request-latency summaries, planner execution timelines, filtered proxy activity, Android diagnostics, and candidate test output in addition to the earlier runtime trace and capability views.
+- Proxy activity can now be filtered directly in the console by search text, HTTP method, domain, and allow or deny decision before escalating to external tooling.
+- The Android diagnostics panel can trigger new Mode B captures for battery, logcat, process-memory, and thermal state while preserving the resulting records under the runtime state directory.

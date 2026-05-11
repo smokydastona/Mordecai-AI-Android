@@ -1,12 +1,16 @@
+from collections import defaultdict
+from time import perf_counter
+from uuid import uuid4
+
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
 from mordecai.config import ensure_state_dirs, get_settings
 from mordecai.bootstrap import build_runtime
 from mordecai.dashboard import render_dashboard
 from mordecai.local_models import LocalModelService
-from mordecai.models import AgentPlanRequest, AndroidActionRequest, AndroidPerceptionIngestRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, MemorySearchRequest, MemoryWriteRequest, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, VoiceSessionEventRequest, VoiceSessionStartRequest, VoiceSynthesizeRequest, VoiceTranscribeRequest, WebSearchRequest
+from mordecai.models import AgentPlanRequest, AndroidActionRequest, AndroidPerceptionIngestRequest, ApiErrorResponse, ChatRequest, FetchRequest, GithubSearchRequest, GitBackupRequest, GoalRequest, ImprovementRequest, LocalModelInstallRequest, MemorySearchRequest, MemoryWriteRequest, RequestLatencyRecord, RoutineRequest, RuntimeFailure, ToolExecutionApiRequest, ToolExecutionApiResponse, VoiceSessionEventRequest, VoiceSessionStartRequest, VoiceSynthesizeRequest, VoiceTranscribeRequest, WebSearchRequest
 from mordecai.perception import PerceptionService
 from mordecai.planner import PlannerService
 from mordecai.runtime_contracts import provider_registry_snapshot, tool_manifest_snapshot
@@ -38,6 +42,41 @@ def create_app() -> FastAPI:
     app.state.perception_service = perception_service
     app.state.planner_service = planner_service
     app.state.voice_sessions = voice_sessions
+
+    @app.middleware("http")
+    async def record_request_latency(request: Request, call_next):
+        request_id = uuid4().hex[:12]
+        started = perf_counter()
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+        except Exception:
+            duration_ms = (perf_counter() - started) * 1000
+            components.store.append_request_latency(
+                RequestLatencyRecord(
+                    request_id=request_id,
+                    method=request.method,
+                    path=request.url.path,
+                    status_code=status_code,
+                    duration_ms=duration_ms,
+                    metadata={"query_params": len(request.query_params)},
+                )
+            )
+            raise
+        duration_ms = (perf_counter() - started) * 1000
+        components.store.append_request_latency(
+            RequestLatencyRecord(
+                request_id=request_id,
+                method=request.method,
+                path=request.url.path,
+                status_code=status_code,
+                duration_ms=duration_ms,
+                metadata={"query_params": len(request.query_params)},
+            )
+        )
+        response.headers["X-Mordecai-Request-ID"] = request_id
+        return response
 
     def raise_api_error(status_code: int, code: str, message: str, details: dict[str, object] | None = None) -> None:
         raise HTTPException(
@@ -188,6 +227,58 @@ def create_app() -> FastAPI:
     async def runtime_capabilities() -> dict[str, object]:
         return components.discover_capabilities()
 
+    @app.get("/api/runtime/provider-health")
+    async def runtime_provider_health(refresh: bool = Query(default=False)) -> list[dict[str, object]]:
+        return [record.model_dump(mode="json") for record in runtime.provider_router.health_snapshot(refresh=refresh)]
+
+    @app.get("/api/runtime/latency")
+    async def runtime_latency(
+        path: str | None = Query(default=None),
+        limit: int = Query(default=50, ge=1, le=500),
+    ) -> dict[str, object]:
+        records = components.store.read_request_latencies()
+        if path is not None:
+            records = [record for record in records if record.path == path]
+        records = records[-limit:]
+        path_buckets: dict[str, list[float]] = defaultdict(list)
+        for record in components.store.read_request_latencies():
+            path_buckets[record.path].append(record.duration_ms)
+        path_summaries = []
+        for record_path, durations in sorted(path_buckets.items()):
+            durations.sort()
+            summary = components.store.summarize_request_latencies(record_path)
+            path_summaries.append({"path": record_path, **summary.model_dump(mode="json")})
+        return {
+            "summary": components.store.summarize_request_latencies(path).model_dump(mode="json"),
+            "paths": path_summaries,
+            "records": [record.model_dump(mode="json") for record in records],
+        }
+
+    @app.get("/api/runtime/timelines")
+    async def runtime_timelines(
+        session_id: str | None = Query(default=None),
+        plan_id: str | None = Query(default=None),
+        status: str | None = Query(default=None),
+        limit: int = Query(default=50, ge=1, le=500),
+    ) -> list[dict[str, object]]:
+        return [
+            record.model_dump(mode="json")
+            for record in components.store.filter_timelines(session_id=session_id, plan_id=plan_id, status=status, limit=limit)
+        ]
+
+    @app.get("/api/policy/audits")
+    async def policy_audits(
+        allowed: bool | None = Query(default=None),
+        surface: str | None = Query(default=None),
+        limit: int = Query(default=50, ge=1, le=500),
+    ) -> list[dict[str, object]]:
+        audits = components.store.read_policy_audits()
+        if allowed is not None:
+            audits = [audit for audit in audits if audit.allowed is allowed]
+        if surface:
+            audits = [audit for audit in audits if audit.surface == surface]
+        return [audit.model_dump(mode="json") for audit in audits[-limit:]]
+
     @app.get("/api/runtime/provider-registry")
     async def runtime_provider_registry() -> dict[str, object]:
         return provider_registry_snapshot(components)
@@ -197,8 +288,23 @@ def create_app() -> FastAPI:
         return tool_manifest_snapshot(components)
 
     @app.get("/api/proxy/logs")
-    async def proxy_logs() -> list[dict[str, object]]:
-        return [entry.model_dump(mode="json") for entry in components.store.read_proxy_records()]
+    async def proxy_logs(
+        query: str | None = Query(default=None),
+        allowed: bool | None = Query(default=None),
+        method: str | None = Query(default=None),
+        domain: str | None = Query(default=None),
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, object]]:
+        return [
+            entry.model_dump(mode="json")
+            for entry in components.store.filter_proxy_records(
+                query=query,
+                allowed=allowed,
+                method=method,
+                domain=domain,
+                limit=limit,
+            )
+        ]
 
     @app.get("/api/voice")
     async def voice() -> dict[str, object]:
@@ -379,6 +485,13 @@ def create_app() -> FastAPI:
     async def improvement_candidates() -> list[dict[str, object]]:
         return [candidate.model_dump(mode="json") for candidate in improvement_manager.list_candidates()]
 
+    @app.get("/api/improvement/candidates/{candidate_id}/test-output")
+    async def improvement_candidate_test_output(candidate_id: str) -> dict[str, object]:
+        try:
+            return improvement_manager.get_candidate_test_output(candidate_id)
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+
     @app.get("/api/improvement/backups")
     async def improvement_backups() -> list[dict[str, object]]:
         return [backup.model_dump(mode="json") for backup in improvement_manager.list_backups()]
@@ -422,6 +535,25 @@ def create_app() -> FastAPI:
             if not request.action.startswith("mode_b_"):
                 raise ValueError(f"Use /api/android/action for non-Mode-B actions; use 'mode_b_' prefix for Mode B actions")
             return android.perform(request.action, request.arguments)
+        except Exception as exc:  # pragma: no cover - surfaced for API clients
+            raise_mapped_exception(exc)
+
+    @app.get("/api/android/diagnostics")
+    async def android_diagnostics(
+        category: str | None = Query(default=None),
+        limit: int = Query(default=25, ge=1, le=200),
+    ) -> list[dict[str, object]]:
+        return [record.model_dump(mode="json") for record in android.list_diagnostics(category=category, limit=limit)]
+
+    @app.post("/api/android/diagnostics/{category}")
+    async def android_collect_diagnostic(
+        category: str,
+        filter_text: str | None = Query(default=None),
+        package: str | None = Query(default=None),
+        limit: int = Query(default=200, ge=1, le=400),
+    ) -> dict[str, object]:
+        try:
+            return android.collect_diagnostic(category, filter_text=filter_text, package=package, limit=limit).model_dump(mode="json")
         except Exception as exc:  # pragma: no cover - surfaced for API clients
             raise_mapped_exception(exc)
 

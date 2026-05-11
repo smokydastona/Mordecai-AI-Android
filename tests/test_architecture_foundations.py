@@ -310,6 +310,8 @@ def test_planner_executes_android_control_step_with_mocked_runtime(tmp_path):
     )
 
     assert executed["tool_name"] == "android.control"
+    assert store.read_timelines()
+    assert store.read_timelines()[-1].tool_name == "android.control"
     assert executed["arguments"]["action"] == "show_notifications"
     assert executed["permissions"] == frozenset({"android-control"})
     assert any(step.tool_name == "android.control" and step.status == "completed" for step in plan.steps)

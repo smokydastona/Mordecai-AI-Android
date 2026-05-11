@@ -222,6 +222,10 @@ def render_dashboard() -> str:
         <pre id="policy"></pre>
       </div>
       <div class="card">
+        <h2>Policy Audit</h2>
+        <pre id="policy-audits"></pre>
+      </div>
+      <div class="card">
         <h2>Memory Browser</h2>
         <pre id="memory"></pre>
       </div>
@@ -232,6 +236,7 @@ def render_dashboard() -> str:
       <div class="card">
         <h2>Improvement Candidates</h2>
         <pre id="candidates"></pre>
+        <pre id="candidate-test-output"></pre>
       </div>
       <div class="card">
         <h2>Goals</h2>
@@ -247,7 +252,47 @@ def render_dashboard() -> str:
       </div>
       <div class="card">
         <h2>Proxy Activity</h2>
+        <div class="control-stack">
+          <div class="row">
+            <div class="field">
+              <label for="proxy-query">Search</label>
+              <input id="proxy-query" placeholder="allowlist, github, blocked" />
+            </div>
+            <div class="field">
+              <label for="proxy-domain">Domain</label>
+              <input id="proxy-domain" placeholder="api.github.com" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="proxy-method">Method</label>
+              <select id="proxy-method">
+                <option value="">All</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="HEAD">HEAD</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="proxy-allowed">Decision</label>
+              <select id="proxy-allowed">
+                <option value="">All</option>
+                <option value="true">Allowed</option>
+                <option value="false">Denied</option>
+              </select>
+            </div>
+          </div>
+          <button id="apply-proxy-filters">Apply Proxy Filters</button>
+        </div>
         <pre id="proxy"></pre>
+      </div>
+      <div class="card">
+        <h2>Provider Health</h2>
+        <pre id="provider-health"></pre>
+      </div>
+      <div class="card">
+        <h2>Request Latency</h2>
+        <pre id="latency"></pre>
       </div>
       <div class="card">
         <h2>Local Models</h2>
@@ -445,6 +490,43 @@ def render_dashboard() -> str:
         <div id="trace" class="trace-list"></div>
       </div>
       <div class="card">
+        <h2>Execution Timelines</h2>
+        <pre id="timelines"></pre>
+      </div>
+      <div class="card">
+        <h2>Android Diagnostics</h2>
+        <div class="control-stack">
+          <div class="row">
+            <div class="field">
+              <label for="android-diagnostic-category">Category</label>
+              <select id="android-diagnostic-category">
+                <option value="battery">Battery</option>
+                <option value="logcat">Logcat</option>
+                <option value="process-memory">Process Memory</option>
+                <option value="thermal">Thermal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="android-diagnostic-limit">Limit</label>
+              <input id="android-diagnostic-limit" type="number" min="1" max="400" value="100" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="android-diagnostic-filter">Filter Text</label>
+              <input id="android-diagnostic-filter" placeholder="Mordecai" />
+            </div>
+            <div class="field">
+              <label for="android-diagnostic-package">Package</label>
+              <input id="android-diagnostic-package" placeholder="com.termux" />
+            </div>
+          </div>
+          <button id="collect-android-diagnostic">Collect Android Diagnostic</button>
+          <pre id="android-diagnostic-response"></pre>
+        </div>
+        <pre id="android-diagnostics"></pre>
+      </div>
+      <div class="card">
         <h2>Capabilities Matrix</h2>
         <div id="capabilities" class="cap-grid"></div>
       </div>
@@ -499,6 +581,7 @@ def render_dashboard() -> str:
   <script>
     let latestCapabilities = null;
     let latestVoiceFilter = {};
+    let latestProxyFilter = {};
     let selectedPlanId = '';
 
     function summarizePerception(snapshot) {
@@ -526,6 +609,15 @@ def render_dashboard() -> str:
       };
     }
 
+    function readProxyFilter() {
+      return {
+        query: document.getElementById('proxy-query').value.trim(),
+        domain: document.getElementById('proxy-domain').value.trim(),
+        method: document.getElementById('proxy-method').value,
+        allowed: document.getElementById('proxy-allowed').value,
+      };
+    }
+
     function buildVoiceCatalogUrl() {
       const params = new URLSearchParams();
       const filter = latestVoiceFilter;
@@ -535,6 +627,17 @@ def render_dashboard() -> str:
       if (filter.supported_only === 'true') params.set('supported_only', 'true');
       const queryString = params.toString();
       return queryString ? `/api/voice/catalog?${queryString}` : '/api/voice/catalog';
+    }
+
+    function buildProxyLogsUrl() {
+      const params = new URLSearchParams();
+      const filter = latestProxyFilter;
+      if (filter.query) params.set('query', filter.query);
+      if (filter.domain) params.set('domain', filter.domain);
+      if (filter.method) params.set('method', filter.method);
+      if (filter.allowed) params.set('allowed', filter.allowed);
+      params.set('limit', '100');
+      return `/api/proxy/logs?${params.toString()}`;
     }
 
     async function loadSelectedPlanDetail() {
@@ -549,24 +652,29 @@ def render_dashboard() -> str:
     }
 
     async function load() {
-      const [status, policy, memory, gitState, candidates, goals, routines, events, proxyLogs, localModels, voiceCatalog, trace, capabilities, avatar, perceptionLatest, perceptionHistory, voiceSessions, planHistory] = await Promise.all([
+      const [status, policy, policyAudits, memory, gitState, candidates, goals, routines, events, proxyLogs, providerHealth, latency, localModels, voiceCatalog, trace, timelines, capabilities, avatar, perceptionLatest, perceptionHistory, voiceSessions, androidDiagnostics, planHistory] = await Promise.all([
         fetch('/api/status').then(r => r.json()),
         fetch('/api/policy').then(r => r.json()),
+        fetch('/api/policy/audits?allowed=false&limit=20').then(r => r.json()),
         fetch('/api/memory').then(r => r.json()),
         fetch('/api/git/status').then(r => r.json()),
         fetch('/api/improvement/candidates').then(r => r.json()),
         fetch('/api/goals').then(r => r.json()),
         fetch('/api/routines').then(r => r.json()),
         fetch('/api/events').then(r => r.json()),
-        fetch('/api/proxy/logs').then(r => r.json()),
+        fetch(buildProxyLogsUrl()).then(r => r.json()),
+        fetch('/api/runtime/provider-health').then(r => r.json()),
+        fetch('/api/runtime/latency?limit=40').then(r => r.json()),
         fetch('/api/local-models').then(r => r.json()),
         fetch(buildVoiceCatalogUrl()).then(r => r.json()),
         fetch('/api/runtime/trace').then(r => r.json()),
+        fetch('/api/runtime/timelines?limit=40').then(r => r.json()),
         fetch('/api/runtime/capabilities').then(r => r.json()),
         fetch('/api/avatar').then(r => r.json()),
         fetch('/api/android/perception/latest').then(r => r.json()),
         fetch('/api/android/perception/history').then(r => r.json()),
         fetch('/api/voice/sessions').then(r => r.json()),
+        fetch('/api/android/diagnostics?limit=10').then(r => r.json()),
         fetch('/api/agent/plans').then(r => r.json()),
       ]);
       latestCapabilities = capabilities;
@@ -584,17 +692,36 @@ def render_dashboard() -> str:
       document.getElementById('avatar-frame').innerHTML = currentFrame ? currentFrame.svg : '';
       document.getElementById('avatar-meta').textContent = `${avatar.style} | emotion=${avatar.current_emotion} | immutable assets=${avatar.immutable_assets}`;
       document.getElementById('policy').textContent = JSON.stringify(policy, null, 2);
+      document.getElementById('policy-audits').textContent = JSON.stringify(policyAudits, null, 2);
       document.getElementById('memory').textContent = JSON.stringify(memory.slice(-20), null, 2);
       document.getElementById('git').textContent = JSON.stringify(gitState, null, 2);
       document.getElementById('candidates').textContent = JSON.stringify(candidates, null, 2);
+      if ((candidates || []).length > 0) {
+        const latestCandidate = candidates[candidates.length - 1];
+        const testOutput = await fetch(`/api/improvement/candidates/${latestCandidate.candidate_id}/test-output`).then(r => r.json());
+        document.getElementById('candidate-test-output').textContent = JSON.stringify(testOutput, null, 2);
+      } else {
+        document.getElementById('candidate-test-output').textContent = JSON.stringify({ status: 'No candidate test output yet.' }, null, 2);
+      }
       document.getElementById('goals').textContent = JSON.stringify(goals, null, 2);
       document.getElementById('routines').textContent = JSON.stringify(routines, null, 2);
       document.getElementById('events').textContent = JSON.stringify(events.slice(-10), null, 2);
-      document.getElementById('proxy').textContent = JSON.stringify(proxyLogs.slice(-10), null, 2);
+      document.getElementById('proxy').textContent = JSON.stringify({
+        filters: latestProxyFilter,
+        preview: proxyLogs.slice(-10),
+        total: proxyLogs.length,
+      }, null, 2);
+      document.getElementById('provider-health').textContent = JSON.stringify(providerHealth, null, 2);
+      document.getElementById('latency').textContent = JSON.stringify({
+        summary: latency.summary,
+        path_preview: (latency.paths || []).slice(0, 12),
+        recent: (latency.records || []).slice(-10),
+      }, null, 2);
       document.getElementById('local-models').textContent = JSON.stringify(localModels, null, 2);
       document.getElementById('perception-latest').textContent = JSON.stringify(summarizePerception(perceptionLatest), null, 2);
       document.getElementById('perception-history').textContent = JSON.stringify((perceptionHistory || []).slice(-5).map(summarizePerception), null, 2);
       document.getElementById('voice-session-list').textContent = JSON.stringify((voiceSessions || []).slice(-10), null, 2);
+      document.getElementById('android-diagnostics').textContent = JSON.stringify(androidDiagnostics, null, 2);
       document.getElementById('planner-history').textContent = JSON.stringify((planHistory || []).slice(-10).reverse().map(plan => ({
         plan_id: plan.plan_id,
         session_id: plan.session_id,
@@ -675,6 +802,7 @@ def render_dashboard() -> str:
         </div>
       `).join('');
       document.getElementById('capabilities').innerHTML = providerCards + toolCards;
+      document.getElementById('timelines').textContent = JSON.stringify(timelines.slice(-12), null, 2);
       document.getElementById('execution-history').innerHTML = trace.executions.slice(-8).reverse().map(record => `
         <div class="trace-item">
           <div class="trace-head"><strong>${record.tool_name}</strong><span>${record.status}</span></div>
@@ -742,6 +870,11 @@ def render_dashboard() -> str:
 
     document.getElementById('apply-voice-filters').addEventListener('click', async () => {
       latestVoiceFilter = readVoiceFilter();
+      await load();
+    });
+
+    document.getElementById('apply-proxy-filters').addEventListener('click', async () => {
+      latestProxyFilter = readProxyFilter();
       await load();
     });
 
@@ -847,6 +980,23 @@ def render_dashboard() -> str:
       });
       const payload = await response.json();
       document.getElementById('voice-session-response').textContent = JSON.stringify(payload, null, 2);
+      await load();
+    });
+
+    document.getElementById('collect-android-diagnostic').addEventListener('click', async () => {
+      const category = document.getElementById('android-diagnostic-category').value;
+      const params = new URLSearchParams();
+      const filterText = document.getElementById('android-diagnostic-filter').value.trim();
+      const pkg = document.getElementById('android-diagnostic-package').value.trim();
+      const limit = document.getElementById('android-diagnostic-limit').value;
+      if (filterText) params.set('filter_text', filterText);
+      if (pkg) params.set('package', pkg);
+      if (limit) params.set('limit', limit);
+      const queryString = params.toString();
+      const url = queryString ? `/api/android/diagnostics/${category}?${queryString}` : `/api/android/diagnostics/${category}`;
+      const response = await fetch(url, { method: 'POST' });
+      const payload = await response.json();
+      document.getElementById('android-diagnostic-response').textContent = JSON.stringify(payload, null, 2);
       await load();
     });
 

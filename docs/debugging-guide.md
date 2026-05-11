@@ -2,6 +2,19 @@
 
 This guide is the operator-facing reference for debugging Mordecai on a phone, inside the Termux plus `proot-distro` backend, and across the guarded outbound network surface.
 
+## Built-In Diagnostics First
+
+Before reaching for external profilers or Android tracing tools, inspect Mordecai's built-in diagnostics surface:
+
+1. `GET /api/runtime/trace` for recent provider routing, tool execution history, policy audits, request-latency samples, execution timelines, and cached provider-health snapshots.
+2. `GET /api/runtime/latency` for percentile summaries and per-path latency rollups when the runtime feels slow but not obviously broken.
+3. `GET /api/policy/audits` when a command, URL, file change, or Android action appears blocked and you need the exact policy reason.
+4. `GET /api/proxy/logs` with query filters when outbound traffic is failing, rate-limited, or unexpectedly redirected.
+5. `GET /api/improvement/candidates/{candidate_id}/test-output` when sandbox candidates fail and the dashboard summary is not enough.
+6. `GET /api/android/diagnostics` or `POST /api/android/diagnostics/{category}` on Mode B devices for persisted battery, logcat, process-memory, and thermal captures.
+
+The dashboard now exposes these same surfaces directly through dedicated panels for policy audit, provider health, latency, timelines, filtered proxy activity, Android diagnostics, and candidate test output.
+
 ## Top 5 Tools For Mordecai
 
 1. `google/perfetto`
@@ -113,8 +126,8 @@ proot-distro login ubuntu-24.04 --shared-tmp -- /bin/bash -lc "$HOME/mordecai/en
 
 ### Slow Replies
 
-1. Call `GET /api/runtime/trace` and `GET /api/proxy/logs` from the dashboard or curl.
-2. Check whether the runtime is waiting on cloud traffic, local model availability, or a slow tool execution.
+1. Call `GET /api/runtime/trace` and `GET /api/runtime/latency` from the dashboard or curl.
+2. Check whether the runtime is waiting on cloud traffic, local model availability, a degraded provider-health snapshot, or a slow tool execution timeline.
 3. Use `py-spy` for a quick sample.
 4. Use `viztracer` when you need a full request trace:
 
@@ -128,9 +141,22 @@ Then open the resulting trace in `speedscope` or another compatible viewer.
 
 ### Guarded Outbound Requests Fail
 
-1. Check `GET /api/proxy/logs` to see the allow or deny reason.
+1. Check `GET /api/proxy/logs` to see the allow or deny reason, then narrow with query, method, domain, or decision filters.
 2. Confirm the target host and any redirect host are both on the allowlist.
-3. Use `mitmproxy` only in a controlled development environment where rerouting traffic is acceptable.
+3. Check `GET /api/policy/audits` if the failure reason suggests a policy block rather than a transport or DNS failure.
+4. Use `mitmproxy` only in a controlled development environment where rerouting traffic is acceptable.
+
+### Sandbox Candidate Fails Tests
+
+1. Inspect `GET /api/improvement/candidates/{candidate_id}/test-output` or the dashboard candidate test-output panel.
+2. Confirm whether the failure came from actual pytest stderr, a timeout, or a missing runtime dependency.
+3. Reproduce locally only after the preserved candidate output is no longer sufficient.
+
+### Android Diagnostics On Mode B
+
+1. Start with the dashboard Android diagnostics panel or `POST /api/android/diagnostics/{category}`.
+2. Use `battery` for quick power state captures, `logcat` when the shell or accessibility service looks unstable, `process-memory` for allowlisted package memory spikes, and `thermal` when the device appears throttled.
+3. Only escalate to `adb logcat`, `Perfetto`, or deeper system tools after the built-in captures stop narrowing the issue.
 
 ### Model download fails or stalls
 
@@ -157,6 +183,8 @@ MORDECAI_INSTALL_LOCAL_MODEL_BINARIES=true bash proot-setup.sh
 tail -n 200 $HOME/mordecai/data/logs/backend.log
 curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/api/runtime/trace
+curl -s http://127.0.0.1:8000/api/runtime/latency
+curl -s http://127.0.0.1:8000/api/policy/audits?allowed=false
 curl -s http://127.0.0.1:8000/api/proxy/logs
 proot-distro login ubuntu-24.04 --shared-tmp -- /bin/bash -lc "$HOME/mordecai/env/bin/py-spy top --pid \$(pgrep -f uvicorn)"
 ```
